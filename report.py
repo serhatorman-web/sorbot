@@ -41,23 +41,41 @@ MARKETS = [
     ("Altın", "GC=F"), ("Petrol (WTI)", "CL=F"),
 ]
 
+# Sadece Türkçe kaynaklar. Üçüncü alan bir filtre: "ai" = sadece yapay zeka ile ilgili başlıklar.
 DEFAULT_FEEDS = {
     "💵 Ekonomi & Finans": [
-        ("Investing TR", "https://tr.investing.com/rss/news.rss"),
-        ("Bloomberg HT", "https://www.bloomberght.com/rss"),
-        ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
-        ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
+        ("Investing TR", "https://tr.investing.com/rss/news.rss", None),
+        ("Investing TR", "https://tr.investing.com/rss/news_14.rss", None),
+        ("Bloomberg HT", "https://www.bloomberght.com/rss", None),
+        ("AA Ekonomi", "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", None),
+        ("Dünya", "https://www.dunya.com/rss", None),
     ],
     "🪙 Kripto": [
-        ("Investing TR Kripto", "https://tr.investing.com/rss/news_301.rss"),
-        ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
-        ("Cointelegraph", "https://cointelegraph.com/rss"),
+        ("Investing TR Kripto", "https://tr.investing.com/rss/news_301.rss", None),
+        ("BTCHaber", "https://www.btchaber.com/feed/", None),
     ],
     "🤖 Yapay Zeka": [
-        ("TechCrunch AI", "https://techcrunch.com/category/artificial-intelligence/feed/"),
-        ("The Verge AI", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
+        ("Webtekno", "https://www.webtekno.com/rss.xml", "ai"),
+        ("ShiftDelete", "https://shiftdelete.net/feed", "ai"),
+        ("DonanımHaber", "https://www.donanimhaber.com/rss/tum/", "ai"),
+        ("LOG", "https://www.log.com.tr/feed/", "ai"),
+        ("Teknoblog", "https://www.teknoblog.com/feed/", "ai"),
     ],
 }
+
+AI_PATTERN = re.compile(
+    r"yapay ?zek[aâ]|\bAI\b|\bA\.I\.|OpenAI|ChatGPT|\bGPT|Gemini|Claude|Anthropic|Copilot|\bLLM|"
+    r"Nvidia|DeepSeek|Grok|xAI|Llama|Mistral|Midjourney|\bSora\b|makine öğren|derin öğren|yapay sinir",
+    re.IGNORECASE)
+SKIP_LINK = ("/transcripts/",)   # Investing'in şirket konferans dökümleri
+
+
+def keep_item(item, flt):
+    if any(s in item["link"] for s in SKIP_LINK):
+        return False
+    if flt == "ai":
+        return bool(AI_PATTERN.search(item["title"]))
+    return True
 
 COUNTRY_FLAG = {"USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵", "CNY": "🇨🇳", "CHF": "🇨🇭",
                 "CAD": "🇨🇦", "AUD": "🇦🇺", "NZD": "🇳🇿", "ALL": "🌍"}
@@ -243,8 +261,13 @@ def market_message(now_tr, d, spot, quotes, etf, events, rcfg):
                  + (f" · 1s {spot['price_chg_1h']:+.2f}%" if spot else ""))
         nf = datetime.fromtimestamp(d["next_funding"] / 1000, TR_TZ)
         fr = d["funding"] * 100
-        fr_note = "long'lar ödüyor" if fr > 0 else ("short'lar ödüyor" if fr < 0 else "nötr")
-        L.append(f"💰 Fonlama: <b>{fr:+.4f}%</b> ({fr_note}) · sonraki {nf:%H:%M}")
+        if fr > 0:
+            fr_note = "🟢 <b>Pozitif</b> – long'lar short'lara ödüyor"
+        elif fr < 0:
+            fr_note = "🔴 <b>Negatif</b> – short'lar long'lara ödüyor"
+        else:
+            fr_note = "⚪ <b>Nötr</b>"
+        L.append(f"💰 Fonlama: <b>{fr:+.4f}%</b> · {fr_note} · sonraki {nf:%H:%M}")
         oi_line = f"📈 Açık pozisyon: <b>{fmt_usd(d['oi_usd'])}</b> ({d['oi_btc']:,.0f} BTC)"
         if d["oi_1h"] is not None:
             oi_line += f" · 1s {d['oi_1h']*100:+.2f}%"
@@ -283,9 +306,9 @@ def market_message(now_tr, d, spot, quotes, etf, events, rcfg):
         for asset, e in etf.items():
             if not e:
                 continue
-            top = ", ".join(f"{n} {v:+,.1f}" for n, v in e["top"]) or "–"
-            L.append(f"{asset} {e['date']}: {arrow(e['total'])} <b>{e['total']:+,.1f}</b> · son {e['n5']} gün {e['sum5']:+,.1f}")
-            L.append(f"   {esc(top)}")
+            word = "giriş" if e["total"] > 0 else ("çıkış" if e["total"] < 0 else "değişim yok")
+            L.append(f"{asset} ({e['date']}): {arrow(e['total'])} <b>{e['total']:+,.1f}</b> net {word} · "
+                     f"son {e['n5']} gün {e['sum5']:+,.1f}")
 
     if events is not None:
         now = now_tr
@@ -381,8 +404,8 @@ def main():
         f_quotes = {sym: ex.submit(safe, market_quote, sym) for _, sym in MARKETS}
         f_etf = {a: ex.submit(safe, etf_flows, a) for a in ("btc", "eth")}
         f_cal = ex.submit(safe, calendar_events)
-        f_feeds = {(cat, src): ex.submit(safe, parse_feed, src, url)
-                   for cat, lst in feeds.items() for src, url in lst}
+        f_feeds = {(cat, src, url, (rest[0] if rest else None)): ex.submit(safe, parse_feed, src, url)
+                   for cat, lst in feeds.items() for src, url, *rest in lst}
         deriv, spot = f_deriv.result(), f_spot.result()
         quotes = {s: fu.result() for s, fu in f_quotes.items()}
         etf = {"BTC": f_etf["btc"].result(), "ETH": f_etf["eth"].result()}
@@ -403,11 +426,17 @@ def main():
     max_age = timedelta(hours=rcfg.get("news_max_age_hours", 2))
     first_run = not state["seen"]
     new_by_cat, seen_now = {}, {}
-    for (cat, src), items in feed_items.items():
+    run_links, run_titles = set(), set()
+    for (cat, src, url, flt), items in feed_items.items():
         for it in items:
             seen_now[it["link"]] = time.time()
-            if it["link"] in state["seen"]:
+            if it["link"] in state["seen"] or not keep_item(it, flt):
                 continue
+            tkey = re.sub(r"\W+", "", it["title"].lower())[:60]
+            if it["link"] in run_links or tkey in run_titles:   # aynı haber farklı akışlarda
+                continue
+            run_links.add(it["link"])
+            run_titles.add(tkey)
             if it["dt"] and now_utc - it["dt"] > max_age:
                 continue
             new_by_cat.setdefault(cat, []).append(it)

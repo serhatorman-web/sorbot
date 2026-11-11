@@ -50,13 +50,13 @@ Her taramadan sonra Telegram'a:
 - **BTC:** fiyat, fonlama oranı (ve sonraki ödeme saati), açık pozisyon (1s / 24s değişim),
   long/short oranı (tüm hesaplar + büyük trader pozisyonları), son 1 saatte **vadeli** ve **spot** alış/satış hacmi
 - **ABD piyasaları:** S&P 500, Nasdaq, Dow, Nasdaq vadeli, VIX, dolar endeksi, ABD 10Y faiz, altın, petrol (Yahoo Finance)
-- **Spot ETF akışları:** BTC ve ETH, son açıklanan gün + son 5 gün toplamı (Farside – veri günde bir güncellenir)
+- **Spot ETF akışları:** sadece BTC ve ETH toplam net giriş/çıkış, son açıklanan gün + son 5 gün (Farside – veri günde bir güncellenir)
 - **Önümüzdeki 3 saatin** orta/yüksek önemli ekonomik verileri
 
-**📰 Son Haberler** – son çalıştırmadan beri yayınlanan yeni başlıklar (link ile):
-- Ekonomi & Finans: Investing TR, Bloomberg HT, CNBC, MarketWatch
-- Kripto: Investing TR Kripto, CoinDesk, Cointelegraph
-- Yapay Zeka: TechCrunch AI, The Verge AI
+**📰 Son Haberler** – son çalıştırmadan beri yayınlanan yeni başlıklar, sadece Türkçe kaynaklar (link ile):
+- Ekonomi & Finans: Investing TR, Bloomberg HT, AA Ekonomi, Dünya
+- Kripto: Investing TR Kripto, BTCHaber
+- Yapay Zeka: Webtekno, ShiftDelete, DonanımHaber, LOG, Teknoblog (sadece yapay zeka ile ilgili başlıklar)
 
 **🗓 Günün Ekonomik Takvimi** – her sabah 09:00'dan sonraki ilk taramada (ForexFactory; USD, EUR, CNY, GBP, JPY,
 orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "gerçekleşen" değeri vermez.

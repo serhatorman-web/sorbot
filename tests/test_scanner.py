@@ -205,6 +205,13 @@ def test_report_parsers_and_messages():
     for word in ("Fonlama", "Açık pozisyon", "Long/Short", "Vadeli", "Spot", "S&amp;P 500", "ETF", "Fed Chair"):
         assert word in m, word
     assert "Fed Chair" in report.calendar_message(ev, now_tr.date(), {})
+    assert "Pozitif" in m and "IBIT" not in m and "net çıkış" in m
+    d["funding"] = -0.0002
+    assert "Negatif" in report.market_message(now_tr, d, spot, {}, {}, None, {})
+    ai = lambda t: report.keep_item({"title": t, "link": "https://x.com/a"}, "ai")
+    assert ai("OpenAI yeni modelini tanıttı") and ai("Yapay zeka çiplerinde yeni dönem") and ai("Nvidia rekor kırdı")
+    assert not ai("Yeni elektrikli araba fiyatları") and not ai("Ailelere müjde")   # 'AI' kelime içi eşleşmesin
+    assert not report.keep_item({"title": "x", "link": "https://tr.investing.com/news/transcripts/a"}, None)
 
 
 def test_market_status():
