@@ -570,16 +570,18 @@ def apply_open_interest(res, oi_hist):
     f = res["f"]
     price_chg = f["c"][-1] / f["c"][-5] - 1
     cfg_pd = res["cfg_pd"]
+    # Supertrend stratejisinde skor = indikatör uyum yüzdesi; OI sadece bilgi notu olur
+    adj = 0 if res.get("votes") else 4
     for key, s in (("long", 1), ("short", -1)):
         side = res[key]
         if oi_chg >= cfg_pd["oi_change_confirm"] and price_chg * s > 0:
-            side["score"] = min(100, side["score"] + 4)
+            side["score"] = min(100, side["score"] + adj)
             side["why"].append(f"✅ Açık pozisyon artıyor (OI 4s {oi_chg*100:+.1f}%) – hareket destekli")
             if oi_chg >= cfg_pd["oi_change_strong"] and res["pd"]["vol_spike"]:
-                side["score"] = min(100, side["score"] + 4)
+                side["score"] = min(100, side["score"] + adj)
                 side["why"].append("🚀 Güçlü OI + hacim artışı" if s == 1 else "💥 Güçlü OI + hacim artışı")
         elif oi_chg <= -cfg_pd["oi_change_confirm"] and price_chg * s > 0:
-            side["score"] = max(0, side["score"] - 4)
+            side["score"] = max(0, side["score"] - adj)
             side["why"].append(f"⚠️ OI düşüyor ({oi_chg*100:+.1f}%) – hareket pozisyon kapatmadan kaynaklı olabilir")
 
 
