@@ -76,6 +76,18 @@ SKIP_TITLE = re.compile(
 PER_SOURCE_MAX = 2
 
 
+def title_signature(title):
+    """Başlığın kaba kök kümesi (Türkçe ekleri tolere etmek için kelimelerin ilk 5 harfi)."""
+    words = re.findall(r"\w+", title.lower())
+    return {w[:5] for w in words if len(w) >= 4}
+
+
+def similar(a, b, threshold=0.45):
+    if not a or not b:
+        return False
+    return len(a & b) / len(a | b) >= threshold
+
+
 def keep_item(item, flt):
     if any(s in item["link"] for s in SKIP_LINK) or SKIP_TITLE.search(item["title"]):
         return False
@@ -446,13 +458,18 @@ def main():
             if it["dt"] and now_utc - it["dt"] > max_age:
                 continue
             new_by_cat.setdefault(cat, []).append(it)
+    picked_sigs = []
     for cat in new_by_cat:
         new_by_cat[cat].sort(key=lambda x: x["dt"] or now_utc, reverse=True)
         per_src, picked = {}, []
-        for it in new_by_cat[cat]:            # her kaynaktan en fazla PER_SOURCE_MAX haber
-            if per_src.get(it["source"], 0) < PER_SOURCE_MAX:
+        for it in new_by_cat[cat]:
+            sig = title_signature(it["title"])
+            if any(similar(sig, p) for p in picked_sigs):   # aynı olay başka kaynaktan
+                continue
+            if per_src.get(it["source"], 0) < PER_SOURCE_MAX:   # kaynak başına sınır
                 per_src[it["source"]] = per_src.get(it["source"], 0) + 1
                 picked.append(it)
+                picked_sigs.append(sig)
         new_by_cat[cat] = picked
     per_cat = rcfg.get("news_per_category", 5) if not first_run else 3
     ordered = {cat: new_by_cat.get(cat, []) for cat in feeds}

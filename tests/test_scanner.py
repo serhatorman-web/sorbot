@@ -216,6 +216,11 @@ def test_report_parsers_and_messages():
     assert not keep("Bank of the James yöneticisi Lewis Addison 1.943 dolar hisse aldı")
     assert not keep("William Blair, AST Spacemobile hissesi için Market Perform görüşünü korudu")
     assert keep("Fed faiz kararını açıkladı") and keep("Altın ons başına 4.000 doları aştı")
+    sig = report.title_signature
+    a = sig("Hissedarlar onayladı: Apollo, easyJet'i 5,7 milyar sterline satın alıyor")
+    assert report.similar(a, sig("ABD'li Apollo, EasyJet'i 5,7 milyar sterline satın alacak"))
+    assert report.similar(a, sig("EasyJet hissedarları, Apollo'nun 5,7 milyar sterlinlik satın alma teklifini onayladı"))
+    assert not report.similar(a, sig("Von der Leyen, COP31'de temiz enerjiye geçişin hızlandırılması çağrısında bulundu"))
 
 
 def test_market_status():
