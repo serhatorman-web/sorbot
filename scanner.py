@@ -846,11 +846,12 @@ def build_message(res, direction, cfg, now_utc):
         opp = [n for n, v in res["votes"] if v == -s]
         neu = [n for n, v in res["votes"] if v == 0]
         word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
-        lines.append(f"✅ {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same))
+        ICON = {"AL": "🟢", "SAT": "🔴"}
+        lines.append(f"{ICON[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same))
         if opp:
-            lines.append(f"❌ {oword}: " + ", ".join(opp))
+            lines.append(f"{ICON[oword]} {oword}: " + ", ".join(opp))
         if neu:
-            lines.append("➖ Nötr: " + ", ".join(neu))
+            lines.append("⚪ Nötr: " + ", ".join(neu))
     lines += ["", trend_line, "", ind_line, " · ".join(extra)]
 
     notes = [n for d, n in res["pd"]["notes"] if d == direction] + side["why"]
