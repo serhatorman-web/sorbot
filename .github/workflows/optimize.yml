@@ -1,0 +1,21 @@
+name: SorBot Strateji Deneyleri
+
+# Sadece elle çalışır: filtre ve TP dizilimlerini geçmiş veride karşılaştırır.
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Kaç günlük geçmiş (en fazla ~80; son 30 gün kontrol dönemi)"
+        default: "80"
+
+permissions:
+  contents: read
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deneyler
+        run: python3 optimize.py "${{ inputs.days }}"

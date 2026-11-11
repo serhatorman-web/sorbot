@@ -58,11 +58,11 @@ def fetch_history(api, sym, bars, now_ms):
     return uniq[-bars:]
 
 
-def simulate(f, i, s, risk, max_hold):
+def simulate(f, i, s, risk, max_hold, tp_r=(1, 2, 3)):
     """i. mum kapanışında girilen işlemin sonucunu hesaplar."""
     entry = f["c"][i]
     sl = entry - s * risk
-    tps = [entry + s * risk * r for r in (1, 2, 3)]
+    tps = [entry + s * risk * r for r in tp_r]
     n = len(f["c"])
     hit = [False, False, False]
     fixed_stopped = False
@@ -95,7 +95,7 @@ def simulate(f, i, s, risk, max_hold):
             else:
                 for j, tp in enumerate(tps):
                     part = 1 / 3
-                    level_r = j + 1
+                    level_r = tp_r[j]
                     taken = 1 - remaining
                     if (favor - tp) * s >= 0 and taken < part * (j + 1) - 1e-9:
                         realized += part * level_r
