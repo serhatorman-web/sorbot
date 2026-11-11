@@ -1,0 +1,55 @@
+name: Kaynak Erisim Testi
+
+# Gecici test: rapor icin kullanilacak veri kaynaklarina erisimi kontrol eder.
+on:
+  push:
+    paths:
+      - ".github/workflows/source-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Kaynaklar
+        shell: python3 {0}
+        run: |
+          import urllib.request, json
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+          urls = {
+            "LS hesap": "https://www.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=2",
+            "LS top pozisyon": "https://www.binance.com/futures/data/topLongShortPositionRatio?symbol=BTCUSDT&period=1h&limit=2",
+            "Taker vadeli": "https://www.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=1h&limit=2",
+            "OI hist": "https://www.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1h&limit=2",
+            "Fonlama": "https://www.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT",
+            "Spot kline": "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=2",
+            "Yahoo SPX": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=5d",
+            "Yahoo2 SPX": "https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=5d",
+            "Stooq": "https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=json",
+            "ForexFactory": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+            "Farside BTC": "https://farside.co.uk/btc/",
+            "Farside all": "https://farside.co.uk/bitcoin-etf-flow-all-data/",
+            "Investing TR haber": "https://tr.investing.com/rss/news.rss",
+            "Investing TR kripto": "https://tr.investing.com/rss/news_301.rss",
+            "BloombergHT": "https://www.bloomberght.com/rss",
+            "CoinDesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+            "Cointelegraph": "https://cointelegraph.com/rss",
+            "CNBC": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+            "MarketWatch": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+            "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",
+            "Verge AI": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+            "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
+            "Yahoo Finance RSS": "https://finance.yahoo.com/news/rssindex",
+          }
+          for name, u in urls.items():
+              try:
+                  req = urllib.request.Request(u, headers={"User-Agent": UA, "Accept": "*/*"})
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      body = r.read()
+                      print(f"[{r.status}] {name}: {len(body)} bayt | {body[:180]!r}")
+              except Exception as e:
+                  print(f"[HATA] {name}: {getattr(e, 'code', '')} {str(e)[:120]}")
