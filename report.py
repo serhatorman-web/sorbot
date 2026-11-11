@@ -38,7 +38,7 @@ SPOT = "https://data-api.binance.vision"
 MARKETS = [
     ("S&P 500", "^GSPC"), ("Nasdaq", "^IXIC"), ("Dow Jones", "^DJI"), ("Nasdaq vadeli", "NQ=F"),
     ("VIX", "^VIX"), ("Dolar endeksi", "DX-Y.NYB"), ("ABD 10Y faiz", "^TNX"),
-    ("Altın", "GC=F"), ("Petrol (WTI)", "CL=F"),
+    ("Altın", "GC=F"), ("Brent petrol", "BZ=F"), ("Petrol (WTI)", "CL=F"),
 ]
 
 # Sadece Türkçe kaynaklar. Üçüncü alan bir filtre: "ai" = sadece yapay zeka ile ilgili başlıklar.
@@ -74,6 +74,37 @@ SKIP_TITLE = re.compile(
     r"temettü ilan|konferans(ı|ında)|kazanç çağrısı|bahis|casino",
     re.IGNORECASE)
 PER_SOURCE_MAX = 2
+
+
+# Önem puanı: piyasayı etkileyen konular. (desen, puan)
+IMPORTANCE = [
+    # Merkez bankaları ve para politikası
+    (r"\bFed\b|FOMC|Powell|Merkez Bankas|TCMB|\bECB\b|\bAMB\b|Lagarde|BoJ|BoE|faiz (karar|indirim|artır|art[ıi]ş)", 3),
+    (r"faiz|para politikas|parasal", 2),
+    # Makro veriler
+    (r"enflasyon|TÜFE|ÜFE|\bCPI\b|\bPPI\b|PCE|tarım dışı|istihdam|işsizlik|GSYH|büyüme verisi|resesyon|durgunluk", 3),
+    (r"perakende satış|imalat|PMI|cari açık|bütçe açığı|kredi notu|Moody|Fitch|S&P Global", 2),
+    # Jeopolitik ve politika
+    (r"savaş|saldırı|füze|ateşkes|yaptırım|gümrük|tarife|ambargo|seçim|darbe|Hürmüz", 3),
+    (r"Trump|Beyaz Saray|Kongre|Hazine|Putin|Şi Cinping|Xi Jinping|NATO|AB Komisyon|OPEC", 2),
+    # Piyasa hareketleri
+    (r"rekor|çöktü|çöküş|sert (düş|yüksel)|tarihi (zirve|dip)|panik|kriz|iflas|temerrüt|batı[şy]", 3),
+    (r"Borsa İstanbul|\bBIST|dolar/TL|dolar/TL|\bTL\b|Türk lirası", 2),
+    (r"Wall Street|Nasdaq|S&P 500|\bDow\b|dolar endeksi|euro/dolar|altın|petrol|Brent|\bons\b", 1),
+    (r"aştı|zirve|en yüksek|en düşük|geriledi|değer kaybı|değer kazan", 1),
+    (r"bilanço|kâr açıkla|gelir beklenti|halka arz|satın al|birleşme|milyar dolar", 1),
+    # Kripto
+    (r"Bitcoin|BTC|Ethereum|\bETH\b|kripto", 1),
+    (r"\bETF\b|\bSEC\b|regülasyon|düzenleme|yasa tasarı|Binance|Coinbase|BlackRock|hack|saldırgan|stablecoin|GENIUS", 2),
+    # Yapay zeka
+    (r"OpenAI|Nvidia|Anthropic|Google|Microsoft|\bMeta\b|\bApple\b|çip|yarı iletken|regülasyon|yasa", 1),
+    (r"yeni model|GPT-?\d|Gemini \d|Claude|yatırım|milyar|ihracat kısıtlama|yasak", 1),
+]
+IMPORTANCE = [(re.compile(p, re.IGNORECASE), w) for p, w in IMPORTANCE]
+
+
+def importance(title):
+    return sum(w for rx, w in IMPORTANCE if rx.search(title))
 
 
 def title_signature(title):
@@ -380,7 +411,8 @@ def news_message(new_items, now_tr, per_cat):
         any_item = True
         L += ["", f"<b>{cat}</b>"]
         for it in items[:per_cat]:
-            L.append(f"• <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a> <i>({esc(it['source'])})</i>")
+            mark = "🔥" if it.get("imp", 0) >= 5 else "•"
+            L.append(f"{mark} <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a> <i>({esc(it['source'])})</i>")
     return "\n".join(L) if any_item else None
 
 
@@ -459,8 +491,14 @@ def main():
                 continue
             new_by_cat.setdefault(cat, []).append(it)
     picked_sigs = []
+    min_imp = rcfg.get("news_min_importance", 2)
     for cat in new_by_cat:
-        new_by_cat[cat].sort(key=lambda x: x["dt"] or now_utc, reverse=True)
+        for it in new_by_cat[cat]:
+            it["imp"] = importance(it["title"])
+        if rcfg.get("news_important_only", True):
+            new_by_cat[cat] = [it for it in new_by_cat[cat] if it["imp"] >= min_imp]
+        # önce önem, sonra yenilik
+        new_by_cat[cat].sort(key=lambda x: (x["imp"], x["dt"] or now_utc), reverse=True)
         per_src, picked = {}, []
         for it in new_by_cat[cat]:
             sig = title_signature(it["title"])

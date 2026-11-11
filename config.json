@@ -66,6 +66,8 @@
     "market_hourly": true,
     "news_hourly": true,
     "news_per_category": 5,
+    "news_important_only": true,
+    "news_min_importance": 2,
     "news_max_age_hours": 2,
     "calendar_daily_hour": 9,
     "calendar_lookahead_hours": 3,
