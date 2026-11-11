@@ -463,9 +463,58 @@ def parse_klines(raw, now_ms):
             for k in raw if int(k[6]) < now_ms]
 
 
+def indicator_votes(f, i, leader_bias, leader_name):
+    """Her indikatörün i. mumdaki AL (+1) / SAT (-1) / nötr (0) durumu."""
+    c = f["c"][i]
+    sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
+    vr = f["v"][i] / f["vol_ma"][i] if f["vol_ma"][i] else 0
+    candle = sgn(f["c"][i] - f["o"][i])
+    votes = [
+        ("RSI", sgn(f["rsi"][i] - 50)),
+        ("StochRSI", sgn(f["srsi_k"][i] - f["srsi_d"][i])),
+        ("MACD", sgn(f["macd"][i] - f["macd_sig"][i])),
+        ("Momentum", sgn(f["mom"][i])),
+        ("EMA20", sgn(c - f["ema20"][i])),
+        ("EMA50", sgn(c - f["ema50"][i])),
+        ("EMA200", sgn(c - f["ema200"][i])),
+        ("MA50", sgn(c - f["ma50"][i])),
+        ("MA200", sgn(c - f["ma200"][i])),
+        ("ADX/DI", sgn(f["pdi"][i] - f["ndi"][i])),
+        ("OBV", sgn(f["obv"][i] - f["obv_ema"][i])),
+        ("CCI", sgn(f["cci"][i])),
+        ("VWAP", sgn(c - f["vwap"][i])),
+        ("Hacim", candle if vr >= 1.0 else 0),     # ortalama üstü hacimde mumun yönü
+    ]
+    if leader_name != "4s trend":
+        votes.append((leader_name or "Lider", sgn(leader_bias)))
+    return votes
+
+
+def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg):
+    """1s mum kapanışında Supertrend dönüşü + diğer indikatörlerin AL/SAT teyidi.
+    Güven skoru = Supertrend ile aynı yönü gösteren indikatörlerin yüzdesi."""
+    pdres = pump_dump_analysis(f, cfg, chg24, i)
+    votes = indicator_votes(f, i, leader_bias, leader_name)
+    flip = 0
+    st = f["st_dir"]
+    if st[i] is not None and st[i - 1] is not None and st[i] != st[i - 1]:
+        flip = st[i]
+    out = {"meta": meta, "f": f, "i": i, "leader_bias": leader_bias, "leader_name": leader_name,
+           "funding": funding, "chg24": chg24, "pd": pdres, "votes": votes}
+    for key, s in (("long", 1), ("short", -1)):
+        agree = sum(1 for _, v in votes if v == s)
+        score = round(agree / len(votes) * 100)
+        trig = [f"Supertrend {'AL' if s == 1 else 'SAT'}'a döndü"] if flip == s else []
+        out[key] = {"score": score, "why": [], "triggers": trig,
+                    "agree": agree, "total": len(votes)}
+    return out
+
+
 def evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg):
     """i. mumda (o ana kadarki veriyle) long/short değerlendirmesi.
     Canlı taramada i = son kapanmış mum; backtest'te her geçmiş mum."""
+    if cfg.get("strategy") == "supertrend":
+        return evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg)
     pdres = pump_dump_analysis(f, cfg, chg24, i)
     lb = cfg["signal"]["trigger_lookback_bars"]
     session_pen = 0
@@ -536,7 +585,9 @@ def apply_open_interest(res, oi_hist):
 
 def decide(res, cfg, state, now):
     """Sinyal gönderilip gönderilmeyeceğine karar verir."""
-    sc = cfg["signal"]
+    sc = dict(cfg["signal"])
+    if cfg.get("strategy") == "supertrend":
+        sc.update(cfg.get("signal_supertrend", {}))
     sym = res["meta"]["symbol"]
     best = None
     for key, s in (("long", 1), ("short", -1)):
@@ -565,6 +616,15 @@ def stop_distance(f, i, s, risk_cfg, method=None):
     """
     method = method or risk_cfg.get("sl_method", "atr")
     entry, atr_v = f["c"][i], f["atr"][i]
+    if method == "st_line":
+        # Stop Supertrend çizgisinin biraz ötesinde (çizgi kırılırsa sinyal bozulmuş demektir)
+        dist = abs(entry - f["st_line"][i]) + 0.1 * atr_v
+        lo, hi = risk_cfg.get("min_atr", 1.0) * atr_v, 3.0 * atr_v
+        if dist < lo:
+            return lo, "ATR alt sınırı"
+        if dist > hi:
+            return hi, "3 ATR üst sınırı"
+        return dist, "Supertrend çizgisi"
     if method == "swing_atr":
         n = risk_cfg.get("swing_lookback", 10)
         buf = risk_cfg.get("swing_buffer_atr", 0.3) * atr_v
@@ -608,10 +668,14 @@ def build_message(res, direction, cfg, now_utc):
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
+    if res.get("votes"):
+        score_line = f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"
+    else:
+        score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
+                      f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
     lines = [
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
-        f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
-        f"{'Short' if direction == 'long' else 'Long'}: {other['score']}",
+        score_line,
         "",
         f"Giriş: <code>{fmt_price(entry, prec)}</code>",
         f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}",
@@ -636,7 +700,19 @@ def build_message(res, direction, cfg, now_utc):
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
 
-    lines += ["", "📌 Tetik: " + ", ".join(side["triggers"]), trend_line, ind_line, " · ".join(extra)]
+    lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
+    if res.get("votes"):
+        s = 1 if direction == "long" else -1
+        same = [n for n, v in res["votes"] if v == s]
+        opp = [n for n, v in res["votes"] if v == -s]
+        neu = [n for n, v in res["votes"] if v == 0]
+        word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
+        lines.append(f"✅ {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same))
+        if opp:
+            lines.append(f"❌ {oword}: " + ", ".join(opp))
+        if neu:
+            lines.append("➖ Nötr: " + ", ".join(neu))
+    lines += [trend_line, ind_line, " · ".join(extra)]
 
     notes = [n for d, n in res["pd"]["notes"] if d == direction] + side["why"]
     if meta["type"] == "EQUITY":

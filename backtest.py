@@ -31,7 +31,10 @@ from datetime import datetime, timezone
 import scanner as sc
 
 HOUR_MS = sc.HOUR_MS
-METHODS = ("atr", "swing_atr")
+METHODS = ("atr", "swing_atr", "st_line")
+METHOD_NAMES = {"atr": "1.5 ATR", "swing_atr": "Swing + ATR (1–2.5)", "st_line": "Supertrend çizgisi (1–3 ATR)"}
+FEE_PCT = 0.10      # giriş + çıkış toplam taker ücreti (%)
+OOS_DAYS = 30
 MAX_HOLD = 72          # en fazla 72 saat (3 gün) pozisyonda kalınır
 
 
@@ -121,6 +124,13 @@ def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 80
     bars = days * 24 + 320
     cfg = sc.load_json(sc.CONFIG_PATH, None)
+    # Deneme için ayar üzerine yazma (canlı config değişmez)
+    if os.environ.get("BT_STRATEGY"):
+        cfg["strategy"] = os.environ["BT_STRATEGY"]
+    if os.environ.get("BT_MIN_SCORE"):
+        key = "signal_supertrend" if cfg.get("strategy") == "supertrend" else "signal"
+        cfg.setdefault(key, {})["min_score"] = int(os.environ["BT_MIN_SCORE"])
+    print(f"Strateji: {cfg.get('strategy', 'skor')}")
     t0 = time.time()
     now_ms = int(time.time() * 1000)
     api = sc.Binance()
@@ -161,7 +171,10 @@ def main():
         state = {"signals": {}}
         for i in range(300, n - 1):
             # hızlı ön eleme: tetik yoksa skor hesaplama
-            if not (sc.find_triggers(f, 1, lb, i) or sc.find_triggers(f, -1, lb, i)):
+            if cfg.get("strategy") == "supertrend":
+                if f["st_dir"][i] is None or f["st_dir"][i - 1] is None or f["st_dir"][i] == f["st_dir"][i - 1]:
+                    continue
+            elif not (sc.find_triggers(f, 1, lb, i) or sc.find_triggers(f, -1, lb, i)):
                 continue
             if not sc.required_ready(f, i):
                 continue
@@ -200,23 +213,23 @@ def main():
     report(trades, days)
 
 
-def stats(trades, m):
+def stats(trades, m, days=None):
     n = len(trades)
     if n == 0:
         return None
     o = [t["out"][m] for t in trades]
     rs = [x["R"] for x in o]
-    wins = sum(r for r in rs if r > 0)
-    losses = -sum(r for r in rs if r < 0)
+    net = [x["R"] - FEE_PCT / x["risk_pct"] for x in o]
+    wins = sum(r for r in net if r > 0)
+    losses = -sum(r for r in net if r < 0)
     b2 = sorted(x["bars_to_tp1"] for x in o if x["bars_to_tp1"] is not None)
     return {
-        "n": n,
+        "n": n, "perday": n / days if days else None,
         "tp1": sum(x["tp"][0] for x in o) / n * 100,
         "tp2": sum(x["tp"][1] for x in o) / n * 100,
         "tp3": sum(x["tp"][2] for x in o) / n * 100,
         "sl": sum(x["stopped_before_tp1"] for x in o) / n * 100,
-        "avgR": sum(rs) / n,
-        "totR": sum(rs),
+        "avgR": sum(rs) / n, "net": sum(net) / n, "totnet": sum(net),
         "pf": wins / losses if losses else float("inf"),
         "risk": sum(x["risk_pct"] for x in o) / n,
         "b2tp1": b2[len(b2) // 2] if b2 else None,
@@ -229,42 +242,52 @@ def report(trades, days):
         print(s)
         lines.append(s)
 
-    out(f"## SorBot backtest – son ~{days} gün, {len(trades)} sinyal")
-    out("")
-    out("| Yöntem | Sinyal | TP1 | TP2 | TP3 | TP1'den önce stop | Ort. stop % | Ort. R (yönetilen) | Toplam R | Kâr faktörü | TP1'e medyan süre |")
-    out("|---|---|---|---|---|---|---|---|---|---|---|")
-    for m in METHODS:
-        st = stats(trades, m)
-        if not st:
-            continue
-        name = "1.5 ATR" if m == "atr" else "Swing + ATR (1–2.5)"
-        out(f"| {name} | {st['n']} | {st['tp1']:.0f}% | {st['tp2']:.0f}% | {st['tp3']:.0f}% | {st['sl']:.0f}% | "
-            f"{st['risk']:.2f}% | {st['avgR']:+.2f}R | {st['totR']:+.1f}R | {st['pf']:.2f} | "
-            f"{st['b2tp1'] if st['b2tp1'] is not None else '-'} saat |")
+    if not trades:
+        out("Hiç sinyal yok.")
+        return
+    split = max(t["t"] for t in trades) - OOS_DAYS * 24 * HOUR_MS
+    periods = [("Tümü", trades, days),
+               (f"İlk {days - OOS_DAYS} gün", [t for t in trades if t["t"] < split], days - OOS_DAYS),
+               (f"Son {OOS_DAYS} gün", [t for t in trades if t["t"] >= split], OOS_DAYS)]
 
+    out(f"## SorBot backtest – ~{days} gün, {len(trades)} sinyal (ücret dahil net R)")
+    out("")
+    out("| Dönem | Stop yöntemi | Sinyal/gün | TP1 | TP2 | TP3 | TP1'den önce stop | Ort. stop % | Net R/işlem | Toplam net R | Kâr faktörü |")
+    out("|---|---|---|---|---|---|---|---|---|---|---|")
+    for pname, tr, d in periods:
+        for m in METHODS:
+            st = stats(tr, m, d)
+            if not st:
+                continue
+            out(f"| {pname} | {METHOD_NAMES[m]} | {st['perday']:.1f} | {st['tp1']:.0f}% | {st['tp2']:.0f}% | "
+                f"{st['tp3']:.0f}% | {st['sl']:.0f}% | {st['risk']:.2f}% | {st['net']:+.3f}R | "
+                f"{st['totnet']:+.1f}R | {st['pf']:.2f} |")
+
+    def bucket(t):
+        s = t["score"]
+        return "90+" if s >= 90 else ("80–89" if s >= 80 else ("70–79" if s >= 70 else ("60–69" if s >= 60 else "<60")))
     groups = [
+        ("Güven skoru", bucket),
         ("Yön", lambda t: t["dir"].upper()),
         ("Tür", lambda t: {"COIN": "Kripto", "EQUITY": "Hisse"}.get(t["type"], t["type"])),
-        ("Skor", lambda t: "90+" if t["score"] >= 90 else ("85–89" if t["score"] >= 85
-                                                         else ("80–84" if t["score"] >= 80 else "<80"))),
     ]
     for title, keyf in groups:
         out("")
-        out(f"### {title} kırılımı")
-        out("| Grup | Sinyal | Yöntem | TP1 | TP2 | TP3 | TP1'den önce stop | Ort. R |")
+        out(f"### {title} kırılımı (1.5 ATR stop)")
+        out("| Grup | Dönem | Sinyal/gün | TP1 | TP3 | TP1'den önce stop | Net R/işlem | Kâr faktörü |")
         out("|---|---|---|---|---|---|---|---|")
-        buckets = {}
-        for t in trades:
-            buckets.setdefault(keyf(t), []).append(t)
-        for g in sorted(buckets):
-            for m in METHODS:
-                st = stats(buckets[g], m)
-                name = "ATR" if m == "atr" else "Swing"
-                out(f"| {g} | {st['n']} | {name} | {st['tp1']:.0f}% | {st['tp2']:.0f}% | {st['tp3']:.0f}% | "
-                    f"{st['sl']:.0f}% | {st['avgR']:+.2f}R |")
+        for pname, tr, d in periods:
+            buckets = {}
+            for t in tr:
+                buckets.setdefault(keyf(t), []).append(t)
+            for g in sorted(buckets):
+                st = stats(buckets[g], "atr", d)
+                out(f"| {g} | {pname} | {st['perday']:.1f} | {st['tp1']:.0f}% | {st['tp3']:.0f}% | {st['sl']:.0f}% | "
+                    f"{st['net']:+.3f}R | {st['pf']:.2f} |")
 
     out("")
-    out("_Fonlama/OI geçmişi, işlem ücreti ve kayma dahil değildir. Aynı mumda stop ve TP görülürse stop sayılır._")
+    out(f"_Net R: işlem başına, %{FEE_PCT:.2f} toplam ücret düşülmüş. TP'lerde 1/3 kâr alma, TP1 sonrası stop girişe. "
+        "Fonlama/OI geçmişi ve kayma dahil değil. Aynı mumda stop ve TP görülürse stop sayılır._")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as fh:

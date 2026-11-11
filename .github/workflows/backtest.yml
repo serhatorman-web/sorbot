@@ -7,6 +7,12 @@ on:
       days:
         description: "Kaç günlük geçmiş test edilsin (en fazla ~80)"
         default: "80"
+      strategy:
+        description: "Strateji (boş = config.json'daki): supertrend veya score"
+        default: ""
+      min_score:
+        description: "En düşük güven skoru (boş = config.json'daki)"
+        default: ""
 
 permissions:
   contents: read
@@ -18,4 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Backtest
+        env:
+          BT_STRATEGY: ${{ inputs.strategy }}
+          BT_MIN_SCORE: ${{ inputs.min_score }}
         run: python3 backtest.py "${{ inputs.days }}"
