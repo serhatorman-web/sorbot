@@ -75,7 +75,7 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 
 1. Her saat, kapanan 1 saatlik mumda **Supertrend AL'a veya SAT'a döndü mü** diye bakılır. Dönüş yoksa sinyal yoktur.
 2. Dönüş varsa diğer indikatörlerin AL/SAT durumu oylanır:
-   Supertrend (sinyal yönü), RSI (50 üstü/altı), StochRSI (K/D), MACD (sinyal çizgisi), Momentum, fiyatın EMA20/50/200 ve MA50/200'e göre konumu,
+   RSI (50 üstü/altı), StochRSI (K/D), MACD (sinyal çizgisi), Momentum, fiyatın EMA20/50/200 ve MA50/200'e göre konumu,
    ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü), BTC/QQQ yönü.
 3. **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
 4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
