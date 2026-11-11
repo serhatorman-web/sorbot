@@ -154,6 +154,17 @@ def test_decoupling():
     assert scanner.decoupling(f, i, 1, -0.03, cfg) is None  # hacim yok: ayrışma sayılmaz
 
 
+def test_tf_trend_table():
+    up = [{"c": 100 + k, "h": 100.5 + k, "l": 99.5 + k} for k in range(100)]
+    down = [{"c": 200 - k, "h": 200.5 - k, "l": 199.5 - k} for k in range(100)]
+    assert scanner.tf_trend(up) == 1
+    assert scanner.tf_trend(down) == -1
+    assert scanner.tf_trend(up[:30]) is None
+    html = scanner.tf_table_html({"tf": {"15m": 1, "1h": -1, "4h": 0, "1d": None}})
+    for word in ("15dk", "1 saat", "4 saat", "1 gün", "Yükseliş", "Düşüş", "Nötr", "Veri yok"):
+        assert word in html
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

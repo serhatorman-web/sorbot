@@ -748,6 +748,54 @@ def confidence_label(score):
     return "İyi"
 
 
+TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Nötr", None: "– Veri yok"}
+TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
+
+
+def tf_trend(candles):
+    """Bir zaman dilimindeki trend: +1 yükseliş, -1 düşüş, 0 nötr, None veri yetersiz.
+    4 oy: fiyat/EMA50, EMA20/EMA50, Supertrend yönü, MACD histogramı.
+    En az 3 oy aynı yöndeyse ve karşı yönde en fazla 1 oy varsa trend o yöndedir."""
+    if len(candles) < 60:
+        return None
+    c = [x["c"] for x in candles]
+    h = [x["h"] for x in candles]
+    l = [x["l"] for x in candles]
+    e20, e50 = ta.ema(c, 20), ta.ema(c, 50)
+    st, _ = ta.supertrend(h, l, c, 10, 3.0)
+    _, _, hist = ta.macd(c)
+    sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
+    votes = [sgn(c[-1] - e50[-1]), sgn(e20[-1] - e50[-1]), st[-1] or 0, sgn(hist[-1] or 0)]
+    up, dn = votes.count(1), votes.count(-1)
+    if up >= 3:
+        return 1
+    if dn >= 3:
+        return -1
+    return 0
+
+
+def fetch_tf_trends(api, res, now_ms):
+    """Mesaj gönderilecek sembol için 15dk / 4s / 1g trendlerini çeker (1s zaten elde)."""
+    sym = res["meta"]["symbol"]
+    f, i = res["f"], res["i"]
+    out = {"1h": tf_trend([{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)])}
+    for tf in ("15m", "4h", "1d"):
+        try:
+            raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 150})
+            out[tf] = tf_trend(parse_klines(raw, now_ms))
+        except Exception:  # noqa: BLE001
+            out[tf] = None
+    res["tf"] = out
+
+
+def tf_table_html(res):
+    tf = res.get("tf")
+    if not tf:
+        return ""
+    rows = [f"{name:<7}│ {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
+    return "<pre>Zaman  │ Trend\n───────┼──────────\n" + "\n".join(rows) + "</pre>"
+
+
 def build_message(res, direction, cfg, now_utc):
     meta, f, i = res["meta"], res["f"], res["i"]
     side = res[direction]
@@ -775,10 +823,10 @@ def build_message(res, direction, cfg, now_utc):
     if cfg["risk"].get("show_breakeven_note", True):
         lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
 
-    st_dir = f["st_dir"][i]
-    trend_line = f"Trend: 1s {arrow(st_dir)} · 4s {arrow(f['h4_ema'][i] + f['h4_st'][i])}"
+    trend_line = tf_table_html(res)
     if res["leader_name"] != "4s trend":
-        trend_line += f" · {res['leader_name']} {arrow(res['leader_bias'])}"
+        lb_ = res["leader_bias"]
+        trend_line += f"\n{res['leader_name']} yönü: " + TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -801,7 +849,7 @@ def build_message(res, direction, cfg, now_utc):
             lines.append(f"❌ {oword}: " + ", ".join(opp))
         if neu:
             lines.append("➖ Nötr: " + ", ".join(neu))
-    lines += [trend_line, ind_line, " · ".join(extra)]
+    lines += ["", trend_line, "", ind_line, " · ".join(extra)]
 
     notes = [n for d, n in res["pd"]["notes"] if d == direction] + side["why"]
     if meta["type"] == "EQUITY":
@@ -841,6 +889,8 @@ def build_radar_message(res, rd, cfg, now_utc):
                   f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     lines += ["", "📌 " + " · ".join(rd["reasons"])]
+    if res.get("tf"):
+        lines += ["", tf_table_html(res)]
     extra = []
     if res.get("funding") is not None:
         extra.append(f"Fonlama {res['funding']*100:.3f}%")
@@ -1055,6 +1105,7 @@ def main():
     maxn = cfg["signal"]["max_signals_per_run"]
     sent = 0
     for score, d, r in picks[:maxn]:
+        fetch_tf_trends(api, r, now_ms)
         msg = build_message(r, d, cfg, now_utc)
         try:
             if notifier.send(msg):
@@ -1093,6 +1144,8 @@ def main():
                 radar.append((rd["score"], rd, r, key))
         radar.sort(key=lambda x: -x[0])
         for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
+            if "tf" not in r:
+                fetch_tf_trends(api, r, now_ms)
             try:
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc)):
                     sent += 1
