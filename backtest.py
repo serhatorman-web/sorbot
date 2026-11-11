@@ -171,6 +171,30 @@ def main():
         n = len(f["c"])
         state = {"signals": {}}
         for i in range(300, n - 1):
+            if cfg.get("strategy") == "pump":
+                # Pump/Dump radarı ("start" sinyalleri; OI geçmişi yok)
+                if not sc.required_ready(f, i) or f["vol_ma"][i] is None:
+                    continue
+                if f["v"][i] < 2.0 * f["vol_ma"][i] and sum(f["v"][i - 2:i + 1]) < 4.0 * f["vol_ma"][i]:
+                    continue
+                chg24 = sc.pct(f["c"][i], f["c"][i - 24])
+                pdres = sc.pump_dump_analysis(f, cfg, chg24, i)
+                t_close = f["t"][i] + HOUR_MS
+                for rd in sc.pump_radar(f, i, pdres, chg24, cfg):
+                    if rd["kind"] != "start":
+                        continue
+                    k = f"{sym}|{rd['dir']}"
+                    if k in state["signals"] and t_close / 1000 - state["signals"][k] < 12 * 3600:
+                        continue
+                    state["signals"][k] = t_close / 1000
+                    s = 1 if rd["dir"] == "long" else -1
+                    outcomes = {m: simulate(f, i, s, sc.stop_distance(f, i, s, cfg["risk"], m)[0], MAX_HOLD)
+                                for m in METHODS}
+                    if any(o is None for o in outcomes.values()):
+                        continue
+                    candidates.append({"t": f["t"][i], "sym": sym, "type": meta["type"], "dir": rd["dir"],
+                                       "score": rd["score"], "out": outcomes, "decoupled": False})
+                continue
             # hızlı ön eleme: tetik yoksa skor hesaplama
             if cfg.get("strategy") == "supertrend":
                 if f["st_dir"][i] is None or f["st_dir"][i - 1] is None or f["st_dir"][i] == f["st_dir"][i - 1]:

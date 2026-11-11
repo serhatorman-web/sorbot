@@ -290,6 +290,8 @@ def pump_dump_analysis(f, cfg, chg24, i=None):
     accumulation = price_flat and obv_chg / vol24 > 0.25
     distribution = price_flat and obv_chg / vol24 < -0.25
 
+    res.update({"brk_up": brk_up, "brk_dn": brk_dn, "accumulation": accumulation,
+                "distribution": distribution, "chg3": pct(c[i], c[i - 3]) / 100})
     if squeeze and brk_up and vol_spike:
         res["long_bonus"] += 10
         res["notes"].append(("long", "🚀 Pump potansiyeli: sıkışmadan hacimli kırılım"))
@@ -330,6 +332,63 @@ def pump_dump_analysis(f, cfg, chg24, i=None):
 
     res["squeeze"], res["vol_ratio"], res["vol_spike"] = squeeze, vr, vol_spike
     return res
+
+
+def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
+    """Pump/Dump radarı: Supertrend'den bağımsız, hareket başlangıcını yakalamaya çalışır.
+
+    Döner: [{dir, kind, score, reasons}] (boş liste = sinyal yok)
+      kind="start" : sıkışmadan hacimli kırılım (pump/dump başlıyor) -> giriş/TP/stop ile
+      kind="early" : sıkışmada birikim/dağıtım + OI artışı (henüz kırılım yok) -> izleme uyarısı
+    """
+    rc = cfg.get("pump_radar", {})
+    if not rc.get("enabled", True):
+        return []
+    pd_cfg = cfg["pump_dump"]
+    out = []
+    vr = pdres["vol_ratio"]
+    for key, s in (("long", 1), ("short", -1)):
+        brk = pdres["brk_up"] if s == 1 else pdres["brk_dn"]
+        accum = pdres["accumulation"] if s == 1 else pdres["distribution"]
+        late = pdres["chg3"] * s >= pd_cfg["already_pumped_3h"] or chg24 / 100 * s >= pd_cfg["already_pumped_24h"]
+        h4_ok = (f["h4_ema"][i] + f["h4_st"][i]) * s >= 0
+        score, why = 0, []
+        if pdres["squeeze"]:
+            score += 25
+            why.append("Bollinger sıkışması (düşük oynaklık)")
+        if vr >= pd_cfg["volume_spike_ratio"]:
+            score += 25
+            why.append(f"Hacim patlaması ({vr:.1f}x)")
+        elif vr >= 2.0:
+            score += 15
+            why.append(f"Hacim artışı ({vr:.1f}x)")
+        if brk:
+            score += 20
+            why.append("20 mumluk " + ("direnç" if s == 1 else "destek") + " kırıldı")
+        if accum:
+            score += 10
+            why.append("OBV " + ("birikim" if s == 1 else "dağıtım") + " (fiyat yatayken)")
+        if (f["obv"][i] - f["obv_ema"][i]) * s > 0:
+            score += 5
+        if h4_ok:
+            score += 10
+        if oi_chg is not None and oi_chg >= pd_cfg["oi_change_confirm"]:
+            score += 10 if oi_chg >= 0.05 else 5
+            why.append(f"Açık pozisyon artıyor (OI 4s {oi_chg*100:+.1f}%)")
+        if funding is not None and ((s == 1 and funding >= cfg["funding"]["crowded_long"])
+                                    or (s == -1 and funding <= cfg["funding"]["crowded_short"])):
+            score -= 10
+            why.append(f"⚠️ Fonlama kalabalık ({funding*100:.3f}%)")
+        score = max(0, min(100, score))
+
+        if brk and pdres["vol_spike"] and pdres["squeeze"] and not late:
+            if score >= rc.get("min_score", 70):
+                out.append({"dir": key, "kind": "start", "score": score, "reasons": why})
+        elif (rc.get("early_alerts", True) and accum and pdres["squeeze"] and not brk and not late
+              and oi_chg is not None and oi_chg >= 0.05):
+            if score >= rc.get("min_score_early", 55):
+                out.append({"dir": key, "kind": "early", "score": score, "reasons": why})
+    return out
 
 
 def score_direction(f, s, leader_bias, funding, pdres, cfg, i=None):
@@ -759,6 +818,43 @@ def build_message(res, direction, cfg, now_utc):
     return "\n".join(lines)
 
 
+def build_radar_message(res, rd, cfg, now_utc):
+    meta, f, i = res["meta"], res["f"], res["i"]
+    prec = meta.get("precision")
+    long_ = rd["dir"] == "long"
+    if rd["kind"] == "start":
+        head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
+    else:
+        head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
+    lines = [f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
+             f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'LONG' if long_ else 'SHORT'}", ""]
+    if rd["kind"] == "start":
+        entry, sl, tps, sl_label = levels(res, rd["dir"], cfg)
+        lines += [f"Giriş: <code>{fmt_price(entry, prec)}</code>",
+                  f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}"]
+        for n, tp in enumerate(tps, 1):
+            r = cfg["risk"]["tp_r_multiples"][n - 1]
+            lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%) · {r:g}R")
+    else:
+        lvl = f["hh20"][i] if long_ else f["ll20"][i]
+        lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
+                  f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
+                  "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
+    lines += ["", "📌 " + " · ".join(rd["reasons"])]
+    extra = []
+    if res.get("funding") is not None:
+        extra.append(f"Fonlama {res['funding']*100:.3f}%")
+    extra.append(f"24s {res['chg24']:+.1f}%")
+    if res.get("leader_name") and res["leader_name"] != "4s trend":
+        extra.append(f"{res['leader_name']} {'↑' if res['leader_bias'] > 0 else ('↓' if res['leader_bias'] < 0 else '→')}")
+    lines.append(" · ".join(extra))
+    if meta["type"] == "EQUITY" and us_market_status(now_utc) != "open":
+        lines.append("⚠️ ABD borsası kapalı – likidite düşük")
+    t_close = datetime.fromtimestamp((f["t"][i] + HOUR_MS) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
+    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir.</i>"]
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------- #
 # Telegram
 # --------------------------------------------------------------------------- #
@@ -927,7 +1023,9 @@ def main():
     min_s = cfg["signal"]["min_score"]
     cands = [r for r in results
              if (r["long"]["triggers"] and r["long"]["score"] >= min_s - 10)
-             or (r["short"]["triggers"] and r["short"]["score"] >= min_s - 10)]
+             or (r["short"]["triggers"] and r["short"]["score"] >= min_s - 10)
+             or (r["pd"]["squeeze"] and (r["pd"]["brk_up"] or r["pd"]["brk_dn"]
+                                         or r["pd"]["accumulation"] or r["pd"]["distribution"]))]
     def fetch_oi(r):
         try:
             oi = api.get("/futures/data/openInterestHist",
@@ -975,6 +1073,30 @@ def main():
             notifier.send("\n".join(lines))
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
+
+    # ---- Pump/Dump radarı (Supertrend'den bağımsız) ----
+    rc = cfg.get("pump_radar", {})
+    radar = []
+    if rc.get("enabled", True):
+        picked = {(r["meta"]["symbol"], d) for _, d, r in picks}
+        for r in results:
+            for rd in pump_radar(r["f"], r["i"], r["pd"], r["chg24"], cfg, r.get("oi_chg"), r.get("funding")):
+                key = f"{r['meta']['symbol']}|radar_{rd['dir']}"
+                last = state["signals"].get(key)
+                if last and now - last < rc.get("cooldown_hours", 12) * 3600:
+                    continue
+                if (r["meta"]["symbol"], rd["dir"]) in picked:
+                    continue
+                radar.append((rd["score"], rd, r, key))
+        radar.sort(key=lambda x: -x[0])
+        for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
+            try:
+                if notifier.send(build_radar_message(r, rd, cfg, now_utc)):
+                    sent += 1
+                    state["signals"][key] = now
+            except Exception as e:  # noqa: BLE001
+                print(f"  Telegram hatası: {e}", file=sys.stderr)
+    print(f"Pump/Dump radarı: {len(radar)} aday")
 
     # Eski kayıtları temizle. Deneme modunda kayıt tutulmaz (gerçek sinyalleri engellemesin).
     cutoff = now - 7 * 86400

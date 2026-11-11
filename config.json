@@ -60,6 +60,16 @@
     "show_breakeven_note": true
   },
 
+  "pump_radar": {
+    "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",
+    "enabled": true,
+    "min_score": 70,
+    "early_alerts": true,
+    "min_score_early": 55,
+    "cooldown_hours": 12,
+    "max_per_run": 3
+  },
+
   "pump_dump": {
     "volume_spike_ratio": 3.0,
     "squeeze_lookback": 120,
