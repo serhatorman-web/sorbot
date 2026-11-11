@@ -1022,6 +1022,9 @@ def build_universe(api, cfg):
         all_meta[s["symbol"]] = meta
         if typ not in include or s["symbol"] in exclude:
             continue
+        wl = ucfg.get("equity_whitelist")
+        if typ == "EQUITY" and wl and s["symbol"].removesuffix("USDT") not in wl:
+            continue
         qv = tickers.get(s["symbol"], {}).get("qv", 0)
         if qv < min_qv.get(typ, min_qv["default"]):
             continue

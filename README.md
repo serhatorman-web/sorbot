@@ -103,7 +103,8 @@ Eski ağırlıklı puan stratejisine dönmek için `config.json`'da `"strategy":
 ## Nasıl çalışır? (genel akış ve "score" stratejisi)
 
 1. Binance'ten tüm USDT.P kontratları, 24s hacim, fonlama oranları alınır.
-2. Günlük hacmi düşük semboller elenir (kripto < 5M USDT, hisse < 1M USDT).
+2. Hisselerde sadece büyük şirketler taranır (`universe.equity_whitelist`, ~100 milyar $ üstü 61 şirket);
+   günlük hacmi düşük semboller elenir (kripto < 5M USDT, hisse < 1M USDT).
 3. Her sembol için son ~500 adet 1 saatlik mum çekilir; 4 saatlik trend bundan hesaplanır.
 4. İndikatörler hesaplanır ve **long** ve **short** için ayrı **0–100 güven skoru** çıkarılır.
 5. Sadece yeni bir **tetik** oluşmuşsa ve tüm filtreler geçilirse sinyal gönderilir.

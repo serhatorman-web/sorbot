@@ -20,6 +20,13 @@
     "_aciklama": "COIN = kripto, EQUITY = ABD hisseleri. İsterseniz COMMODITY (altın, petrol), HK_EQUITY, KR_EQUITY, FX de eklenebilir.",
     "include_types": ["COIN", "EQUITY"],
     "exclude_symbols": ["USDCUSDT", "BTCDOMUSDT"],
+    "_equity_aciklama": "Hisselerde sadece bu büyük şirketler taranır (piyasa değeri ~100 milyar $ ve üzeri). Boş liste = tüm hisseler. Ayrıca min_quote_volume_24h.EQUITY hacim filtresi uygulanır.",
+    "equity_whitelist": ["NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "TSM", "BRKB",
+                         "LLY", "JPM", "V", "WMT", "ORCL", "XOM", "UNH", "COST", "NFLX", "HD", "ABBV",
+                         "BAC", "KO", "PLTR", "AMD", "ASML", "CRM", "CSCO", "MU", "IBM", "MRK", "GEV",
+                         "CAT", "NOW", "TXN", "QCOM", "ADBE", "AMAT", "INTC", "LRCX", "KLAC", "ARM",
+                         "APP", "MCD", "DIS", "GS", "SHOP", "UBER", "ANET", "PANW", "CRWD", "ACN",
+                         "BABA", "PDD", "SONY", "NVO", "MELI", "AMGN", "PFE", "CEG", "BX"],
     "min_quote_volume_24h": {
       "COIN": 5000000,
       "EQUITY": 1000000,
