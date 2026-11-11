@@ -42,7 +42,7 @@
     "min_score_gap": 0,
     "block_against_leader": false,
     "cooldown_hours": 1,
-    "max_signals_per_run": 10
+    "max_signals_per_run": 200
   },
 
   "decoupling": {

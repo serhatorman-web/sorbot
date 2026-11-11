@@ -951,7 +951,7 @@ def build_radar_message(res, rd, cfg, now_utc):
 # Telegram
 # --------------------------------------------------------------------------- #
 def send_telegram(text, token, chat_id):
-    for attempt in range(3):
+    for attempt in range(6):
         data = urllib.parse.urlencode({"chat_id": chat_id, "text": text[:4096], "parse_mode": "HTML",
                                        "disable_web_page_preview": "true"}).encode()
         req = urllib.request.Request(TELEGRAM_API.format(token=token), data=data)
@@ -962,7 +962,12 @@ def send_telegram(text, token, chat_id):
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="ignore")[:300]
             if e.code == 429:
-                time.sleep(5)
+                # Telegram hız sınırı: önerilen süre kadar bekle ve tekrar dene
+                try:
+                    wait = int(json.loads(body).get("parameters", {}).get("retry_after", 5))
+                except (ValueError, AttributeError):
+                    wait = 5
+                time.sleep(min(wait + 1, 60))
                 continue
             raise RuntimeError(f"Telegram hatası {e.code}: {body}") from None
         time.sleep(2)
