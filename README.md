@@ -51,7 +51,15 @@ Her taramadan sonra Telegram'a:
   long/short oranı (tüm hesaplar + büyük trader pozisyonları), son 1 saatte **vadeli** ve **spot** alış/satış hacmi
 - **ABD piyasaları:** S&P 500, Nasdaq, Dow, Nasdaq vadeli, VIX, dolar endeksi, ABD 10Y faiz, altın, Brent ve WTI petrol (Yahoo Finance)
 - **Spot ETF akışları:** sadece BTC ve ETH toplam net giriş/çıkış, son açıklanan gün + son 5 gün (Farside – veri günde bir güncellenir)
+- **🐋 Balina hareketleri (BTC ve ETH):**
+  - Zincir üstü büyük transferler (son çalıştırmadan beri yeni bloklar): BTC ≥ $10 mn (blockchain.info),
+    ETH ≥ $5 mn (herkese açık Ethereum RPC; ERC-20/WETH dahil değil). Aynı coin'lerin zincirleme taşınması tek sayılır.
+  - Binance vadeli ve spot emir defteri: fiyatın ±%0.5'i içindeki alış/satış likiditesi ve en büyük duvarlar
+  - Not: transfer = alış/satış değildir; Binance kimin büyük işlem yaptığını herkese açık vermez.
 - **Önümüzdeki 3 saatin** orta/yüksek önemli ekonomik verileri
+
+**🏛 Büyük ETF akışı uyarısı** – BTC ETF'lerinde günlük net akış ≥ $100 mn veya ETH'de ≥ $50 mn olduğunda ayrı mesaj
+(en büyük fon hareketleriyle; aynı gün için önemli güncelleme olmadıkça tekrar gönderilmez).
 
 **📰 Son Haberler** – son çalıştırmadan beri yayınlanan **önemli** yeni başlıklar, sadece Türkçe kaynaklar (link ile). Her başlık piyasa etkisine göre puanlanır (Fed/faiz, enflasyon, istihdam, savaş/yaptırım, tarifeler, OPEC, ETF/SEC, rekor/çöküş…); `news_min_importance` altındakiler gönderilmez, en önemliler 🔥 ile işaretlenir:
 - Ekonomi & Finans: Investing TR (ekonomi), Bloomberg HT, AA Ekonomi, Dünya – önemsiz şirket haberleri (analist notu, içeriden alım/satım, atama) elenir, kaynak başına en fazla 2 haber

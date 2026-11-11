@@ -49,16 +49,27 @@ def btc_transfers(btc_price, min_usd, last_height, max_blocks=10):
         for tx in blk.get("tx", [])[1:]:                            # ilk işlem: madenci ödülü
             vals = [o.get("value", 0) / 1e8 for o in tx.get("out", [])]
             if vals and max(vals) >= min_btc:
+                parents = {i.get("prev_out", {}).get("tx_index") for i in tx.get("inputs", [])}
                 out.append({"hash": tx["hash"], "amount": max(vals), "usd": max(vals) * btc_price,
-                            "time": blk.get("time", b["timestamp"]), "height": b["height"]})
+                            "time": blk.get("time", b["timestamp"]), "height": b["height"],
+                            "tx_index": tx.get("tx_index"), "parents": parents - {None}})
         return out
 
     transfers = []
     with ThreadPoolExecutor(max_workers=3) as ex:
         for res in ex.map(scan, new):
             transfers += res
+    # Zincirleme aktarım: önceki büyük transferin çıktısını harcayan ve miktarı ±%5 aynı olan
+    # işlem aynı coin'lerin yeniden taşınmasıdır -> tekrar sayma
+    by_index = {t["tx_index"]: t for t in transfers if t["tx_index"] is not None}
+    unique = []
+    for t in transfers:
+        if any(p in by_index and abs(by_index[p]["amount"] - t["amount"]) <= 0.05 * t["amount"]
+               for p in t["parents"]):
+            continue
+        unique.append(t)
     top_height = max((b["height"] for b in new), default=last_height)
-    return sorted(transfers, key=lambda x: -x["usd"]), top_height
+    return sorted(unique, key=lambda x: -x["usd"]), top_height
 
 
 # --------------------------------------------------------------------------- #
