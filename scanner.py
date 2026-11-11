@@ -490,9 +490,25 @@ def indicator_votes(f, i, leader_bias, leader_name):
     return votes
 
 
-def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg):
+def decoupling(f, i, s, leader_ret24, cfg):
+    """Coin, piyasa liderinden (BTC/QQQ) s yönünde ayrışıyor mu?
+    Örn. BTC düşerken hacimle yükselen coin (s=+1) veya BTC yükselirken çöken coin (s=-1)."""
+    dc = cfg.get("decoupling", {})
+    if not dc.get("enabled", True) or leader_ret24 is None or i < 24:
+        return None
+    own = f["c"][i] / f["c"][i - 24] - 1
+    rel = (own - leader_ret24) * s
+    vr = f["v"][i] / f["vol_ma"][i] if f["vol_ma"][i] else 0
+    h4 = (f["h4_ema"][i] + f["h4_st"][i]) * s
+    if rel >= dc.get("min_rel_return_24h", 0.05) and own * s > 0 and vr >= dc.get("min_volume_ratio", 1.5) and h4 >= 0:
+        return {"own": own, "leader": leader_ret24, "rel": rel, "vr": vr}
+    return None
+
+
+def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg, leader_ret24=None):
     """1s mum kapanışında Supertrend dönüşü + diğer indikatörlerin AL/SAT teyidi.
-    Güven skoru = Supertrend ile aynı yönü gösteren indikatörlerin yüzdesi."""
+    Güven skoru = Supertrend ile aynı yönü gösteren indikatörlerin yüzdesi.
+    Lidere (BTC/QQQ) ters ama ondan güçlü şekilde ayrışan semboller için lider oyu sayılmaz."""
     pdres = pump_dump_analysis(f, cfg, chg24, i)
     votes = indicator_votes(f, i, leader_bias, leader_name)
     flip = 0
@@ -501,20 +517,29 @@ def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, no
         flip = st[i]
     out = {"meta": meta, "f": f, "i": i, "leader_bias": leader_bias, "leader_name": leader_name,
            "funding": funding, "chg24": chg24, "pd": pdres, "votes": votes}
+    lead_label = leader_name or "Lider"
     for key, s in (("long", 1), ("short", -1)):
-        agree = sum(1 for _, v in votes if v == s)
-        score = round(agree / len(votes) * 100)
+        dec = decoupling(f, i, s, leader_ret24, cfg) if flip == s and leader_bias * s < 0 else None
+        used = [(n, v) for n, v in votes if not (dec and n == lead_label)]
+        agree = sum(1 for _, v in used if v == s)
+        score = round(agree / len(used) * 100)
         trig = [f"Supertrend {'AL' if s == 1 else 'SAT'}'a döndü"] if flip == s else []
-        out[key] = {"score": score, "why": [], "triggers": trig,
-                    "agree": agree, "total": len(votes)}
+        why = []
+        if dec:
+            icon = "🚀" if s == 1 else "💥"
+            why.append(f"{icon} {lead_label}'den ayrışıyor: 24s {dec['own']*100:+.1f}% "
+                       f"({lead_label} {dec['leader']*100:+.1f}%), hacim {dec['vr']:.1f}x")
+        out[key] = {"score": score, "why": why, "triggers": trig,
+                    "agree": agree, "total": len(used), "decoupled": bool(dec)}
     return out
 
 
-def evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg):
+def evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg, leader_ret24=None):
     """i. mumda (o ana kadarki veriyle) long/short değerlendirmesi.
     Canlı taramada i = son kapanmış mum; backtest'te her geçmiş mum."""
     if cfg.get("strategy") == "supertrend":
-        return evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg)
+        return evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg,
+                                   leader_ret24)
     pdres = pump_dump_analysis(f, cfg, chg24, i)
     lb = cfg["signal"]["trigger_lookback_bars"]
     session_pen = 0
@@ -546,15 +571,17 @@ def analyze_symbol(meta, candles, ctx, cfg):
     sym = meta["symbol"]
     i = len(f["c"]) - 1
     leader = ctx["leaders"].get(meta["type"])
+    leader_ret24 = None
     if leader is None or leader["symbol"] == sym:
         leader_bias = (f["h4_ema"][i] + f["h4_st"][i]) / 2
         leader_name = "4s trend"
     else:
         leader_bias = leader["bias"]
         leader_name = leader["symbol"].replace("USDT", "")
+        leader_ret24 = leader.get("ret24")
     funding = ctx["funding"].get(sym)
     chg24 = ctx["tickers"].get(sym, {}).get("chg", 0.0)
-    return evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg)
+    return evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg, leader_ret24)
 
 
 def apply_open_interest(res, oi_hist):
@@ -600,7 +627,8 @@ def decide(res, cfg, state, now):
             continue
         if side["score"] - other["score"] < sc["min_score_gap"]:
             continue
-        if sc["block_against_leader"] and res["leader_bias"] * s <= -sc["leader_block_threshold"]:
+        if (sc["block_against_leader"] and res["leader_bias"] * s <= -sc["leader_block_threshold"]
+                and not side.get("decoupled")):     # lidere ters ama ondan ayrışıyorsa izin ver
             continue
         last = state.get("signals", {}).get(f"{sym}|{key}")
         if last and now - last < sc["cooldown_hours"] * 3600:
@@ -876,7 +904,7 @@ def main():
         if typ.startswith("_") or lsym not in candles or len(candles[lsym]) < cfg["min_candles"]:
             continue
         lf = compute_features(candles[lsym], cfg)
-        leaders[typ] = {"symbol": lsym, "bias": trend_bias(lf)}
+        leaders[typ] = {"symbol": lsym, "bias": trend_bias(lf), "ret24": lf["c"][-1] / lf["c"][-25] - 1}
     for typ, ld in leaders.items():
         print(f"Piyasa lideri {typ}: {ld['symbol']} eğilim {ld['bias']:+.1f}")
 

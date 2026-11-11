@@ -158,7 +158,8 @@ def main():
             continue
         lf = sc.compute_features(candles[lsym], cfg)
         leader_bias[typ] = (lsym, {lf["t"][j]: sc.trend_bias(lf, j)
-                                   for j in range(len(lf["t"])) if sc.required_ready(lf, j)})
+                                   for j in range(len(lf["t"])) if sc.required_ready(lf, j)},
+                            {lf["t"][j]: lf["c"][j] / lf["c"][j - 24] - 1 for j in range(24, len(lf["t"]))})
 
     sig_cfg = cfg["signal"]
     lb = sig_cfg["trigger_lookback_bars"]
@@ -180,13 +181,15 @@ def main():
                 continue
             t_close = f["t"][i] + HOUR_MS
             lead = leader_bias.get(meta["type"])
+            lret = None
             if lead and lead[0] != sym and f["t"][i] in lead[1]:
-                lbias, lname = lead[1][f["t"][i]], lead[0]
+                lbias, lname = lead[1][f["t"][i]], lead[0].replace("USDT", "")
+                lret = lead[2].get(f["t"][i])
             else:
                 lbias, lname = (f["h4_ema"][i] + f["h4_st"][i]) / 2, "4s trend"
             chg24 = sc.pct(f["c"][i], f["c"][i - 24])
             now_utc = datetime.fromtimestamp(t_close / 1000, timezone.utc)
-            res = sc.evaluate_at(meta, f, i, lbias, lname, None, chg24, now_utc, cfg)
+            res = sc.evaluate_at(meta, f, i, lbias, lname, None, chg24, now_utc, cfg, lret)
             d = sc.decide(res, cfg, state, t_close / 1000)
             if not d:
                 continue
@@ -199,7 +202,8 @@ def main():
             if any(o is None for o in outcomes.values()):
                 continue
             candidates.append({"t": f["t"][i], "sym": sym, "type": meta["type"], "dir": d,
-                               "score": res[d]["score"], "out": outcomes})
+                               "score": res[d]["score"], "out": outcomes,
+                               "decoupled": bool(res[d].get("decoupled"))})
 
     # Saatte en fazla N sinyal (canlıdaki gibi en yüksek skorlular)
     by_hour = {}
@@ -268,6 +272,7 @@ def report(trades, days):
         return "90+" if s >= 90 else ("80–89" if s >= 80 else ("70–79" if s >= 70 else ("60–69" if s >= 60 else "<60")))
     groups = [
         ("Güven skoru", bucket),
+        ("BTC/QQQ'dan ayrışma", lambda t: ("Ayrışan " if t["decoupled"] else "Normal ") + t["dir"].upper()),
         ("Yön", lambda t: t["dir"].upper()),
         ("Tür", lambda t: {"COIN": "Kripto", "EQUITY": "Hisse"}.get(t["type"], t["type"])),
     ]

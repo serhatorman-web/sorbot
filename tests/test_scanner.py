@@ -141,6 +141,19 @@ def test_backtest_simulation():
     assert r["stopped_before_tp1"] and abs(r["R"] + 1.0) < 1e-9
 
 
+def test_decoupling():
+    cfg = scanner.load_json(scanner.CONFIG_PATH, None)
+    n = 30
+    f = {"c": [100.0] * 5 + [100 + i * 0.5 for i in range(n - 5)], "v": [1.0] * (n - 1) + [2.0],
+         "vol_ma": [1.0] * n, "h4_ema": [1] * n, "h4_st": [0] * n}
+    i = n - 1   # coin 24 saatte ~ +11.5%
+    d = scanner.decoupling(f, i, 1, -0.03, cfg)          # BTC -3%
+    assert d and d["rel"] > 0.1
+    assert scanner.decoupling(f, i, 1, 0.09, cfg) is None   # BTC de yükselmiş: ayrışma yok
+    f["v"][-1] = 1.0
+    assert scanner.decoupling(f, i, 1, -0.03, cfg) is None  # hacim yok: ayrışma sayılmaz
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

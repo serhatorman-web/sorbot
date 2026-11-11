@@ -31,6 +31,13 @@
     "min_score_gap": 0
   },
 
+  "decoupling": {
+    "_aciklama": "BTC/QQQ ters yöndeyken ondan ayrışan semboller: 24s getiri farkı ≥ min_rel_return_24h, dönüş mumunda hacim ≥ min_volume_ratio, kendi 4s trendi ters değil. Bu sinyallerde lider filtresi ve lider oyu atlanır.",
+    "enabled": true,
+    "min_rel_return_24h": 0.05,
+    "min_volume_ratio": 1.5
+  },
+
   "signal": {
     "min_score": 80,
     "min_score_gap": 25,
