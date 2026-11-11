@@ -47,6 +47,15 @@ jobs:
           TEST_TELEGRAM: ${{ inputs.test_telegram && '1' || '' }}
         run: python3 scanner.py
 
+      # Saatlik piyasa raporu + haberler (+ sabah ekonomik takvimi)
+      - name: Piyasa raporu
+        if: always() && !inputs.test_telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python3 report.py
+
       - name: Durum kaydını sakla
         if: always()
         uses: actions/cache/save@v4

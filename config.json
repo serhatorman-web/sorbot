@@ -60,6 +60,20 @@
     "show_breakeven_note": true
   },
 
+  "report": {
+    "_aciklama": "Saatlik piyasa raporu ve haberler. Ekonomik takvim her sabah calendar_daily_hour'da (TSİ) gelir.",
+    "enabled": true,
+    "market_hourly": true,
+    "news_hourly": true,
+    "news_per_category": 5,
+    "news_max_age_hours": 2,
+    "calendar_daily_hour": 9,
+    "calendar_lookahead_hours": 3,
+    "calendar_currencies": ["USD", "EUR", "CNY", "GBP", "JPY"],
+    "calendar_min_impact_daily": "Medium",
+    "calendar_min_impact_hourly": "Medium"
+  },
+
   "pump_radar": {
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",
     "enabled": true,

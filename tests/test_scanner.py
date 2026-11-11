@@ -165,6 +165,48 @@ def test_tf_trend_table():
         assert word in html
 
 
+def test_report_parsers_and_messages():
+    import report
+    from datetime import datetime, timezone
+
+    farside = """<table class="etf"><tr><th></th><th>IBIT</th><th>FBTC</th><th>Total</th></tr>
+      <tr><td>Fee</td><td>0.25%</td><td>0.25%</td><td></td></tr>
+      <tr><td><span>09 Nov 2026</span></td><td>(213.2)</td><td>0.0</td><td>(213.2)</td></tr>
+      <tr><td><span>10 Nov 2026</span></td><td>(78.2)</td><td>12.5</td><td>(65.7)</td></tr>
+      <tr><td><span>11 Nov 2026</span></td><td>-</td><td>-</td><td>0.0</td></tr>
+      <tr><td>Total</td><td>64,810</td><td>10,238</td><td>75,048</td></tr></table>"""
+    rss = """<?xml version="1.0"?><rss><channel><item><title>Fed &amp; faiz</title>
+      <link>https://ex.com/a</link><pubDate>Wed, 11 Nov 2026 16:00:00 GMT</pubDate></item></channel></rss>"""
+    atom = """<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><title>AI model</title>
+      <link href="https://ex.com/b"/><published>2026-11-11T16:30:00Z</published></entry></feed>"""
+    orig = report.get
+    report.get = lambda url, timeout=20, as_json=True: (
+        farside.encode() if "farside" in url else rss.encode() if url.endswith("rss") else atom.encode())
+    try:
+        e = report.etf_flows("btc")
+        assert e["date"] == "10 Nov 2026" and abs(e["total"] + 65.7) < 1e-9 and e["top"][0][0] == "IBIT"
+        assert abs(e["sum5"] + 278.9) < 1e-9
+        a = report.parse_feed("X", "https://ex.com/rss")
+        assert a[0]["title"] == "Fed & faiz" and a[0]["dt"].year == 2026
+        b = report.parse_feed("Y", "https://ex.com/atom")
+        assert b[0]["link"] == "https://ex.com/b"
+    finally:
+        report.get = orig
+
+    now_tr = datetime(2026, 11, 11, 19, 5, tzinfo=report.TR_TZ)
+    d = {"price": 74000, "chg24": -1.2, "funding": 0.0001, "next_funding": 1794412800000,
+         "oi_usd": 7.3e9, "oi_btc": 100000, "oi_1h": 0.01, "oi_24h": -0.02,
+         "ls_acc": (0.73, 0.27, 2.7), "ls_top": (0.68, 0.32, 2.2), "fut_buy": 5000, "fut_sell": 4000}
+    spot = {"buy_usd": 3e7, "sell_usd": 2.5e7, "price_chg_1h": 0.3}
+    ev = [{"dt": datetime(2026, 11, 11, 21, 0, tzinfo=report.TR_TZ), "title": "Fed Chair Speaks", "country": "USD",
+           "impact": "High", "forecast": "", "previous": ""}]
+    m = report.market_message(now_tr, d, spot, {"^GSPC": {"price": 6000.5, "chg": 0.4}},
+                              {"BTC": e, "ETH": None}, ev, {})
+    for word in ("Fonlama", "Açık pozisyon", "Long/Short", "Vadeli", "Spot", "S&amp;P 500", "ETF", "Fed Chair"):
+        assert word in m, word
+    assert "Fed Chair" in report.calendar_message(ev, now_tr.date(), {})
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
