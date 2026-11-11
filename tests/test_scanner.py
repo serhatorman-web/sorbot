@@ -205,7 +205,7 @@ def test_report_parsers_and_messages():
     for word in ("Fonlama", "Açık pozisyon", "Long/Short", "Vadeli", "Spot", "S&amp;P 500", "ETF", "Fed Chair"):
         assert word in m, word
     assert "Fed Chair" in report.calendar_message(ev, now_tr.date(), {})
-    assert "Pozitif" in m and "IBIT" not in m and "net çıkış" in m
+    assert "Pozitif" in m and "IBIT" not in m and "Spot ETF Giriş / Çıkış" in m and "🔴 Çıkış <b>65.7 mn $</b>" in m and "10 Kasım" in m
     d["funding"] = -0.0002
     assert "Negatif" in report.market_message(now_tr, d, spot, {}, {}, None, {})
     ai = lambda t: report.keep_item({"title": t, "link": "https://x.com/a"}, "ai")
@@ -226,7 +226,7 @@ def test_report_parsers_and_messages():
     big = {"date": "12 Nov 2026", "total": -411.9, "funds": [("IBIT", -403.0), ("FBTC", 42.8), ("GBTC", -11.1)],
            "sum5": -900.0, "n5": 5, "top": []}
     al = report.etf_alert_messages({"BTC": big, "ETH": None}, st, {})
-    assert len(al) == 1 and "BÜYÜK BTC ETF ÇIKIŞI" in al[0][2] and "IBIT" in al[0][2] and "GBTC" not in al[0][2]
+    assert len(al) == 1 and "BÜYÜK BTC SPOT ETF ÇIKIŞI" in al[0][2] and "IBIT" in al[0][2] and "GBTC" not in al[0][2]
     st["etf_alert"] = {"BTC": {"date": "12 Nov 2026", "total": -411.9}}
     assert report.etf_alert_messages({"BTC": big}, st, {}) == []          # aynı gün tekrar uyarma
     small = dict(big, total=-60.0)

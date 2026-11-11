@@ -162,6 +162,16 @@ def arrow(x):
     return "🟢" if x > 0 else ("🔴" if x < 0 else "⚪")
 
 
+TR_MONTHS = {"Jan": "Ocak", "Feb": "Şubat", "Mar": "Mart", "Apr": "Nisan", "May": "Mayıs", "Jun": "Haziran",
+             "Jul": "Temmuz", "Aug": "Ağustos", "Sep": "Eylül", "Oct": "Ekim", "Nov": "Kasım", "Dec": "Aralık"}
+
+
+def tr_date(s):
+    """'10 Nov 2026' -> '10 Kasım'"""
+    parts = s.split()
+    return f"{int(parts[0])} {TR_MONTHS.get(parts[1], parts[1])}" if len(parts) == 3 else s
+
+
 def safe(fn, *a):
     try:
         return fn(*a)
@@ -356,13 +366,20 @@ def market_message(now_tr, d, spot, quotes, etf, events, rcfg, whale=None):
         L += [""] + whale_lines(whale, rcfg)
 
     if etf:
-        L += ["", "<b>🏛 Spot ETF akışları</b> (milyon $, Farside)"]
+        L += ["", "<b>🏛 Spot ETF Giriş / Çıkış</b> (Farside)"]
+
+        def flow(v):
+            if v > 0:
+                return f"🟢 Giriş <b>{v:,.1f} mn $</b>"
+            if v < 0:
+                return f"🔴 Çıkış <b>{abs(v):,.1f} mn $</b>"
+            return "⚪ Giriş/çıkış yok"
+
         for asset, e in etf.items():
             if not e:
                 continue
-            word = "giriş" if e["total"] > 0 else ("çıkış" if e["total"] < 0 else "değişim yok")
-            L.append(f"{asset} ({e['date']}): {arrow(e['total'])} <b>{e['total']:+,.1f}</b> net {word} · "
-                     f"son {e['n5']} gün {e['sum5']:+,.1f}")
+            L.append(f"{asset} spot ETF ({tr_date(e['date'])}): {flow(e['total'])}")
+            L.append(f"   son {e['n5']} gün toplam: {flow(e['sum5'])}")
 
     if events is not None:
         now = now_tr
@@ -432,7 +449,7 @@ def etf_alert_messages(etf, state, rcfg):
             continue
         word = "GİRİŞİ" if e["total"] > 0 else "ÇIKIŞI"
         icon = "🟢" if e["total"] > 0 else "🔴"
-        L = [f"🏛 {icon} <b>BÜYÜK {asset} ETF {word}</b> · {e['date']}", "",
+        L = [f"🏛 {icon} <b>BÜYÜK {asset} SPOT ETF {word}</b> · {tr_date(e['date'])}", "",
              f"Toplam net akış: <b>{e['total']:+,.1f} milyon $</b>",
              f"Son {e['n5']} gün: {e['sum5']:+,.1f} milyon $", ""]
         big = [(n, v) for n, v in e["funds"] if abs(v) >= rcfg.get("etf_alert_fund_musd", 20)]
