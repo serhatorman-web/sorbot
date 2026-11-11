@@ -692,8 +692,9 @@ def apply_open_interest(res, oi_hist):
     f = res["f"]
     price_chg = f["c"][-1] / f["c"][-5] - 1
     cfg_pd = res["cfg_pd"]
-    # Supertrend stratejisinde skor = indikatör uyum yüzdesi; OI sadece bilgi notu olur
-    adj = 0 if res.get("votes") else 4
+    if res.get("votes"):
+        return      # Supertrend stratejisi: OI skoru etkilemez ve mesajda not olarak gösterilmez
+    adj = 4
     for key, s in (("long", 1), ("short", -1)):
         side = res[key]
         if oi_chg >= cfg_pd["oi_change_confirm"] and price_chg * s > 0:
