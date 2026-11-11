@@ -61,8 +61,8 @@
   },
 
   "report": {
-    "_aciklama": "Saatlik piyasa raporu ve haberler. Ekonomik takvim her sabah calendar_daily_hour'da (TSİ) gelir.",
-    "enabled": true,
+    "_aciklama": "Saatlik piyasa raporu ve haberler. Ekonomik takvim her sabah calendar_daily_hour'da (TSİ) gelir. Kullanıcı isteğiyle KAPALI (enabled: false); açmak için true yapın.",
+    "enabled": false,
     "market_hourly": true,
     "news_hourly": true,
     "news_per_category": 5,

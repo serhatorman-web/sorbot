@@ -42,7 +42,9 @@ Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece
 
 ---
 
-## Saatlik piyasa raporu (`report.py`, ayarlar: `config.json → report`)
+## Saatlik piyasa raporu (`report.py`) – ŞU AN KAPALI
+
+> Kullanıcı isteğiyle kapatıldı. Tekrar açmak için `config.json` → `report.enabled: true`.
 
 Her taramadan sonra Telegram'a:
 
