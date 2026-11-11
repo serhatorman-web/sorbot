@@ -44,7 +44,6 @@ MARKETS = [
 # Sadece Türkçe kaynaklar. Üçüncü alan bir filtre: "ai" = sadece yapay zeka ile ilgili başlıklar.
 DEFAULT_FEEDS = {
     "💵 Ekonomi & Finans": [
-        ("Investing TR", "https://tr.investing.com/rss/news.rss", None),
         ("Investing TR", "https://tr.investing.com/rss/news_14.rss", None),
         ("Bloomberg HT", "https://www.bloomberght.com/rss", None),
         ("AA Ekonomi", "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", None),
@@ -68,10 +67,17 @@ AI_PATTERN = re.compile(
     r"Nvidia|DeepSeek|Grok|xAI|Llama|Mistral|Midjourney|\bSora\b|makine öğren|derin öğren|yapay sinir",
     re.IGNORECASE)
 SKIP_LINK = ("/transcripts/",)   # Investing'in şirket konferans dökümleri
+# Önemsiz şirket haberleri: içeriden alım/satım, analist notu, atama vb.
+SKIP_TITLE = re.compile(
+    r"hisse (aldı|sattı|satın aldı)|hissesi? için .*görüş|görüşünü (korudu|yineledi)|hedef fiyat|"
+    r"not(unu|u) (yükseltti|düşürdü)|tavsiyesini|direktörlüğüne|terfi|yönetim kuruluna|atadı|atandı|"
+    r"temettü ilan|konferans(ı|ında)|kazanç çağrısı|bahis|casino",
+    re.IGNORECASE)
+PER_SOURCE_MAX = 2
 
 
 def keep_item(item, flt):
-    if any(s in item["link"] for s in SKIP_LINK):
+    if any(s in item["link"] for s in SKIP_LINK) or SKIP_TITLE.search(item["title"]):
         return False
     if flt == "ai":
         return bool(AI_PATTERN.search(item["title"]))
@@ -442,6 +448,12 @@ def main():
             new_by_cat.setdefault(cat, []).append(it)
     for cat in new_by_cat:
         new_by_cat[cat].sort(key=lambda x: x["dt"] or now_utc, reverse=True)
+        per_src, picked = {}, []
+        for it in new_by_cat[cat]:            # her kaynaktan en fazla PER_SOURCE_MAX haber
+            if per_src.get(it["source"], 0) < PER_SOURCE_MAX:
+                per_src[it["source"]] = per_src.get(it["source"], 0) + 1
+                picked.append(it)
+        new_by_cat[cat] = picked
     per_cat = rcfg.get("news_per_category", 5) if not first_run else 3
     ordered = {cat: new_by_cat.get(cat, []) for cat in feeds}
     if rcfg.get("news_hourly", True):

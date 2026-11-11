@@ -54,7 +54,7 @@ Her taramadan sonra Telegram'a:
 - **Önümüzdeki 3 saatin** orta/yüksek önemli ekonomik verileri
 
 **📰 Son Haberler** – son çalıştırmadan beri yayınlanan yeni başlıklar, sadece Türkçe kaynaklar (link ile):
-- Ekonomi & Finans: Investing TR, Bloomberg HT, AA Ekonomi, Dünya
+- Ekonomi & Finans: Investing TR (ekonomi), Bloomberg HT, AA Ekonomi, Dünya – önemsiz şirket haberleri (analist notu, içeriden alım/satım, atama) elenir, kaynak başına en fazla 2 haber
 - Kripto: Investing TR Kripto, BTCHaber
 - Yapay Zeka: Webtekno, ShiftDelete, DonanımHaber, LOG, Teknoblog (sadece yapay zeka ile ilgili başlıklar)
 

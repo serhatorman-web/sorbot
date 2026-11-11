@@ -212,6 +212,10 @@ def test_report_parsers_and_messages():
     assert ai("OpenAI yeni modelini tanıttı") and ai("Yapay zeka çiplerinde yeni dönem") and ai("Nvidia rekor kırdı")
     assert not ai("Yeni elektrikli araba fiyatları") and not ai("Ailelere müjde")   # 'AI' kelime içi eşleşmesin
     assert not report.keep_item({"title": "x", "link": "https://tr.investing.com/news/transcripts/a"}, None)
+    keep = lambda t: report.keep_item({"title": t, "link": "https://x.com/a"}, None)
+    assert not keep("Bank of the James yöneticisi Lewis Addison 1.943 dolar hisse aldı")
+    assert not keep("William Blair, AST Spacemobile hissesi için Market Perform görüşünü korudu")
+    assert keep("Fed faiz kararını açıkladı") and keep("Altın ons başına 4.000 doları aştı")
 
 
 def test_market_status():
