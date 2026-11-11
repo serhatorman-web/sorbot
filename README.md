@@ -52,6 +52,14 @@ Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece
 4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
 5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
 
+**BTC'den ayrışan coinler:** BTC güçlü ters yöndeyken bile, son 24 saatte BTC'den en az %5 ayrışan, dönüş mumunda hacmi
+≥1.5x olan ve kendi 4s trendi ters olmayan semboller için sinyal gelir (mesajda "🚀 BTC'den ayrışıyor" notu, `decoupling`).
+
+**Pump/Dump radarı (sadece kripto, `pump_radar`):** Supertrend'den bağımsız ayrı mesajlar:
+- 🚀/💥 **PUMP/DUMP BAŞLIYOR:** Bollinger sıkışmasından hacim patlamasıyla 20 mumluk direnç/destek kırılımı (giriş/TP/stop ile).
+  Zaten %10 (3s) / %25 (24s) hareket etmiş coinler "geç kalınmış" sayılıp elenir.
+- 👀 **ERKEN UYARI:** Sıkışmada birikim/dağıtım (OBV) + açık pozisyon (OI) ≥ %5 artış, henüz kırılım yok (izleme uyarısı).
+
 Eski ağırlıklı puan stratejisine dönmek için `config.json`'da `"strategy": "score"` yazmanız yeterli.
 
 ## Nasıl çalışır? (genel akış ve "score" stratejisi)

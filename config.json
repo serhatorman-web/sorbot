@@ -63,6 +63,7 @@
   "pump_radar": {
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",
     "enabled": true,
+    "types": ["COIN"],
     "min_score": 70,
     "early_alerts": true,
     "min_score_early": 55,

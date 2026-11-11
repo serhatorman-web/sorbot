@@ -1079,7 +1079,10 @@ def main():
     radar = []
     if rc.get("enabled", True):
         picked = {(r["meta"]["symbol"], d) for _, d, r in picks}
+        radar_types = set(rc.get("types", ["COIN"]))
         for r in results:
+            if r["meta"]["type"] not in radar_types:
+                continue
             for rd in pump_radar(r["f"], r["i"], r["pd"], r["chg24"], cfg, r.get("oi_chg"), r.get("funding")):
                 key = f"{r['meta']['symbol']}|radar_{rd['dir']}"
                 last = state["signals"].get(key)
