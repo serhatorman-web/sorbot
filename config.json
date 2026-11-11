@@ -23,12 +23,12 @@
   },
 
   "signal": {
-    "min_score": 75,
-    "min_score_gap": 20,
+    "min_score": 80,
+    "min_score_gap": 25,
     "block_against_leader": true,
     "leader_block_threshold": 0.6,
     "cooldown_hours": 12,
-    "max_signals_per_run": 8,
+    "max_signals_per_run": 5,
     "trigger_lookback_bars": 2
   },
 

@@ -93,6 +93,7 @@ class FakeAPI:
 
 def test_full_pipeline_dry_run():
     os.environ["DRY_RUN"] = "1"
+    os.environ["SORBOT_SAVE_DRY_STATE"] = "1"
     scanner.STATE_PATH = os.path.join("/tmp", "sorbot_test_state", "state.json")
     if os.path.exists(scanner.STATE_PATH):
         os.remove(scanner.STATE_PATH)

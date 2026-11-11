@@ -30,7 +30,7 @@ import indicators as ta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-STATE_PATH = os.path.join(BASE_DIR, "state", "state.json")
+STATE_PATH = os.path.join(BASE_DIR, "state", "state_v2.json")
 
 # GitHub Actions ABD'de çalışır; fapi.binance.com oradan engelli (HTTP 451).
 # www.binance.com/fapi aynı veriyi sunar ve erişilebilir.
@@ -213,8 +213,15 @@ def trend_bias(f):
 # --------------------------------------------------------------------------- #
 # Tetikleyiciler ve skor
 # --------------------------------------------------------------------------- #
+STRONG_TRIGGERS = ("Supertrend", "MACD", "EMA20/EMA50", "Hacimli")
+
+
 def find_triggers(f, s, lookback):
-    """Son 'lookback' mum içinde yeni oluşan sinyal tetikleyicileri."""
+    """Son 'lookback' mum içinde yeni oluşan sinyal tetikleyicileri.
+
+    Zayıf tetikleyiciler (StochRSI dönüşü) tek başına sinyal üretmez;
+    ancak trend yönünde EMA20'ye geri çekilme sonrası dönüşte geçerlidir.
+    """
     n = len(f["c"])
     found = []
     for i in range(n - lookback, n):
@@ -236,8 +243,16 @@ def find_triggers(f, s, lookback):
             found.append("Hacimli direnç kırılımı")
         if not up and f["ll20"][i - 1] is not None and f["c"][i] < f["ll20"][i - 1] and vr >= 1.5:
             found.append("Hacimli destek kırılımı")
-    # aynı tetikleyiciyi tekrarlama
-    return list(dict.fromkeys(found))
+    found = list(dict.fromkeys(found))   # tekrarları at
+    if found and not any(t.startswith(STRONG_TRIGGERS) for t in found):
+        # Sadece StochRSI dönüşü var: trend içi geri çekilme mi?
+        i = n - 1
+        in_trend = (f["ema20"][i] - f["ema50"][i]) * s > 0 and (f["ema50"][i] - f["ema200"][i]) * s > 0
+        near_ema = f["atr"][i] and abs(f["c"][i] - f["ema20"][i]) <= 1.0 * f["atr"][i]
+        if in_trend and near_ema:
+            return ["Trend içi geri çekilmeden dönüş (StochRSI)"]
+        return []
+    return found
 
 
 def pump_dump_analysis(f, cfg, chg24):
@@ -396,12 +411,15 @@ def score_direction(f, s, leader_bias, funding, pdres, cfg):
 
     # ---- Cezalar ----
     atr_v = f["atr"][i] or 0
-    if atr_v and (c - f["ema20"][i]) * s > 2.5 * atr_v:
+    if atr_v and (c - f["ema20"][i]) * s > 2.0 * atr_v:
         pts -= 10
         why.append("⚠️ Fiyat EMA20'den çok uzak (aşırı uzama)")
     if rs > 80:
         pts -= 8
         why.append("⚠️ RSI aşırı " + ("alım" if s == 1 else "satım") + " bölgesinde")
+    elif rs > 68 and ks > 95:
+        pts -= 6
+        why.append("⚠️ Geç giriş riski (RSI ve StochRSI uç seviyede)")
     if funding is not None:
         fc = cfg["funding"]
         if s == 1 and funding >= fc["crowded_long"]:
@@ -456,15 +474,26 @@ def analyze_symbol(meta, candles, ctx, cfg):
     chg24 = ctx["tickers"].get(sym, {}).get("chg", 0.0)
     pdres = pump_dump_analysis(f, cfg, chg24)
 
-    long_score, long_why = score_direction(f, 1, leader_bias, funding, pdres, cfg)
-    short_score, short_why = score_direction(f, -1, leader_bias, funding, pdres, cfg)
     lb = cfg["signal"]["trigger_lookback_bars"]
-    return {
-        "meta": meta, "f": f, "leader_bias": leader_bias, "leader_name": leader_name,
-        "funding": funding, "chg24": chg24, "pd": pdres,
-        "long": {"score": long_score, "why": long_why, "triggers": find_triggers(f, 1, lb)},
-        "short": {"score": short_score, "why": short_why, "triggers": find_triggers(f, -1, lb)},
-    }
+    i = len(f["c"]) - 1
+    session_pen = 0
+    if meta["type"] == "EQUITY":
+        ms = us_market_status(ctx["now_utc"])
+        session_pen = 8 if ms == "weekend" else (5 if ms == "closed" else 0)
+    out = {"meta": meta, "f": f, "leader_bias": leader_bias, "leader_name": leader_name,
+           "funding": funding, "chg24": chg24, "pd": pdres}
+    for key, s in (("long", 1), ("short", -1)):
+        score, why = score_direction(f, s, leader_bias, funding, pdres, cfg)
+        trig = find_triggers(f, s, lb)
+        if len(trig) >= 2:
+            score = min(100, score + 3)        # birden fazla tetik = daha güçlü teyit
+        score = max(0, score - session_pen)
+        # Sert filtreler: 1s Supertrend ve 4s trend sinyalle çelişmemeli
+        h4 = f["h4"]["ema_dir"] + f["h4"]["st_dir"]
+        if f["st_dir"][i] != s or h4 == -2 * s:
+            trig = []
+        out[key] = {"score": score, "why": why, "triggers": trig}
+    return out
 
 
 def apply_open_interest(res, oi_hist):
@@ -736,7 +765,7 @@ def main():
     for typ, ld in leaders.items():
         print(f"Piyasa lideri {typ}: {ld['symbol']} eğilim {ld['bias']:+.1f}")
 
-    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers}
+    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc}
     results = []
     for sym, meta in symbols.items():
         if meta.get("leader_only") or sym not in candles:
@@ -796,7 +825,7 @@ def main():
     rest = picks[maxn:]
     if rest:
         lines = ["📋 <b>Diğer sinyaller</b> (limit nedeniyle özet):"]
-        for score, d, r in rest[:25]:
+        for score, d, r in rest[:10]:
             lines.append(f"{'🟢' if d == 'long' else '🔴'} {r['meta']['symbol']} – {d.upper()} {score}")
             state["signals"][f"{r['meta']['symbol']}|{d}"] = now
         try:
@@ -804,10 +833,11 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
 
-    # Eski kayıtları temizle
+    # Eski kayıtları temizle. Deneme modunda kayıt tutulmaz (gerçek sinyalleri engellemesin).
     cutoff = now - 7 * 86400
     state["signals"] = {k: v for k, v in state["signals"].items() if v >= cutoff}
-    save_json(STATE_PATH, state)
+    if not notifier.dry or os.environ.get("SORBOT_SAVE_DRY_STATE") == "1":
+        save_json(STATE_PATH, state)
 
     print(f"\nBitti: {len(picks)} sinyal ({sent} detaylı mesaj), {api.requests} istek, "
           f"{time.time()-started:.0f}s")
