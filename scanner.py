@@ -676,7 +676,9 @@ def analyze_symbol(meta, candles, ctx, cfg):
         leader_ret24 = leader.get("ret24")
     funding = ctx["funding"].get(sym)
     chg24 = ctx["tickers"].get(sym, {}).get("chg", 0.0)
-    return evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg, leader_ret24)
+    out = evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg, leader_ret24)
+    out["qv24"] = ctx["tickers"].get(sym, {}).get("qv")
+    return out
 
 
 def apply_open_interest(res, oi_hist):
@@ -831,6 +833,22 @@ def leader_line(res):
     return f"{res['leader_name']} yönü: " + TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
 
 
+def market_lines(res, cfg, now_utc):
+    """ABD borsası açık/kapalı (hisseler) ve likidite yüksek/düşük satırları."""
+    meta = res["meta"]
+    out = []
+    ms = us_market_status(now_utc) if meta["type"] == "EQUITY" else None
+    if ms:
+        out.append("🏛 ABD borsası: " + {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
+                                        "weekend": "🔴 Kapalı (hafta sonu)"}[ms])
+    lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
+    qv = res.get("qv24")
+    if qv is not None:
+        high = qv >= lq.get(meta["type"], lq.get("COIN", 50_000_000)) and ms in (None, "open")
+        out.append("💧 Likidite: " + ("🟢 Yüksek" if high else "🔴 Düşük"))
+    return out
+
+
 def tf_table_html(res):
     tf = res.get("tf")
     if not tf:
@@ -894,17 +912,11 @@ def build_message(res, direction, cfg, now_utc):
             lines.append(f"{ICON[oword]} {oword}: " + ", ".join(opp))
         if neu:
             lines.append("⚪ Nötr: " + ", ".join(neu))
-    lines += ["", trend_line]
+    lines += ["", trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
 
     notes = [n for d, n in res["pd"]["notes"] if d == direction] + side["why"]
-    if meta["type"] == "EQUITY":
-        ms = us_market_status(now_utc)
-        if ms == "weekend":
-            notes.append("⚠️ ABD borsası hafta sonu kapalı – likidite düşük, pazartesi açılışta fark (gap) olabilir")
-        elif ms == "closed":
-            notes.append("⚠️ ABD borsası seans dışı – likidite düşük")
     if notes:
         lines += [""] + notes
 
@@ -940,9 +952,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         lines += ["", tf_table_html(res)]
     if res.get("leader_name") and res["leader_name"] != "4s trend":
         lines.append(leader_line(res))
+    lines += market_lines(res, cfg, now_utc)
     lines += ["", f"24s {res['chg24']:+.1f}%"]
-    if meta["type"] == "EQUITY" and us_market_status(now_utc) != "open":
-        lines.append("⚠️ ABD borsası kapalı – likidite düşük")
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir.</i>"]
     return "\n".join(lines)

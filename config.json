@@ -34,6 +34,11 @@
     }
   },
 
+  "liquidity": {
+    "_aciklama": "Mesajdaki likidite: 24s işlem hacmi bu değerin üstündeyse Yüksek, altındaysa Düşük. Hisselerde ABD borsası kapalıyken her zaman Düşük.",
+    "high_volume_usd": {"COIN": 50000000, "EQUITY": 5000000}
+  },
+
   "market_leaders": {
     "_aciklama": "Sinyaller bu sembollerin yönüne göre filtrelenir. Hisseler için QQQ yoksa hissenin kendi 4s trendi kullanılır.",
     "COIN": "BTCUSDT",
