@@ -216,6 +216,21 @@ def test_report_parsers_and_messages():
     assert not keep("Bank of the James yöneticisi Lewis Addison 1.943 dolar hisse aldı")
     assert not keep("William Blair, AST Spacemobile hissesi için Market Perform görüşünü korudu")
     assert keep("Fed faiz kararını açıkladı") and keep("Altın ons başına 4.000 doları aştı")
+    w = {"btc": [{"hash": "ab" * 32, "amount": 355.2, "usd": 26.4e6, "time": 1794418403, "height": 1}],
+         "eth": [],
+         "ob_BTC": {"Vadeli": {"mid": 74450, "bid_usd": 30e6, "ask_usd": 12e6, "bid_wall": (74400, 6e6),
+                               "ask_wall": (74500, 3e6), "range": (74300, 74600)}}}
+    wl = "\n".join(report.whale_lines(w, {}))
+    assert "355 BTC" in wl and "büyük transfer yok" in wl and "alıcılar" in wl and "mempool.space/tx/" in wl
+    st = {}
+    big = {"date": "12 Nov 2026", "total": -411.9, "funds": [("IBIT", -403.0), ("FBTC", 42.8), ("GBTC", -11.1)],
+           "sum5": -900.0, "n5": 5, "top": []}
+    al = report.etf_alert_messages({"BTC": big, "ETH": None}, st, {})
+    assert len(al) == 1 and "BÜYÜK BTC ETF ÇIKIŞI" in al[0][2] and "IBIT" in al[0][2] and "GBTC" not in al[0][2]
+    st["etf_alert"] = {"BTC": {"date": "12 Nov 2026", "total": -411.9}}
+    assert report.etf_alert_messages({"BTC": big}, st, {}) == []          # aynı gün tekrar uyarma
+    small = dict(big, total=-60.0)
+    assert report.etf_alert_messages({"BTC": dict(small, date="13 Nov 2026")}, {}, {}) == []   # eşik altı
     imp = report.importance
     assert imp("Fed faiz kararını açıkladı: politika faizi sabit") >= 5
     assert imp("ABD'de enflasyon beklentileri aştı") >= 3

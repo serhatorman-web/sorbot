@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 import scanner as sc
+import whales
 
 TR_TZ = sc.TR_TZ
 STATE_PATH = os.path.join(sc.BASE_DIR, "state", "report_state.json")
@@ -249,7 +250,8 @@ def etf_flows(asset):
     funds.sort(key=lambda x: -abs(x[1]))
     # son 5 günün toplamı
     week = [num(c[-1]) for c in reported[-5:] if num(c[-1]) is not None]
-    return {"date": last[0], "total": num(last[-1]) or 0.0, "top": funds[:3], "sum5": sum(week), "n5": len(week)}
+    return {"date": last[0], "total": num(last[-1]) or 0.0, "top": funds[:3], "funds": funds,
+            "sum5": sum(week), "n5": len(week)}
 
 
 def calendar_events():
@@ -302,7 +304,7 @@ def parse_feed(source, url):
 # --------------------------------------------------------------------------- #
 # Mesajlar
 # --------------------------------------------------------------------------- #
-def market_message(now_tr, d, spot, quotes, etf, events, rcfg):
+def market_message(now_tr, d, spot, quotes, etf, events, rcfg, whale=None):
     L = [f"📊 <b>Saatlik Piyasa Raporu</b> · {now_tr:%d.%m.%Y %H:%M} TSİ", ""]
 
     if d:
@@ -350,6 +352,9 @@ def market_message(now_tr, d, spot, quotes, etf, events, rcfg):
         if rows:
             L.append("<pre>" + esc("\n".join(rows)) + "</pre>")
 
+    if whale:
+        L += [""] + whale_lines(whale, rcfg)
+
     if etf:
         L += ["", "<b>🏛 Spot ETF akışları</b> (milyon $, Farside)"]
         for asset, e in etf.items():
@@ -375,6 +380,86 @@ def market_message(now_tr, d, spot, quotes, etf, events, rcfg):
 
     L += ["", "<i>Yatırım tavsiyesi değildir.</i>"]
     return "\n".join(L)
+
+
+def whale_lines(w, rcfg):
+    L = ["<b>🐋 Balina Hareketleri</b>"]
+    for asset, key, url, unit in (("BTC", "btc", "https://mempool.space/tx/", "BTC"),
+                                  ("ETH", "eth", "https://etherscan.io/tx/", "ETH")):
+        tr = w.get(key)
+        if tr is None:
+            L.append(f"{asset} zincir üstü: veri alınamadı")
+            continue
+        mn = rcfg.get(f"whale_{key}_min_usd", 10_000_000 if key == "btc" else 5_000_000)
+        if not tr:
+            L.append(f"🔗 {asset} zincir üstü (≥{fmt_usd(mn)}): son saatte büyük transfer yok")
+            continue
+        tot = sum(x["usd"] for x in tr)
+        L.append(f"🔗 {asset} zincir üstü (≥{fmt_usd(mn)}): <b>{len(tr)} transfer</b>, toplam {fmt_usd(tot)}")
+        for x in tr[:3]:
+            t = datetime.fromtimestamp(x["time"], TR_TZ).strftime("%H:%M")
+            L.append(f"   • <a href=\"{url}{x['hash']}\">{x['amount']:,.0f} {unit}</a> ({fmt_usd(x['usd'])}) · {t}")
+    for asset in ("BTC", "ETH"):
+        ob = w.get("ob_" + asset)
+        if not ob:
+            continue
+        for mkt in ("Vadeli", "Spot"):
+            o = ob.get(mkt)
+            if not o:
+                continue
+            b, a = o["bid_usd"], o["ask_usd"]
+            side = "alıcılar" if b > a * 1.1 else ("satıcılar" if a > b * 1.1 else "dengeli")
+            bw_p, bw_v = o["bid_wall"]
+            aw_p, aw_v = o["ask_wall"]
+            L.append(f"📗 {asset} {mkt} emir defteri: alış {fmt_usd(b)} / satış {fmt_usd(a)} · <b>{side}</b>")
+            L.append(f"   en büyük alış duvarı {fmt_usd(bw_v)} @ {bw_p:,.0f} · satış duvarı {fmt_usd(aw_v)} @ {aw_p:,.0f}")
+    L.append("<i>Transfer = alış/satış değildir; büyük oyuncuların fon hareketini gösterir.</i>")
+    return L
+
+
+def etf_alert_messages(etf, state, rcfg):
+    """Büyük ETF giriş/çıkışı olduğunda ayrı uyarı (yeni gün veya önemli güncelleme)."""
+    msgs = []
+    alerts = state.setdefault("etf_alert", {})
+    for asset, e in etf.items():
+        if not e:
+            continue
+        thr = rcfg.get(f"etf_alert_{asset.lower()}_musd", 100 if asset == "BTC" else 50)
+        if abs(e["total"]) < thr:
+            continue
+        prev = alerts.get(asset, {})
+        if prev.get("date") == e["date"] and abs(prev.get("total", 0) - e["total"]) < thr / 2:
+            continue
+        word = "GİRİŞİ" if e["total"] > 0 else "ÇIKIŞI"
+        icon = "🟢" if e["total"] > 0 else "🔴"
+        L = [f"🏛 {icon} <b>BÜYÜK {asset} ETF {word}</b> · {e['date']}", "",
+             f"Toplam net akış: <b>{e['total']:+,.1f} milyon $</b>",
+             f"Son {e['n5']} gün: {e['sum5']:+,.1f} milyon $", ""]
+        big = [(n, v) for n, v in e["funds"] if abs(v) >= rcfg.get("etf_alert_fund_musd", 20)]
+        if big:
+            L.append("Büyük fon hareketleri:")
+            for n, v in big[:6]:
+                L.append(f"{'🟢' if v > 0 else '🔴'} {esc(n)}: {v:+,.1f} mn $")
+        L += ["", "<i>Kaynak: Farside Investors</i>"]
+        msgs.append((asset, e, "\n".join(L)))
+    return msgs
+
+
+def collect_whales(api, btc_price, eth_price, state, rcfg):
+    w = {}
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        f_btc = ex.submit(safe, whales.btc_transfers, btc_price,
+                          rcfg.get("whale_btc_min_usd", 10_000_000), state.get("btc_height"))
+        f_eth = ex.submit(safe, whales.eth_transfers, eth_price,
+                          rcfg.get("whale_eth_min_usd", 5_000_000), state.get("eth_block"))
+        f_ob = {a: ex.submit(safe, whales.orderbook, api, a + "USDT", b)
+                for a, b in (("BTC", 100), ("ETH", 5))}
+        b, e = f_btc.result(), f_eth.result()
+        for a, fu in f_ob.items():
+            w["ob_" + a] = fu.result()
+    w["btc"], w["eth"] = (b[0] if b else None), (e[0] if e else None)
+    w["_btc_height"], w["_eth_block"] = (b[1] if b else None), (e[1] if e else None)
+    return w
 
 
 def event_line(e):
@@ -450,6 +535,7 @@ def main():
     feeds = rcfg.get("feeds") or DEFAULT_FEEDS
     with ThreadPoolExecutor(max_workers=10) as ex:
         f_deriv = ex.submit(safe, btc_derivatives, api)
+        f_eth = ex.submit(safe, lambda: float(api.get('/fapi/v1/ticker/price', {'symbol': 'ETHUSDT'})['price']))
         f_spot = ex.submit(safe, btc_spot)
         f_quotes = {sym: ex.submit(safe, market_quote, sym) for _, sym in MARKETS}
         f_etf = {a: ex.submit(safe, etf_flows, a) for a in ("btc", "eth")}
@@ -460,9 +546,17 @@ def main():
         quotes = {s: fu.result() for s, fu in f_quotes.items()}
         etf = {"BTC": f_etf["btc"].result(), "ETH": f_etf["eth"].result()}
         events = f_cal.result()
+        eth_price = f_eth.result()
         feed_items = {k: fu.result() or [] for k, fu in f_feeds.items()}
 
+    whale = None
+    if rcfg.get("whales", True) and deriv and eth_price:
+        whale = collect_whales(api, deriv["price"], eth_price, state, rcfg)
+
     messages = []
+    etf_alerts = etf_alert_messages(etf, state, rcfg) if rcfg.get("etf_alerts", True) else []
+    for asset, e, text in etf_alerts:
+        messages.append(("etf_" + asset, text))
 
     # Sabah ekonomik takvimi (günde bir kez)
     day_key = now_tr.strftime("%Y-%m-%d")
@@ -470,7 +564,7 @@ def main():
         messages.append(("calendar", calendar_message(events, now_tr.date(), rcfg)))
 
     if rcfg.get("market_hourly", True):
-        messages.append(("market", market_message(now_tr, deriv, spot, quotes, etf, events, rcfg)))
+        messages.append(("market", market_message(now_tr, deriv, spot, quotes, etf, events, rcfg, whale)))
 
     # Haberler: sadece yeni ve son N saatte yayınlanmış olanlar
     max_age = timedelta(hours=rcfg.get("news_max_age_hours", 2))
@@ -531,6 +625,13 @@ def main():
     # Durum: görülen haber linkleri (7 gün)
     if sent_ok:
         state["seen"].update(seen_now)
+        for asset, e, _ in etf_alerts:
+            state.setdefault("etf_alert", {})[asset] = {"date": e["date"], "total": e["total"]}
+        if whale:
+            if whale.get("_btc_height"):
+                state["btc_height"] = whale["_btc_height"]
+            if whale.get("_eth_block"):
+                state["eth_block"] = whale["_eth_block"]
     cutoff = time.time() - 7 * 86400
     state["seen"] = {k: v for k, v in state["seen"].items() if v >= cutoff}
     if not notifier.dry or os.environ.get("SORBOT_SAVE_DRY_STATE") == "1":

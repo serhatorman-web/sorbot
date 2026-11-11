@@ -73,7 +73,14 @@
     "calendar_lookahead_hours": 3,
     "calendar_currencies": ["USD", "EUR", "CNY", "GBP", "JPY"],
     "calendar_min_impact_daily": "Medium",
-    "calendar_min_impact_hourly": "Medium"
+    "calendar_min_impact_hourly": "Medium",
+    "whales": true,
+    "whale_btc_min_usd": 10000000,
+    "whale_eth_min_usd": 5000000,
+    "etf_alerts": true,
+    "etf_alert_btc_musd": 100,
+    "etf_alert_eth_musd": 50,
+    "etf_alert_fund_musd": 20
   },
 
   "pump_radar": {
