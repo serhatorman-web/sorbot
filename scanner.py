@@ -893,7 +893,9 @@ def build_message(res, direction, cfg, now_utc):
             lines.append(f"{ICON[oword]} {oword}: " + ", ".join(opp))
         if neu:
             lines.append("⚪ Nötr: " + ", ".join(neu))
-    lines += ["", trend_line, "", ind_line, " · ".join(extra)]
+    lines += ["", trend_line]
+    if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
+        lines += ["", ind_line, " · ".join(extra)]
 
     notes = [n for d, n in res["pd"]["notes"] if d == direction] + side["why"]
     if meta["type"] == "EQUITY":
