@@ -42,7 +42,19 @@ Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece
 
 ---
 
-## Nasıl çalışır?
+## Aktif strateji: Supertrend + indikatör teyidi (`"strategy": "supertrend"`)
+
+1. Her saat, kapanan 1 saatlik mumda **Supertrend AL'a veya SAT'a döndü mü** diye bakılır. Dönüş yoksa sinyal yoktur.
+2. Dönüş varsa diğer indikatörlerin AL/SAT durumu oylanır:
+   RSI (50 üstü/altı), StochRSI (K/D), MACD (sinyal çizgisi), Momentum, fiyatın EMA20/50/200 ve MA50/200'e göre konumu,
+   ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü), BTC/QQQ yönü.
+3. **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
+4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
+5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
+
+Eski ağırlıklı puan stratejisine dönmek için `config.json`'da `"strategy": "score"` yazmanız yeterli.
+
+## Nasıl çalışır? (genel akış ve "score" stratejisi)
 
 1. Binance'ten tüm USDT.P kontratları, 24s hacim, fonlama oranları alınır.
 2. Günlük hacmi düşük semboller elenir (kripto < 5M USDT, hisse < 1M USDT).
