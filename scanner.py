@@ -839,7 +839,11 @@ def build_message(res, direction, cfg, now_utc):
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
 
-    lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
+    if res.get("votes"):
+        st_word = "AL" if direction == "long" else "SAT"
+        lines += ["", f"📌 Supertrend: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+    else:
+        lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         s = 1 if direction == "long" else -1
         same = [n for n, v in res["votes"] if v == s]
