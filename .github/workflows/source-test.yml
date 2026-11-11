@@ -1,0 +1,49 @@
+name: Kaynak Erisim Testi
+
+# Gecici test: Turkce haber RSS kaynaklarina erisim.
+on:
+  push:
+    paths:
+      - ".github/workflows/source-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Kaynaklar
+        shell: python3 {0}
+        run: |
+          import urllib.request, re
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+          urls = {
+            "Investing TR ekonomi": "https://tr.investing.com/rss/news_14.rss",
+            "Investing TR borsa": "https://tr.investing.com/rss/news_25.rss",
+            "Investing TR emtia": "https://tr.investing.com/rss/news_11.rss",
+            "Investing TR doviz": "https://tr.investing.com/rss/news_1.rss",
+            "BloombergHT kripto": "https://www.bloomberght.com/rss/kripto-para",
+            "AA ekonomi": "https://www.aa.com.tr/tr/rss/default?cat=ekonomi",
+            "Dunya": "https://www.dunya.com/rss",
+            "Cointelegraph TR": "https://tr.cointelegraph.com/rss",
+            "Koinmedya": "https://koinmedya.com/feed/",
+            "BTCHaber": "https://www.btchaber.com/feed/",
+            "Webtekno": "https://www.webtekno.com/rss.xml",
+            "ShiftDelete": "https://shiftdelete.net/feed",
+            "DonanimHaber": "https://www.donanimhaber.com/rss/tum/",
+            "Chip TR": "https://www.chip.com.tr/rss",
+            "Log": "https://www.log.com.tr/feed/",
+            "Teknoblog": "https://www.teknoblog.com/feed/",
+          }
+          for name, u in urls.items():
+              try:
+                  req = urllib.request.Request(u, headers={"User-Agent": UA, "Accept": "*/*"})
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      body = r.read().decode("utf-8", "ignore")
+                      titles = re.findall(r"<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>", body, re.S)[1:4]
+                      print(f"[{r.status}] {name}: {len(body)} | {body.count('<item')} item | {titles}")
+              except Exception as e:
+                  print(f"[HATA] {name}: {getattr(e, 'code', '')} {str(e)[:100]}")
