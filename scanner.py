@@ -528,6 +528,7 @@ def indicator_votes(f, i, leader_bias, leader_name):
     vr = f["v"][i] / f["vol_ma"][i] if f["vol_ma"][i] else 0
     candle = sgn(f["c"][i] - f["o"][i])
     votes = [
+        ("Supertrend", f["st_dir"][i] or 0),
         ("RSI", sgn(f["rsi"][i] - 50)),
         ("StochRSI", sgn(f["srsi_k"][i] - f["srsi_d"][i])),
         ("MACD", sgn(f["macd"][i] - f["macd_sig"][i])),
