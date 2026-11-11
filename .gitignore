@@ -1,0 +1,13 @@
+# Gizli bilgiler - ASLA commit etmeyin
+.env
+*.env
+secrets.*
+
+# Çalışma sırasında oluşan durum kaydı
+state/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

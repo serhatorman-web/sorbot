@@ -1,0 +1,55 @@
+name: SorBot Tarama
+
+on:
+  schedule:
+    # Her saatin 5. dakikasında (mum kapanışından hemen sonra). Saat UTC'dir.
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Telegram'a gönderme, sadece log'a yaz"
+        type: boolean
+        default: false
+      test_telegram:
+        description: "Sadece Telegram bağlantı testi mesajı gönder"
+        type: boolean
+        default: false
+
+# En az yetki: repoyu sadece okuyabilir
+permissions:
+  contents: read
+
+# Aynı anda iki tarama çalışmasın (çift mesajı önler)
+concurrency:
+  group: sorbot-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gönderilen sinyallerin kaydı (aynı sinyal tekrar gelmesin diye)
+      - name: Durum kaydını geri yükle
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: sorbot-state-${{ github.run_id }}
+          restore-keys: sorbot-state-
+
+      - name: Tara
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          TEST_TELEGRAM: ${{ inputs.test_telegram && '1' || '' }}
+        run: python3 scanner.py
+
+      - name: Durum kaydını sakla
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: sorbot-state-${{ github.run_id }}

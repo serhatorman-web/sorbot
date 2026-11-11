@@ -1,0 +1,71 @@
+{
+  "_aciklama": "Tüm ayarlar burada. Değiştirip commit etmeniz yeterli, bir sonraki taramada geçerli olur.",
+
+  "timeframe": "1h",
+  "kline_limit": 499,
+  "min_candles": 250,
+
+  "universe": {
+    "_aciklama": "COIN = kripto, EQUITY = ABD hisseleri. İsterseniz COMMODITY (altın, petrol), HK_EQUITY, KR_EQUITY, FX de eklenebilir.",
+    "include_types": ["COIN", "EQUITY"],
+    "exclude_symbols": ["USDCUSDT", "BTCDOMUSDT"],
+    "min_quote_volume_24h": {
+      "COIN": 5000000,
+      "EQUITY": 1000000,
+      "default": 2000000
+    }
+  },
+
+  "market_leaders": {
+    "_aciklama": "Sinyaller bu sembollerin yönüne göre filtrelenir. Hisseler için QQQ yoksa hissenin kendi 4s trendi kullanılır.",
+    "COIN": "BTCUSDT",
+    "EQUITY": "QQQUSDT"
+  },
+
+  "signal": {
+    "min_score": 75,
+    "min_score_gap": 20,
+    "block_against_leader": true,
+    "leader_block_threshold": 0.6,
+    "cooldown_hours": 12,
+    "max_signals_per_run": 8,
+    "trigger_lookback_bars": 2
+  },
+
+  "risk": {
+    "_aciklama": "Stop = giriş ± sl_atr_mult × ATR. TP'ler stop mesafesinin katları (R).",
+    "sl_atr_mult": 1.5,
+    "tp_r_multiples": [1.0, 2.0, 3.0]
+  },
+
+  "pump_dump": {
+    "volume_spike_ratio": 3.0,
+    "squeeze_lookback": 120,
+    "squeeze_percentile": 0.2,
+    "breakout_lookback": 20,
+    "oi_change_strong": 0.08,
+    "oi_change_confirm": 0.03,
+    "already_pumped_3h": 0.10,
+    "already_pumped_24h": 0.25
+  },
+
+  "funding": {
+    "crowded_long": 0.0005,
+    "crowded_short": -0.0005
+  },
+
+  "indicators": {
+    "rsi": 14,
+    "stoch_rsi": [14, 14, 3, 3],
+    "macd": [12, 26, 9],
+    "supertrend": [10, 3.0],
+    "momentum": 10,
+    "ema": [20, 50, 200],
+    "ma": [50, 200],
+    "atr": 14,
+    "adx": 14,
+    "cci": 20,
+    "volume_ma": 20,
+    "bollinger": [20, 2.0]
+  }
+}
