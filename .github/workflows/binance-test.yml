@@ -1,0 +1,36 @@
+name: Binance Erisim Testi
+
+# Sadece erisim testi: Binance'e herkese acik veri istekleri atar ve
+# HTTP durum kodlarini log'a yazar. API anahtari veya secret kullanmaz.
+on:
+  push:
+    paths:
+      - ".github/workflows/binance-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Sunucu konumu
+        run: curl -s --max-time 10 https://ipinfo.io/json | grep -E '"(country|region|city|org)"' || true
+
+      - name: Binance istekleri
+        run: |
+          check () {
+            code=$(curl -s -o /tmp/body.txt -w "%{http_code}" --max-time 15 "$2")
+            echo "[$code] $1"
+            head -c 200 /tmp/body.txt; echo; echo
+          }
+          echo "===== VADELI (USDT-M Futures) ====="
+          check "fapi zaman"        "https://fapi.binance.com/fapi/v1/time"
+          check "fapi BTCUSDT 1h"   "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1h&limit=2"
+          check "fapi exchangeInfo" "https://fapi.binance.com/fapi/v1/exchangeInfo"
+          check "www.binance.com/fapi" "https://www.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1h&limit=2"
+          echo "===== SPOT ====="
+          check "api.binance.com"        "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=2"
+          check "data-api.binance.vision" "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=2"
