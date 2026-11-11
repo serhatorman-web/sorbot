@@ -1,0 +1,49 @@
+name: Kaynak Erisim Testi
+
+# Gecici test: balina takibi icin kaynaklar.
+on:
+  push:
+    paths:
+      - ".github/workflows/source-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Kaynaklar
+        shell: python3 {0}
+        run: |
+          import urllib.request, json, time
+          from datetime import datetime, timezone, timedelta
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+          since = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+          q = urllib.request.quote
+          urls = {
+            "Blockchair BTC": f"https://api.blockchair.com/bitcoin/transactions?q=output_total_usd(10000000..),time({q(since)}..)&s=time(desc)&limit=10",
+            "Blockchair ETH": f"https://api.blockchair.com/ethereum/transactions?q=value_usd(10000000..),time({q(since)}..)&s=time(desc)&limit=10",
+            "Blockchair stats": "https://api.blockchair.com/bitcoin/stats",
+            "mempool blocks": "https://mempool.space/api/v1/blocks",
+            "Fapi depth BTC": "https://www.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000",
+            "Spot depth BTC": "https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=1000",
+            "Fapi aggTrades": "https://www.binance.com/fapi/v1/aggTrades?symbol=BTCUSDT&limit=5",
+            "Etherscan-like": "https://api.blockchair.com/ethereum/stats",
+          }
+          for name, u in urls.items():
+              try:
+                  req = urllib.request.Request(u, headers={"User-Agent": UA, "Accept": "application/json"})
+                  with urllib.request.urlopen(req, timeout=25) as r:
+                      body = r.read()
+                      hdr = {k: v for k, v in r.headers.items() if "weight" in k.lower()}
+                      print(f"[{r.status}] {name}: {len(body)} bayt {hdr} | {body[:400]!r}")
+              except Exception as e:
+                  b = b""
+                  try:
+                      b = e.read()[:200]
+                  except Exception:
+                      pass
+                  print(f"[HATA] {name}: {getattr(e, 'code', '')} {str(e)[:100]} {b!r}")
