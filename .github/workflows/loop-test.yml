@@ -1,0 +1,20 @@
+name: Gecici Dongu Testi
+
+# Gecici: dongunun bir taramayi dogru zamanda yaptigini deneme modunda dogrular.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kisa dongu (deneme modu)
+        env:
+          DRY_RUN: "1"
+          SORBOT_LOOP_MINUTES: "14"
+        run: python3 runner.py
