@@ -8,8 +8,7 @@
     "15m": {
       "timeframe": "15m",
       "state_file": "state_15m.json",
-      "signal": {"cooldown_hours": 3, "max_signals_per_run": 5},
-      "signal_supertrend": {"min_score": 90},
+      "signal_supertrend": {"cooldown_hours": 0.25},
       "pump_radar": {"enabled": false},
       "report": {"enabled": false}
     }
@@ -38,9 +37,12 @@
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
 
   "signal_supertrend": {
-    "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. min_score = aynı yöndeki indikatörlerin yüzdesi.",
-    "min_score": 90,
-    "min_score_gap": 0
+    "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, lider filtresi kapalı). Eski filtreli hal için min_score 90 ve block_against_leader true yapın.",
+    "min_score": 0,
+    "min_score_gap": 0,
+    "block_against_leader": false,
+    "cooldown_hours": 1,
+    "max_signals_per_run": 10
   },
 
   "decoupling": {

@@ -1150,7 +1150,10 @@ def main():
         print(f"En yüksek {key} skorları: " +
               ", ".join(f"{r['meta']['symbol']} {r[key]['score']}{'*' if r[key]['triggers'] else ''}" for r in top))
 
-    maxn = cfg["signal"]["max_signals_per_run"]
+    sig_cfg = dict(cfg["signal"])
+    if cfg.get("strategy") == "supertrend":
+        sig_cfg.update(cfg.get("signal_supertrend", {}))
+    maxn = sig_cfg["max_signals_per_run"]
     sent = 0
     for score, d, r in picks[:maxn]:
         fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
@@ -1165,7 +1168,7 @@ def main():
     rest = picks[maxn:]
     if rest:
         lines = ["📋 <b>Diğer sinyaller</b> (limit nedeniyle özet):"]
-        for score, d, r in rest[:10]:
+        for score, d, r in rest[:40]:
             lines.append(f"{'🟢' if d == 'long' else '🔴'} {r['meta']['symbol']} – {d.upper()} {score}")
             state["signals"][f"{r['meta']['symbol']}|{d}"] = now
         try:

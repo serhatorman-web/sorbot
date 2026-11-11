@@ -248,7 +248,7 @@ def test_15m_profile():
     cfg = scanner.load_json(scanner.CONFIG_PATH, None)
     c15 = scanner.apply_tf_profile(cfg, "15m")
     assert c15["timeframe"] == "15m" and c15["state_file"] == "state_15m.json"
-    assert c15["pump_radar"]["enabled"] is False and c15["signal"]["cooldown_hours"] == 3
+    assert c15["pump_radar"]["enabled"] is False and c15["signal_supertrend"]["cooldown_hours"] == 0.25 and c15["signal_supertrend"]["min_score"] == 0
     assert c15["signal"]["min_score"] == cfg["signal"]["min_score"]          # diğer ayarlar korunur
     assert scanner.bars_per_day(c15) == 96 and scanner.tf_ms(c15) == 900_000
     # 15dk mumlardan üst zaman dilimi (1s) hesaplanır
