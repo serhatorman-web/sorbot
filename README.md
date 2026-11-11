@@ -1,0 +1,119 @@
+# SorBot – Binance USDT.P Sinyal Tarayıcısı
+
+Binance vadelideki USDT.P kontratlarını (kripto + ABD hisseleri: NVDA, AMD …) **saatte bir** tarar,
+16 indikatörden oluşan bir filtreden geçirir ve sadece **yüksek güven skorlu** long/short
+sinyallerini Telegram'a gönderir.
+
+- ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
+- ⏱️ GitHub Actions'ta çalışır (her saatin 5. dakikası). Bir tarama ~20 saniye sürer, ayda ~720 dakika harcar.
+- 📦 Ek paket yok, sadece Python standart kütüphanesi.
+
+> ⚠️ **Yatırım tavsiyesi değildir.** Sinyaller teknik göstergelere dayalıdır ve kazanç garantisi yoktur.
+> Vadeli işlemlerde kaldıraç kayıpları da büyütür.
+
+---
+
+## Kurulum (tek seferlik)
+
+### 1. Telegram botu
+1. Telegram'da **@BotFather** → `/newbot` → isim verin → size verilen **token**'ı saklayın.
+2. Sinyallerin geleceği yere botu ekleyin:
+   - **Kendinize:** bota bir mesaj atın.
+   - **Kanal/grup:** botu ekleyip yönetici yapın, kanala bir mesaj atın.
+3. Tarayıcıda `https://api.telegram.org/bot<TOKEN>/getUpdates` adresini açıp `"chat":{"id": …}` değerini bulun.
+   Kanal/grup ID'leri genelde `-100…` ile başlar.
+
+### 2. GitHub Secrets
+Repo → **Settings → Secrets and variables → Actions → New repository secret**
+
+| Ad | Değer |
+|---|---|
+| `TELEGRAM_TOKEN` | BotFather'dan aldığınız token |
+| `TELEGRAM_CHAT_ID` | Bulduğunuz chat ID |
+
+> Token'ı asla koda, commit'e veya sohbete yazmayın. Sızarsa BotFather'da `/revoke` ile yenileyin.
+
+### 3. Test
+Repo → **Actions → SorBot Tarama → Run workflow**
+- `test_telegram` kutusunu işaretleyip çalıştırın → Telegram'a "bağlantı testi başarılı" mesajı gelmeli.
+- `dry_run` kutusu işaretliyken bot tarama yapar ama mesaj göndermez, sinyalleri log'a yazar.
+
+Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece log).
+
+---
+
+## Nasıl çalışır?
+
+1. Binance'ten tüm USDT.P kontratları, 24s hacim, fonlama oranları alınır.
+2. Günlük hacmi düşük semboller elenir (kripto < 5M USDT, hisse < 1M USDT).
+3. Her sembol için son ~500 adet 1 saatlik mum çekilir; 4 saatlik trend bundan hesaplanır.
+4. İndikatörler hesaplanır ve **long** ve **short** için ayrı **0–100 güven skoru** çıkarılır.
+5. Sadece yeni bir **tetik** oluşmuşsa ve tüm filtreler geçilirse sinyal gönderilir.
+
+### Güven skoru (100 puan)
+
+| Bölüm | Puan | İçerik |
+|---|---|---|
+| Trend | 30 | Fiyat/EMA200, EMA20>EMA50>EMA200, MA50/MA200, Supertrend, 4s EMA ve Supertrend |
+| Momentum | 25 | RSI, Stochastic RSI, MACD (histogram + yön), Momentum, CCI |
+| Trend gücü | 10 | ADX ve +DI/−DI |
+| Hacim | 15 | Hacim/ortalama, OBV eğilimi, VWAP üstü/altı |
+| Piyasa yönü | 20 | Kripto için **BTC**, hisseler için **QQQ** trendi |
+
+**Bonus / ceza:**
+- 🚀/💥 Pump/dump analizi: Bollinger sıkışması + hacimli kırılım, sıkışmada birikim/dağıtım (OBV), açık pozisyon (OI) artışı
+- ⚠️ Pump/dump sonrası geç kalma, aşırı uzama (EMA20'den 2 ATR+), RSI uç seviye, geç giriş
+- ⚠️ Fonlama kalabalığı (long'lar/short'lar aşırı yığılmışsa)
+- ⚠️ Hisselerde ABD borsası kapalıyken (seans dışı −5, hafta sonu −8)
+- ✅ Birden fazla tetik birlikte oluşmuşsa +3, OI hareketi destekliyorsa +4
+
+### Sinyal tetikleri
+Supertrend dönüşü · MACD kesişimi · EMA20/EMA50 kesişimi · Hacimli direnç/destek kırılımı ·
+Trend içi geri çekilme sonrası StochRSI dönüşü
+
+### Sert filtreler (geçmeyen sinyal gönderilmez)
+- Skor ≥ **80** ve karşı yön skorundan en az **25** puan yüksek
+- 1 saatlik Supertrend sinyal yönünde, 4 saatlik trend ters değil
+- BTC (kripto) / QQQ (hisse) güçlü şekilde ters yöndeyse sinyal yok
+- Aynı sembol + yön için **12 saat** tekrar sinyal yok
+- Saatte en fazla **5** detaylı mesaj (fazlası tek bir özet mesajında)
+
+### Giriş / Stop / TP
+- **Giriş:** son kapanan mumun kapanışı
+- **Stop:** giriş ± 1.5 × ATR
+- **TP1/TP2/TP3:** stop mesafesinin 1, 2, 3 katı (1R / 2R / 3R)
+
+---
+
+## Ayarlar – `config.json`
+
+| Ayar | Açıklama |
+|---|---|
+| `universe.include_types` | `COIN`, `EQUITY`; isterseniz `COMMODITY`, `HK_EQUITY`, `KR_EQUITY`, `FX` |
+| `universe.min_quote_volume_24h` | Türe göre minimum 24s hacim (USDT) |
+| `signal.min_score` | Gönderilecek en düşük güven skoru |
+| `signal.min_score_gap` | Long ve short skoru arasındaki minimum fark |
+| `signal.cooldown_hours` | Aynı sinyalin tekrar gönderilmeyeceği süre |
+| `signal.max_signals_per_run` | Bir taramadaki detaylı mesaj sayısı |
+| `risk.sl_atr_mult` | Stop mesafesi (ATR katı) |
+| `risk.tp_r_multiples` | TP seviyeleri (stop mesafesinin katları) |
+| `indicators` | Tüm indikatör periyotları |
+
+Değişikliği commit etmeniz yeterli, bir sonraki taramada geçerli olur.
+
+## Dosyalar
+
+| Dosya | İçerik |
+|---|---|
+| `scanner.py` | Ana tarayıcı: veri, skor, karar, Telegram |
+| `indicators.py` | İndikatör hesaplamaları (TradingView formülleriyle uyumlu) |
+| `config.json` | Ayarlar |
+| `.github/workflows/scan.yml` | Saatlik GitHub Actions görevi |
+| `tests/test_scanner.py` | Yerel testler: `python3 tests/test_scanner.py` |
+
+## Notlar
+- GitHub Actions sunucuları ABD'de; Binance'in resmi `fapi.binance.com` adresi oradan engelli.
+  Bot veriyi `www.binance.com/fapi` üzerinden alır. Bu yol resmi olarak belgelenmemiştir;
+  kapanırsa bot Telegram'dan uyarı gönderir.
+- GitHub yoğunlukta zamanlanmış görevleri birkaç dakika geciktirebilir.
+- Private repoda ücretsiz kota ayda 2000 dakikadır; bot ~720 dakika kullanır.
