@@ -204,7 +204,8 @@ def compute_features(candles, cfg):
     f["cci"] = ta.cci(h, l, c, p["cci"])
     f["vol_ma"] = ta.sma(v, p["volume_ma"])
     f["vwap"] = ta.vwap_daily(t, h, l, c, v)
-    _, f["bb_up"], f["bb_lo"], f["bb_bw"] = ta.bollinger(c, *p["bollinger"])
+    f["bb_mid"], f["bb_up"], f["bb_lo"], f["bb_bw"] = ta.bollinger(c, *p["bollinger"])
+    f["ichi_tenkan"], f["ichi_kijun"], f["ichi_top"], f["ichi_bot"] = ta.ichimoku(h, l, *p.get("ichimoku", [9, 26, 52, 26]))
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -546,6 +547,14 @@ def parse_klines(raw, now_ms):
             for k in raw if int(k[6]) < now_ms]
 
 
+def ichimoku_vote(f, i):
+    top, bot = f["ichi_top"][i], f["ichi_bot"][i]
+    if top is None or bot is None:
+        return 0
+    c = f["c"][i]
+    return 1 if c > top else (-1 if c < bot else 0)
+
+
 def indicator_votes(f, i, leader_bias, leader_name):
     """Her indikatörün i. mumdaki AL (+1) / SAT (-1) / nötr (0) durumu."""
     c = f["c"][i]
@@ -567,6 +576,8 @@ def indicator_votes(f, i, leader_bias, leader_name):
         ("CCI", sgn(f["cci"][i])),
         ("VWAP", sgn(c - f["vwap"][i])),
         ("Hacim", candle if vr >= 1.0 else 0),     # ortalama üstü hacimde mumun yönü
+        ("Bollinger", sgn(c - f["bb_mid"][i]) if f["bb_mid"][i] is not None else 0),   # orta bandın üstü/altı
+        ("Ichimoku", ichimoku_vote(f, i)),          # bulutun üstü / altı / içi
     ]
     if leader_name != "4s trend":
         votes.append((leader_name or "Lider", sgn(leader_bias)))

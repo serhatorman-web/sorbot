@@ -254,6 +254,23 @@ def bollinger(close, n=20, k=2.0):
     return mid, upper, lower, bw
 
 
+def ichimoku(high, low, tenkan_n=9, kijun_n=26, senkou_b_n=52, shift=26):
+    """Ichimoku. Döner: (tenkan, kijun, bulut_üst, bulut_alt).
+    Bulut değerleri i. mum için geçerli olanlardır (26 mum önce hesaplanıp ileri kaydırılmış)."""
+    def mid(n):
+        hh, ll = highest(high, n), lowest(low, n)
+        return [None if a is None or b is None else (a + b) / 2 for a, b in zip(hh, ll)]
+    tenkan, kijun, sb = mid(tenkan_n), mid(kijun_n), mid(senkou_b_n)
+    sa = [None if a is None or b is None else (a + b) / 2 for a, b in zip(tenkan, kijun)]
+    size = len(high)
+    top, bottom = [None] * size, [None] * size
+    for i in range(shift, size):
+        a, b = sa[i - shift], sb[i - shift]
+        if a is not None and b is not None:
+            top[i], bottom[i] = max(a, b), min(a, b)
+    return tenkan, kijun, top, bottom
+
+
 def crossed_above(a, b, i):
     """a, i. mumda b'yi yukarı kesti mi?"""
     if i < 1 or None in (a[i], b[i], a[i - 1], b[i - 1]):
