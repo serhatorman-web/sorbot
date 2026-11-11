@@ -787,6 +787,12 @@ def fetch_tf_trends(api, res, now_ms):
     res["tf"] = out
 
 
+def leader_line(res):
+    """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) – aynı hesap ve format."""
+    lb_ = res["leader_bias"]
+    return f"{res['leader_name']} yönü: " + TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
+
+
 def tf_table_html(res):
     tf = res.get("tf")
     if not tf:
@@ -824,8 +830,7 @@ def build_message(res, direction, cfg, now_utc):
 
     trend_line = tf_table_html(res)
     if res["leader_name"] != "4s trend":
-        lb_ = res["leader_bias"]
-        trend_line += f"\n{res['leader_name']} yönü: " + TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
+        trend_line += "\n" + leader_line(res)
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -888,11 +893,9 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines += ["", "📌 " + " · ".join(rd["reasons"])]
     if res.get("tf"):
         lines += ["", tf_table_html(res)]
-    extra = []
-    extra.append(f"24s {res['chg24']:+.1f}%")
     if res.get("leader_name") and res["leader_name"] != "4s trend":
-        extra.append(f"{res['leader_name']} {'↑' if res['leader_bias'] > 0 else ('↓' if res['leader_bias'] < 0 else '→')}")
-    lines.append(" · ".join(extra))
+        lines.append(leader_line(res))
+    lines += ["", f"24s {res['chg24']:+.1f}%"]
     if meta["type"] == "EQUITY" and us_market_status(now_utc) != "open":
         lines.append("⚠️ ABD borsası kapalı – likidite düşük")
     t_close = datetime.fromtimestamp((f["t"][i] + HOUR_MS) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
