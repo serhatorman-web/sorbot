@@ -1,6 +1,6 @@
 name: Kaynak Erisim Testi
 
-# Gecici test: balina takibi icin kaynaklar.
+# Gecici test: zincir ustu balina transferleri icin alternatif kaynaklar.
 on:
   push:
     paths:
@@ -13,37 +13,52 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - name: Kaynaklar
         shell: python3 {0}
         run: |
           import urllib.request, json, time
-          from datetime import datetime, timezone, timedelta
           UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
-          since = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
-          q = urllib.request.quote
-          urls = {
-            "Blockchair BTC": f"https://api.blockchair.com/bitcoin/transactions?q=output_total_usd(10000000..),time({q(since)}..)&s=time(desc)&limit=10",
-            "Blockchair ETH": f"https://api.blockchair.com/ethereum/transactions?q=value_usd(10000000..),time({q(since)}..)&s=time(desc)&limit=10",
-            "Blockchair stats": "https://api.blockchair.com/bitcoin/stats",
-            "mempool blocks": "https://mempool.space/api/v1/blocks",
-            "Fapi depth BTC": "https://www.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000",
-            "Spot depth BTC": "https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=1000",
-            "Fapi aggTrades": "https://www.binance.com/fapi/v1/aggTrades?symbol=BTCUSDT&limit=5",
-            "Etherscan-like": "https://api.blockchair.com/ethereum/stats",
-          }
-          for name, u in urls.items():
+          def get(u, data=None):
+              req = urllib.request.Request(u, data=data, headers={"User-Agent": UA, "Accept": "application/json",
+                                                                  "Content-Type": "application/json"})
+              t = time.time()
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  b = r.read()
+              return b, time.time() - t
+          # BTC: blockchain.info tam blok
+          try:
+              b, dt = get("https://blockchain.info/latestblock")
+              h = json.loads(b)["hash"]
+              b, dt = get(f"https://blockchain.info/rawblock/{h}")
+              blk = json.loads(b)
+              big = []
+              for tx in blk["tx"]:
+                  outs = [o.get("value", 0) / 1e8 for o in tx.get("out", [])]
+                  if outs and max(outs) >= 100:
+                      big.append((tx["hash"][:12], round(max(outs), 1), round(sum(outs), 1)))
+              print(f"[OK] blockchain.info blok {blk['height']}: {len(blk['tx'])} tx, {len(b)/1e6:.1f} MB, {dt:.1f}s, >=100 BTC cikti: {big[:8]}")
+          except Exception as e:
+              print("[HATA] blockchain.info:", getattr(e, "code", ""), str(e)[:150])
+          # BTC: mempool.space blok tx sayfasi
+          try:
+              b, dt = get("https://mempool.space/api/blocks/tip/hash")
+              h = b.decode()
+              b, dt = get(f"https://mempool.space/api/block/{h}/txs/0")
+              print(f"[OK] mempool txs sayfa: {len(json.loads(b))} tx, {dt:.1f}s")
+          except Exception as e:
+              print("[HATA] mempool:", getattr(e, "code", ""), str(e)[:150])
+          # ETH: herkese acik RPC'ler
+          for rpc in ("https://ethereum-rpc.publicnode.com", "https://cloudflare-eth.com", "https://eth.llamarpc.com",
+                      "https://rpc.ankr.com/eth", "https://eth.drpc.org"):
               try:
-                  req = urllib.request.Request(u, headers={"User-Agent": UA, "Accept": "application/json"})
-                  with urllib.request.urlopen(req, timeout=25) as r:
-                      body = r.read()
-                      hdr = {k: v for k, v in r.headers.items() if "weight" in k.lower()}
-                      print(f"[{r.status}] {name}: {len(body)} bayt {hdr} | {body[:400]!r}")
+                  b, dt = get(rpc, json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []}).encode())
+                  n = int(json.loads(b)["result"], 16)
+                  b, dt = get(rpc, json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_getBlockByNumber",
+                                               "params": [hex(n), True]}).encode())
+                  txs = json.loads(b)["result"]["transactions"]
+                  big = [round(int(t["value"], 16) / 1e18, 1) for t in txs if int(t["value"], 16) / 1e18 >= 100]
+                  print(f"[OK] {rpc}: blok {n}, {len(txs)} tx, {len(b)/1e3:.0f} KB, {dt:.2f}s, >=100 ETH: {big}")
               except Exception as e:
-                  b = b""
-                  try:
-                      b = e.read()[:200]
-                  except Exception:
-                      pass
-                  print(f"[HATA] {name}: {getattr(e, 'code', '')} {str(e)[:100]} {b!r}")
+                  print(f"[HATA] {rpc}:", getattr(e, "code", ""), str(e)[:120])
