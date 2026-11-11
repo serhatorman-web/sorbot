@@ -22,12 +22,12 @@
     "EQUITY": "QQQUSDT"
   },
 
-  "strategy": "score",
+  "strategy": "supertrend",
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
 
   "signal_supertrend": {
     "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. min_score = aynı yöndeki indikatörlerin yüzdesi.",
-    "min_score": 70,
+    "min_score": 90,
     "min_score_gap": 0
   },
 
