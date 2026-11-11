@@ -244,6 +244,31 @@ def test_report_parsers_and_messages():
     assert not report.similar(a, sig("Von der Leyen, COP31'de temiz enerjiye geçişin hızlandırılması çağrısında bulundu"))
 
 
+def test_15m_profile():
+    cfg = scanner.load_json(scanner.CONFIG_PATH, None)
+    c15 = scanner.apply_tf_profile(cfg, "15m")
+    assert c15["timeframe"] == "15m" and c15["state_file"] == "state_15m.json"
+    assert c15["pump_radar"]["enabled"] is False and c15["signal"]["cooldown_hours"] == 3
+    assert c15["signal"]["min_score"] == cfg["signal"]["min_score"]          # diğer ayarlar korunur
+    assert scanner.bars_per_day(c15) == 96 and scanner.tf_ms(c15) == 900_000
+    # 15dk mumlardan üst zaman dilimi (1s) hesaplanır
+    t0 = 1_790_000_000_000 // 3_600_000 * 3_600_000
+    cs = [{"t": t0 + k * 900_000, "o": 100 + k, "h": 101 + k, "l": 99 + k, "c": 100.5 + k, "v": 1.0} for k in range(400)]
+    f = scanner.compute_features(cs, c15)
+    assert f["h4_ema"][-1] == 1 and f["h4_st"][-1] == 1
+    # canlı akış 15dk profiliyle çalışır ve ayrı durum dosyası kullanır
+    os.environ["SORBOT_TF"] = "15m"
+    os.environ["DRY_RUN"] = "1"
+    scanner.Binance = FakeAPI
+    try:
+        assert scanner.main() == 0
+    finally:
+        del os.environ["SORBOT_TF"]
+        p15 = os.path.join(scanner.BASE_DIR, "state", "state_15m.json")
+        if os.path.exists(p15):
+            os.remove(p15)
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

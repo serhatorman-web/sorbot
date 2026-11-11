@@ -2,6 +2,18 @@
   "_aciklama": "Tüm ayarlar burada. Değiştirip commit etmeniz yeterli, bir sonraki taramada geçerli olur.",
 
   "timeframe": "1h",
+
+  "tf_profiles": {
+    "_aciklama": "SORBOT_TF ortam değişkeniyle seçilen zaman dilimi ayarları; ana ayarların üzerine yazılır. Üst zaman dilimi = 4 x ana (15m -> 1h, 1h -> 4h).",
+    "15m": {
+      "timeframe": "15m",
+      "state_file": "state_15m.json",
+      "signal": {"cooldown_hours": 3, "max_signals_per_run": 5},
+      "signal_supertrend": {"min_score": 90},
+      "pump_radar": {"enabled": false},
+      "report": {"enabled": false}
+    }
+  },
   "kline_limit": 499,
   "min_candles": 250,
 

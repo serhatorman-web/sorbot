@@ -1,0 +1,26 @@
+name: Commit Koruması
+
+# Public repolarda 60 gün commit olmazsa GitHub zamanlanmış görevleri durdurur.
+# Bu görev ayda bir küçük bir commit atarak botun çalışmaya devam etmesini sağlar.
+on:
+  schedule:
+    - cron: "17 4 1 * *"     # her ayın 1'i, 07:17 TSİ
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aylık commit
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive
+          git commit -m "Commit koruması: zamanlanmış görevler aktif kalsın" || echo "Değişiklik yok"
+          git push

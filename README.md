@@ -5,7 +5,8 @@ Binance vadelideki USDT.P kontratlarını (kripto + ABD hisseleri: NVDA, AMD …
 sinyallerini Telegram'a gönderir.
 
 - ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
-- ⏱️ GitHub Actions'ta çalışır (her saatin 5. dakikası). Bir tarama ~20 saniye sürer, ayda ~720 dakika harcar.
+- ⏱️ GitHub Actions: 1 saatlik tarama her saatin 5. dakikasında, 15 dakikalık tarama :01/:16/:31/:46'da (7/24). Repo public olduğu için Actions dakikaları sınırsız.
+- 🔁 Commit koruması (`keepalive.yml`): ayda bir otomatik commit, böylece GitHub 60 gün kuralıyla zamanlanmış görevleri durdurmaz.
 - 📦 Ek paket yok, sadece Python standart kütüphanesi.
 
 > ⚠️ **Yatırım tavsiyesi değildir.** Sinyaller teknik göstergelere dayalıdır ve kazanç garantisi yoktur.
@@ -88,6 +89,10 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 - 🚀/💥 **PUMP/DUMP BAŞLIYOR:** Bollinger sıkışmasından hacim patlamasıyla 20 mumluk direnç/destek kırılımı (giriş/TP/stop ile).
   Zaten %10 (3s) / %25 (24s) hareket etmiş coinler "geç kalınmış" sayılıp elenir.
 - 👀 **ERKEN UYARI:** Sıkışmada birikim/dağıtım (OBV) + açık pozisyon (OI) ≥ %5 artış, henüz kırılım yok (izleme uyarısı).
+
+**15 dakikalık Supertrend sinyalleri (`scan15.yml`, `tf_profiles.15m`):** Aynı strateji 15 dakikalık mumlarda çalışır;
+üst zaman dilimi olarak 1 saatlik trend kullanılır. Aynı sembol+yön için 3 saat tekrar yok, taramada en fazla 5 mesaj,
+Pump/Dump radarı sadece 1 saatlikte. Mesaj başlığında zaman dilimi `15m` olarak yazar.
 
 Eski ağırlıklı puan stratejisine dönmek için `config.json`'da `"strategy": "score"` yazmanız yeterli.
 

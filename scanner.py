@@ -40,6 +40,30 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 TR_TZ = timezone(timedelta(hours=3))
 NY_TZ = ZoneInfo("America/New_York")
 HOUR_MS = 3_600_000
+TF_MS = {"15m": 900_000, "30m": 1_800_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+
+
+def tf_ms(cfg):
+    """Ana zaman diliminin milisaniye karşılığı (varsayılan 1h)."""
+    return TF_MS.get(cfg.get("timeframe", "1h"), HOUR_MS)
+
+
+def bars_per_day(cfg):
+    return max(1, 86_400_000 // tf_ms(cfg))
+
+
+def apply_tf_profile(cfg, tf):
+    """config.json -> tf_profiles[tf] ayarlarını ana ayarların üzerine yazar (1 seviye derin)."""
+    prof = cfg.get("tf_profiles", {}).get(tf)
+    if not prof:
+        return cfg
+    out = dict(cfg)
+    for k, v in prof.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = {**out[k], **v}
+        else:
+            out[k] = v
+    return out
 
 TYPE_LABEL = {"COIN": "Kripto", "EQUITY": "Hisse", "COMMODITY": "Emtia",
               "HK_EQUITY": "HK Hisse", "KR_EQUITY": "KR Hisse", "FX": "Döviz"}
@@ -138,11 +162,11 @@ def us_market_status(now_utc):
 # --------------------------------------------------------------------------- #
 # Özellik (indikatör) hesaplama
 # --------------------------------------------------------------------------- #
-def resample_4h(candles):
+def resample_4h(candles, base_ms=HOUR_MS):
     """1 saatlik mumlardan tamamlanmış 4 saatlik mumlar üretir."""
     groups = {}
     for c in candles:
-        key = c["t"] // (4 * HOUR_MS)
+        key = c["t"] // (4 * base_ms)
         groups.setdefault(key, []).append(c)
     out = []
     for key in sorted(groups):
@@ -188,15 +212,16 @@ def compute_features(candles, cfg):
     # (geçmişe dönük testte geleceği görmemek için mum bazında hesaplanır)
     n = len(candles)
     f["h4_ema"], f["h4_st"] = [0] * n, [0] * n
-    c4 = resample_4h(candles)
+    base_ms = tf_ms(cfg)
+    c4 = resample_4h(candles, base_ms)
     if len(c4) >= 60:
         cc4 = [x["c"] for x in c4]
         e20, e50 = ta.ema(cc4, 20), ta.ema(cc4, 50)
         st4, _ = ta.supertrend([x["h"] for x in c4], [x["l"] for x in c4], cc4, 10, 3.0)
         k = -1
         for i in range(n):
-            close_t = t[i] + HOUR_MS
-            while k + 1 < len(c4) and c4[k + 1]["t"] + 4 * HOUR_MS <= close_t:
+            close_t = t[i] + base_ms
+            while k + 1 < len(c4) and c4[k + 1]["t"] + 4 * base_ms <= close_t:
                 k += 1
             if k >= 0 and e50[k] is not None:
                 f["h4_ema"][i] = 1 if e20[k] > e50[k] else -1
@@ -552,9 +577,10 @@ def decoupling(f, i, s, leader_ret24, cfg):
     """Coin, piyasa liderinden (BTC/QQQ) s yönünde ayrışıyor mu?
     Örn. BTC düşerken hacimle yükselen coin (s=+1) veya BTC yükselirken çöken coin (s=-1)."""
     dc = cfg.get("decoupling", {})
-    if not dc.get("enabled", True) or leader_ret24 is None or i < 24:
+    n = bars_per_day(cfg)
+    if not dc.get("enabled", True) or leader_ret24 is None or i < n:
         return None
-    own = f["c"][i] / f["c"][i - 24] - 1
+    own = f["c"][i] / f["c"][i - n] - 1
     rel = (own - leader_ret24) * s
     vr = f["v"][i] / f["vol_ma"][i] if f["vol_ma"][i] else 0
     h4 = (f["h4_ema"][i] + f["h4_st"][i]) * s
@@ -773,12 +799,12 @@ def tf_trend(candles):
     return 0
 
 
-def fetch_tf_trends(api, res, now_ms):
+def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
     """Mesaj gönderilecek sembol için 15dk / 4s / 1g trendlerini çeker (1s zaten elde)."""
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
-    out = {"1h": tf_trend([{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)])}
-    for tf in ("15m", "4h", "1d"):
+    out = {base_tf: tf_trend([{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)])}
+    for tf in [x for x, _ in TF_ROWS if x != base_tf]:
         try:
             raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 150})
             out[tf] = tf_trend(parse_klines(raw, now_ms))
@@ -868,7 +894,7 @@ def build_message(res, direction, cfg, now_utc):
     if notes:
         lines += [""] + notes
 
-    t_close = datetime.fromtimestamp((f["t"][i] + HOUR_MS) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
+    t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Yatırım tavsiyesi değildir.</i>"]
     return "\n".join(lines)
 
@@ -903,7 +929,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines += ["", f"24s {res['chg24']:+.1f}%"]
     if meta["type"] == "EQUITY" and us_market_status(now_utc) != "open":
         lines.append("⚠️ ABD borsası kapalı – likidite düşük")
-    t_close = datetime.fromtimestamp((f["t"][i] + HOUR_MS) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
+    t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir.</i>"]
     return "\n".join(lines)
 
@@ -986,6 +1012,12 @@ def build_universe(api, cfg):
 
 def main():
     cfg = load_json(CONFIG_PATH, None)
+    tf_env = os.environ.get("SORBOT_TF", "").strip()
+    if cfg and tf_env:
+        cfg = apply_tf_profile(cfg, tf_env)
+    state_path = STATE_PATH
+    if cfg and cfg.get("state_file"):
+        state_path = os.path.join(BASE_DIR, "state", cfg["state_file"])
     if not cfg:
         print("HATA: config.json okunamadı", file=sys.stderr)
         return 1
@@ -998,7 +1030,7 @@ def main():
     started = time.time()
     now_utc = datetime.now(timezone.utc)
     now_ms = int(now_utc.timestamp() * 1000)
-    state = load_json(STATE_PATH, {"signals": {}, "alerts": {}})
+    state = load_json(state_path, {"signals": {}, "alerts": {}})
     state.setdefault("signals", {})
     state.setdefault("alerts", {})
     api = Binance()
@@ -1011,7 +1043,7 @@ def main():
         if time.time() - last > 6 * 3600:
             notifier.send(f"⚠️ <b>SorBot</b>: Binance verisine erişilemiyor.\n<code>{str(e)[:200]}</code>")
             state["alerts"]["binance_down"] = time.time()
-            save_json(STATE_PATH, state)
+            save_json(state_path, state)
         return 1
     by_type = {}
     for m in universe:
@@ -1053,7 +1085,7 @@ def main():
         if typ.startswith("_") or lsym not in candles or len(candles[lsym]) < cfg["min_candles"]:
             continue
         lf = compute_features(candles[lsym], cfg)
-        leaders[typ] = {"symbol": lsym, "bias": trend_bias(lf), "ret24": lf["c"][-1] / lf["c"][-25] - 1}
+        leaders[typ] = {"symbol": lsym, "bias": trend_bias(lf), "ret24": lf["c"][-1] / lf["c"][-1 - bars_per_day(cfg)] - 1}
     for typ, ld in leaders.items():
         print(f"Piyasa lideri {typ}: {ld['symbol']} eğilim {ld['bias']:+.1f}")
 
@@ -1108,7 +1140,7 @@ def main():
     maxn = cfg["signal"]["max_signals_per_run"]
     sent = 0
     for score, d, r in picks[:maxn]:
-        fetch_tf_trends(api, r, now_ms)
+        fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
         msg = build_message(r, d, cfg, now_utc)
         try:
             if notifier.send(msg):
@@ -1148,7 +1180,7 @@ def main():
         radar.sort(key=lambda x: -x[0])
         for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
             if "tf" not in r:
-                fetch_tf_trends(api, r, now_ms)
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
             try:
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc)):
                     sent += 1
@@ -1161,7 +1193,7 @@ def main():
     cutoff = now - 7 * 86400
     state["signals"] = {k: v for k, v in state["signals"].items() if v >= cutoff}
     if not notifier.dry or os.environ.get("SORBOT_SAVE_DRY_STATE") == "1":
-        save_json(STATE_PATH, state)
+        save_json(state_path, state)
 
     print(f"\nBitti: {len(picks)} sinyal ({sent} detaylı mesaj), {api.requests} istek, "
           f"{time.time()-started:.0f}s")

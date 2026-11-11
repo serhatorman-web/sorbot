@@ -1,0 +1,49 @@
+name: SorBot Tarama 15dk
+
+on:
+  schedule:
+    # 15 dakikalık mum kapanışlarından hemen sonra (:01, :16, :31, :46). Saat UTC'dir.
+    - cron: "1,16,31,46 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Telegram'a gönderme, sadece log'a yaz"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# 15dk taramaları birbirini beklesin; 1 saatlik taramadan bağımsız çalışır
+concurrency:
+  group: sorbot-scan-15m
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Durum kaydını geri yükle
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: sorbot15-state-${{ github.run_id }}
+          restore-keys: sorbot15-state-
+
+      - name: Tara (15dk)
+        env:
+          SORBOT_TF: "15m"
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python3 scanner.py
+
+      - name: Durum kaydını sakla
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: sorbot15-state-${{ github.run_id }}
