@@ -1,0 +1,21 @@
+name: SorBot Backtest
+
+# Sadece elle çalışır: Actions -> SorBot Backtest -> Run workflow
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Kaç günlük geçmiş test edilsin (en fazla ~80)"
+        default: "80"
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backtest
+        run: python3 backtest.py "${{ inputs.days }}"

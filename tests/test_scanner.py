@@ -116,6 +116,31 @@ def test_full_pipeline_dry_run():
         scanner.load_json = orig
 
 
+def test_backtest_simulation():
+    import backtest
+
+    def series(path):
+        # her eleman (yüksek, düşük, kapanış); ilk mum giriş mumu
+        f = {"h": [100], "l": [100], "c": [100]}
+        for h, l, c in path:
+            f["h"].append(h); f["l"].append(l); f["c"].append(c)
+        return f
+    # Long, risk=2: SL 98, TP 102/104/106
+    r = backtest.simulate(series([(101, 99, 100.5), (103, 100, 102.5), (107, 102, 106)]), 0, 1, 2.0, 72)
+    assert r["tp"] == [True, True, True] and abs(r["R"] - 2.0) < 1e-9
+    r = backtest.simulate(series([(97, 97.5, 97.8)] + [(97, 96, 96.5)]), 0, 1, 2.0, 72)
+    assert r["stopped_before_tp1"] and abs(r["R"] + 1.0) < 1e-9
+    # TP1 sonrası girişe dönüş: 1/3 × 1R = +0.333R
+    r = backtest.simulate(series([(102.5, 100.5, 102), (101, 99.5, 99.8), (99, 97, 97.5)]), 0, 1, 2.0, 72)
+    assert r["tp"][0] and not r["tp"][1] and abs(r["R"] - 1 / 3) < 1e-9
+    # Short, risk=2: SL 102, TP 98/96/94
+    r = backtest.simulate(series([(100.5, 97.5, 98), (98.5, 93.5, 94)]), 0, -1, 2.0, 72)
+    assert r["tp"] == [True, True, True] and abs(r["R"] - 2.0) < 1e-9
+    # Aynı mumda stop ve TP: kötümser -> stop
+    r = backtest.simulate(series([(103, 97, 100), (100, 99, 99.5)]), 0, 1, 2.0, 72)
+    assert r["stopped_before_tp1"] and abs(r["R"] + 1.0) < 1e-9
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

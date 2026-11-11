@@ -184,28 +184,35 @@ def compute_features(candles, cfg):
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
-    # 4 saatlik trend
+    # 4 saatlik trend: her 1s mum için, o ana kadar TAMAMLANMIŞ son 4s mumun durumu
+    # (geçmişe dönük testte geleceği görmemek için mum bazında hesaplanır)
+    n = len(candles)
+    f["h4_ema"], f["h4_st"] = [0] * n, [0] * n
     c4 = resample_4h(candles)
-    h4 = {"ema_dir": 0, "st_dir": 0, "macd_hist": None}
     if len(c4) >= 60:
         cc4 = [x["c"] for x in c4]
         e20, e50 = ta.ema(cc4, 20), ta.ema(cc4, 50)
         st4, _ = ta.supertrend([x["h"] for x in c4], [x["l"] for x in c4], cc4, 10, 3.0)
-        _, _, mh4 = ta.macd(cc4)
-        h4 = {"ema_dir": 1 if e20[-1] > e50[-1] else -1, "st_dir": st4[-1] or 0, "macd_hist": mh4[-1]}
-    f["h4"] = h4
+        k = -1
+        for i in range(n):
+            close_t = t[i] + HOUR_MS
+            while k + 1 < len(c4) and c4[k + 1]["t"] + 4 * HOUR_MS <= close_t:
+                k += 1
+            if k >= 0 and e50[k] is not None:
+                f["h4_ema"][i] = 1 if e20[k] > e50[k] else -1
+                f["h4_st"][i] = st4[k] or 0
     return f
 
 
-def trend_bias(f):
+def trend_bias(f, i=None):
     """-1 (güçlü düşüş) ile +1 (güçlü yükseliş) arasında yön eğilimi."""
-    i = len(f["c"]) - 1
+    i = len(f["c"]) - 1 if i is None else i
     votes = [
         1 if f["c"][i] > f["ema50"][i] else -1,
         1 if f["ema20"][i] > f["ema50"][i] else -1,
         f["st_dir"][i] or 0,
-        f["h4"]["ema_dir"],
-        f["h4"]["st_dir"],
+        f["h4_ema"][i],
+        f["h4_st"][i],
     ]
     return sum(votes) / len(votes)
 
@@ -216,13 +223,13 @@ def trend_bias(f):
 STRONG_TRIGGERS = ("Supertrend", "MACD", "EMA20/EMA50", "Hacimli")
 
 
-def find_triggers(f, s, lookback):
+def find_triggers(f, s, lookback, last=None):
     """Son 'lookback' mum içinde yeni oluşan sinyal tetikleyicileri.
 
     Zayıf tetikleyiciler (StochRSI dönüşü) tek başına sinyal üretmez;
     ancak trend yönünde EMA20'ye geri çekilme sonrası dönüşte geçerlidir.
     """
-    n = len(f["c"])
+    n = (len(f["c"]) - 1 if last is None else last) + 1
     found = []
     for i in range(n - lookback, n):
         up = s == 1
@@ -255,10 +262,10 @@ def find_triggers(f, s, lookback):
     return found
 
 
-def pump_dump_analysis(f, cfg, chg24):
+def pump_dump_analysis(f, cfg, chg24, i=None):
     """Pump/dump olasılığı ve 'geç kalınmış' durumlarını analiz eder."""
     pd_cfg = cfg["pump_dump"]
-    i = len(f["c"]) - 1
+    i = len(f["c"]) - 1 if i is None else i
     c, bw = f["c"], f["bb_bw"]
     res = {"long_bonus": 0, "short_bonus": 0, "long_pen": 0, "short_pen": 0, "notes": []}
 
@@ -325,9 +332,9 @@ def pump_dump_analysis(f, cfg, chg24):
     return res
 
 
-def score_direction(f, s, leader_bias, funding, pdres, cfg):
+def score_direction(f, s, leader_bias, funding, pdres, cfg, i=None):
     """s=+1 long, s=-1 short için 0-100 güven skoru ve gerekçeler."""
-    i = len(f["c"]) - 1
+    i = len(f["c"]) - 1 if i is None else i
     c = f["c"][i]
     pts = 0.0
     why = []
@@ -344,9 +351,9 @@ def score_direction(f, s, leader_bias, funding, pdres, cfg):
         t += 3
     if f["st_dir"][i] == s:
         t += 6
-    if f["h4"]["ema_dir"] == s:
+    if f["h4_ema"][i] == s:
         t += 3
-    if f["h4"]["st_dir"] == s:
+    if f["h4_st"][i] == s:
         t += 3
     pts += t
 
@@ -440,8 +447,8 @@ def score_direction(f, s, leader_bias, funding, pdres, cfg):
     return max(0, min(100, round(pts))), why
 
 
-def required_ready(f):
-    i = len(f["c"]) - 1
+def required_ready(f, i=None):
+    i = len(f["c"]) - 1 if i is None else i
     keys = ["rsi", "srsi_k", "srsi_d", "macd", "macd_hist", "st_dir", "mom", "ema20", "ema50",
             "ema200", "ma50", "ma200", "atr", "adx", "pdi", "ndi", "obv_ema", "cci", "vol_ma", "bb_bw"]
     return all(f[k][i] is not None and f[k][i - 1] is not None for k in keys)
@@ -456,6 +463,31 @@ def parse_klines(raw, now_ms):
             for k in raw if int(k[6]) < now_ms]
 
 
+def evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, now_utc, cfg):
+    """i. mumda (o ana kadarki veriyle) long/short değerlendirmesi.
+    Canlı taramada i = son kapanmış mum; backtest'te her geçmiş mum."""
+    pdres = pump_dump_analysis(f, cfg, chg24, i)
+    lb = cfg["signal"]["trigger_lookback_bars"]
+    session_pen = 0
+    if meta["type"] == "EQUITY":
+        ms = us_market_status(now_utc)
+        session_pen = 8 if ms == "weekend" else (5 if ms == "closed" else 0)
+    out = {"meta": meta, "f": f, "i": i, "leader_bias": leader_bias, "leader_name": leader_name,
+           "funding": funding, "chg24": chg24, "pd": pdres}
+    for key, s in (("long", 1), ("short", -1)):
+        score, why = score_direction(f, s, leader_bias, funding, pdres, cfg, i)
+        trig = find_triggers(f, s, lb, i)
+        if len(trig) >= 2:
+            score = min(100, score + 3)        # birden fazla tetik = daha güçlü teyit
+        score = max(0, score - session_pen)
+        # Sert filtreler: 1s Supertrend ve 4s trend sinyalle çelişmemeli
+        h4 = f["h4_ema"][i] + f["h4_st"][i]
+        if f["st_dir"][i] != s or h4 == -2 * s:
+            trig = []
+        out[key] = {"score": score, "why": why, "triggers": trig}
+    return out
+
+
 def analyze_symbol(meta, candles, ctx, cfg):
     if len(candles) < cfg["min_candles"]:
         return None
@@ -463,37 +495,17 @@ def analyze_symbol(meta, candles, ctx, cfg):
     if not required_ready(f):
         return None
     sym = meta["symbol"]
+    i = len(f["c"]) - 1
     leader = ctx["leaders"].get(meta["type"])
     if leader is None or leader["symbol"] == sym:
-        leader_bias = (f["h4"]["ema_dir"] + f["h4"]["st_dir"]) / 2
+        leader_bias = (f["h4_ema"][i] + f["h4_st"][i]) / 2
         leader_name = "4s trend"
     else:
         leader_bias = leader["bias"]
         leader_name = leader["symbol"].replace("USDT", "")
     funding = ctx["funding"].get(sym)
     chg24 = ctx["tickers"].get(sym, {}).get("chg", 0.0)
-    pdres = pump_dump_analysis(f, cfg, chg24)
-
-    lb = cfg["signal"]["trigger_lookback_bars"]
-    i = len(f["c"]) - 1
-    session_pen = 0
-    if meta["type"] == "EQUITY":
-        ms = us_market_status(ctx["now_utc"])
-        session_pen = 8 if ms == "weekend" else (5 if ms == "closed" else 0)
-    out = {"meta": meta, "f": f, "leader_bias": leader_bias, "leader_name": leader_name,
-           "funding": funding, "chg24": chg24, "pd": pdres}
-    for key, s in (("long", 1), ("short", -1)):
-        score, why = score_direction(f, s, leader_bias, funding, pdres, cfg)
-        trig = find_triggers(f, s, lb)
-        if len(trig) >= 2:
-            score = min(100, score + 3)        # birden fazla tetik = daha güçlü teyit
-        score = max(0, score - session_pen)
-        # Sert filtreler: 1s Supertrend ve 4s trend sinyalle çelişmemeli
-        h4 = f["h4"]["ema_dir"] + f["h4"]["st_dir"]
-        if f["st_dir"][i] != s or h4 == -2 * s:
-            trig = []
-        out[key] = {"score": score, "why": why, "triggers": trig}
-    return out
+    return evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg)
 
 
 def apply_open_interest(res, oi_hist):
@@ -545,15 +557,38 @@ def decide(res, cfg, state, now):
     return best
 
 
-def levels(res, direction, cfg):
-    f = res["f"]
-    i = len(f["c"]) - 1
+def stop_distance(f, i, s, risk_cfg, method=None):
+    """Stop mesafesini (fiyat cinsinden) ve kullanılan yöntemin adını döndürür.
+
+    atr       : giriş ± sl_atr_mult × ATR
+    swing_atr : son N mumun dibi/tepesi ötesi (+ tampon), [min, max] ATR aralığında sınırlı
+    """
+    method = method or risk_cfg.get("sl_method", "atr")
     entry, atr_v = f["c"][i], f["atr"][i]
+    if method == "swing_atr":
+        n = risk_cfg.get("swing_lookback", 10)
+        buf = risk_cfg.get("swing_buffer_atr", 0.3) * atr_v
+        if s == 1:
+            dist = entry - (min(f["l"][i - n + 1:i + 1]) - buf)
+        else:
+            dist = (max(f["h"][i - n + 1:i + 1]) + buf) - entry
+        lo, hi = risk_cfg.get("min_atr", 1.0) * atr_v, risk_cfg.get("max_atr", 2.5) * atr_v
+        if dist < lo:
+            return lo, "ATR alt sınırı"
+        if dist > hi:
+            return hi, "ATR üst sınırı"
+        return dist, "swing " + ("dibi" if s == 1 else "tepesi")
+    return risk_cfg["sl_atr_mult"] * atr_v, f"{risk_cfg['sl_atr_mult']} ATR"
+
+
+def levels(res, direction, cfg, method=None):
+    f, i = res["f"], res["i"]
+    entry = f["c"][i]
     s = 1 if direction == "long" else -1
-    risk = cfg["risk"]["sl_atr_mult"] * atr_v
+    risk, label = stop_distance(f, i, s, cfg["risk"], method)
     sl = entry - s * risk
     tps = [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]]
-    return entry, sl, tps
+    return entry, sl, tps, label
 
 
 def confidence_label(score):
@@ -565,11 +600,10 @@ def confidence_label(score):
 
 
 def build_message(res, direction, cfg, now_utc):
-    meta, f = res["meta"], res["f"]
-    i = len(f["c"]) - 1
+    meta, f, i = res["meta"], res["f"], res["i"]
     side = res[direction]
     other = res["short" if direction == "long" else "long"]
-    entry, sl, tps = levels(res, direction, cfg)
+    entry, sl, tps, sl_label = levels(res, direction, cfg)
     prec = meta.get("precision")
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
@@ -580,13 +614,16 @@ def build_message(res, direction, cfg, now_utc):
         f"{'Short' if direction == 'long' else 'Long'}: {other['score']}",
         "",
         f"Giriş: <code>{fmt_price(entry, prec)}</code>",
-        f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%)",
+        f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
     for n, tp in enumerate(tps, 1):
-        lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%)")
+        r = cfg["risk"]["tp_r_multiples"][n - 1]
+        lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%) · {r:g}R")
+    if cfg["risk"].get("show_breakeven_note", True):
+        lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
 
     st_dir = f["st_dir"][i]
-    trend_line = f"Trend: 1s {arrow(st_dir)} · 4s {arrow(f['h4']['ema_dir'] + f['h4']['st_dir'])}"
+    trend_line = f"Trend: 1s {arrow(st_dir)} · 4s {arrow(f['h4_ema'][i] + f['h4_st'][i])}"
     if res["leader_name"] != "4s trend":
         trend_line += f" · {res['leader_name']} {arrow(res['leader_bias'])}"
     vr = res["pd"]["vol_ratio"]

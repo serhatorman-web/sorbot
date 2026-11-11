@@ -33,9 +33,15 @@
   },
 
   "risk": {
-    "_aciklama": "Stop = giriş ± sl_atr_mult × ATR. TP'ler stop mesafesinin katları (R).",
+    "_aciklama": "sl_method: 'atr' (giriş ± sl_atr_mult × ATR) veya 'swing_atr' (son swing dibi/tepesi ötesi, min_atr–max_atr aralığında). TP'ler stop mesafesinin katları (R).",
+    "sl_method": "atr",
     "sl_atr_mult": 1.5,
-    "tp_r_multiples": [1.0, 2.0, 3.0]
+    "swing_lookback": 10,
+    "swing_buffer_atr": 0.3,
+    "min_atr": 1.0,
+    "max_atr": 2.5,
+    "tp_r_multiples": [1.0, 2.0, 3.0],
+    "show_breakeven_note": true
   },
 
   "pump_dump": {
