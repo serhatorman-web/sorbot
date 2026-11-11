@@ -1,9 +1,8 @@
 name: SorBot Tarama
 
+# Zamanlanmış çalıştırma loop.yml'ye taşındı (GitHub cron gecikmeleri yüzünden).
+# Bu workflow elle deneme/test için duruyor.
 on:
-  schedule:
-    # Her saatin 5. dakikasında (mum kapanışından hemen sonra). Saat UTC'dir.
-    - cron: "5 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

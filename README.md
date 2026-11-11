@@ -5,7 +5,10 @@ Binance vadelideki USDT.P kontratlarını (kripto + ABD hisseleri: NVDA, AMD …
 sinyallerini Telegram'a gönderir.
 
 - ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
-- ⏱️ GitHub Actions: 1 saatlik tarama her saatin 5. dakikasında, 15 dakikalık tarama :01/:16/:31/:46'da (7/24). Repo public olduğu için Actions dakikaları sınırsız.
+- ⏱️ Zamanlama (`loop.yml` + `runner.py`): GitHub'ın zamanlayıcısı çok geciktiği için taramalar tek bir uzun çalıştırmada,
+  mum kapanışından 1 dk sonra yapılır: 15dk taraması :01/:16/:31/:46'da, 1s taraması saat başında (:01).
+  Döngü ~6 saatte bir kendini yeniden başlatır; durursa yedek zamanlayıcı 20 dk içinde tekrar başlatır.
+  `config.json` değişiklikleri en geç 15 dk içinde geçerli olur. Repo public olduğu için Actions dakikaları sınırsız.
 - 🔁 Commit koruması (`keepalive.yml`): ayda bir otomatik commit, böylece GitHub 60 gün kuralıyla zamanlanmış görevleri durdurmaz.
 - 📦 Ek paket yok, sadece Python standart kütüphanesi.
 

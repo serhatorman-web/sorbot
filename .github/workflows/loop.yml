@@ -1,0 +1,53 @@
+name: SorBot Döngü (15dk + 1s)
+
+# Taramalar tek bir uzun çalıştırmada, mum kapanışlarına göre tam zamanında yapılır.
+# Süre dolunca iş kendini yeniden başlatır. Zamanlayıcı sadece yedektir: döngü durursa
+# en geç ~20 dk içinde yeniden başlatır (döngü çalışırken sıraya girip bekler).
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/20 * * * *"
+
+permissions:
+  contents: read
+  actions: write      # kendini yeniden başlatmak için
+
+# Aynı anda tek döngü çalışır; yenisi sıraya girer
+concurrency:
+  group: sorbot-loop
+  cancel-in-progress: false
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Durum kaydını geri yükle
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: sorbot-loop-state-${{ github.run_id }}
+          restore-keys: |
+            sorbot-loop-state-
+            sorbot-state-
+
+      - name: Tarama döngüsü
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 runner.py
+
+      - name: Durum kaydını sakla
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: sorbot-loop-state-${{ github.run_id }}
+
+      - name: Döngüyü yeniden başlat
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run loop.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}"
