@@ -377,8 +377,7 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
             why.append(f"Açık pozisyon artıyor (OI 4s {oi_chg*100:+.1f}%)")
         if funding is not None and ((s == 1 and funding >= cfg["funding"]["crowded_long"])
                                     or (s == -1 and funding <= cfg["funding"]["crowded_short"])):
-            score -= 10
-            why.append(f"⚠️ Fonlama kalabalık ({funding*100:.3f}%)")
+            score -= 10   # fonlama aşırı kalabalıksa skor düşer (mesajda gösterilmez)
         score = max(0, min(100, score))
 
         if brk and pdres["vol_spike"] and pdres["squeeze"] and not late:
@@ -831,8 +830,6 @@ def build_message(res, direction, cfg, now_utc):
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
     extra = []
-    if res.get("funding") is not None:
-        extra.append(f"Fonlama {res['funding']*100:.3f}%")
     if res.get("oi_chg") is not None:
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
@@ -892,8 +889,6 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("tf"):
         lines += ["", tf_table_html(res)]
     extra = []
-    if res.get("funding") is not None:
-        extra.append(f"Fonlama {res['funding']*100:.3f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
     if res.get("leader_name") and res["leader_name"] != "4s trend":
         extra.append(f"{res['leader_name']} {'↑' if res['leader_bias'] > 0 else ('↓' if res['leader_bias'] < 0 else '→')}")
