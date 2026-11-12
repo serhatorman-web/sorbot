@@ -935,7 +935,9 @@ def divergence_lines(res):
 def leader_line(res):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) – aynı hesap ve format."""
     lb_ = res["leader_bias"]
-    return icon_row(f"{res['leader_name']} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
+    # kripto: BTC, hisse: QQQ yönüne göre; mesajda "Piyasa yönü" olarak yazılır
+    word = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Nötr"}[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
+    return icon_row("Piyasa yönü", word)
 
 
 def market_lines(res, cfg, now_utc):
