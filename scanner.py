@@ -968,10 +968,7 @@ def technical_rating(votes):
 
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
-    n = len(votes) or 1
-    neutral = sum(1 for _, v in votes if v == 0) / n * 100
-    return (f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · "
-            f"NÖTR %{neutral:.0f} · net {net:+.0f}%")
+    return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
 
 
 def build_message(res, direction, cfg, now_utc):
