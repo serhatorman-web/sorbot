@@ -1034,16 +1034,6 @@ def technical_rating_line(votes):
     return f"<b>Teknik görünüm:</b> {icon} {label} · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
 
 
-def dynarange_line(res):
-    """DynaRange (kullanıcının TradingView göstergesi) – Supertrend'in altında ayrı satır."""
-    f, i = res["f"], res["i"]
-    v = (f.get("dyna") or [None] * (i + 1))[i]
-    if v is None:
-        return None
-    txt = "🟢 <b>AL</b>" if v > 0 else ("🔴 <b>SAT</b>" if v < 0 else "⚪ <b>Nötr</b>")
-    return f"📌 DynaRange: {txt}"
-
-
 def indicator_list_lines(res, direction):
     """İndikatörlerin 🟢 AL / 🔴 SAT / ⚪ Nötr listesi (sinyal yönüne göre sıralı)."""
     s = 1 if direction == "long" else -1
@@ -1115,9 +1105,6 @@ def build_message(res, direction, cfg, now_utc):
     if res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 Supertrend: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
-        dl = dynarange_line(res)
-        if dl:
-            lines.append(dl)
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
@@ -1183,11 +1170,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         st = f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 Supertrend: {st_txt}"]
-        dl = dynarange_line(res)
-        if dl:
-            lines.append(dl)
-        lines += [""] + indicator_list_lines(res, direction)
+        lines += ["", SEP, f"📌 Supertrend: {st_txt}", ""] + indicator_list_lines(res, direction)
     for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
