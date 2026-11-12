@@ -211,7 +211,8 @@ def compute_features(candles, cfg):
     f["ewo"] = ta.ewo(c, *p.get("ewo", [5, 35]))
     f["wt1"], f["wt2"] = ta.wavetrend(h, l, c, *p.get("wavetrend", [10, 21]))
     f["dyna"] = ta.dynarange(f["o"], h, l, c, *p.get("dynarange", [10, 18]))
-    f["tflex"] = ta.trendflex(h, l, c, *p.get("trendflex", [4.0, 11]))
+    f["tflex"], f["tflex_line"] = ta.trendflex(h, l, c, *p.get("trendflex", [4.0, 11]))
+    f["sma13"] = ta.sma(c, 13)
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -588,7 +589,7 @@ def indicator_votes(f, i, leader_bias, leader_name):
         ("EWO", sgn(f["ewo"][i]) if f["ewo"][i] is not None else 0),   # SMA5 - SMA35
         ("WaveTrend", sgn(f["wt1"][i] - f["wt2"][i]) if None not in (f["wt1"][i], f["wt2"][i]) else 0),  # WT1/WT2
         ("DynaRange", sgn(f["dyna"][i]) if f["dyna"][i] is not None else 0),   # EMA10(ohlc4) - EMA18(ohlc4)
-        ("TrendFlex", f["tflex"][i] or 0),          # mum rengi: kapanış ST(4, 11) üstü/altı
+        ("Supertrend", f["st_dir"][i] or 0),        # Supertrend (10, 3) yönü
     ]
     if leader_name != "4s trend":
         votes.append((leader_name or "Lider", sgn(leader_bias)))
@@ -618,9 +619,13 @@ def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, no
     pdres = pump_dump_analysis(f, cfg, chg24, i)
     votes = indicator_votes(f, i, leader_bias, leader_name)
     flip = 0
-    st = f["st_dir"]
-    if st[i] is not None and st[i - 1] is not None and st[i] != st[i - 1]:
-        flip = st[i]
+    if cfg.get("signal_trigger", "trendflex") == "trendflex":
+        # TrendFlex_Algo _BUY / SELL etiketi
+        flip = ta.trendflex_signal(f["c"], f["tflex_line"], f["sma13"], i)
+    else:
+        st = f["st_dir"]
+        if st[i] is not None and st[i - 1] is not None and st[i] != st[i - 1]:
+            flip = st[i]
     out = {"meta": meta, "f": f, "i": i, "leader_bias": leader_bias, "leader_name": leader_name,
            "funding": funding, "chg24": chg24, "pd": pdres, "votes": votes}
     lead_label = leader_name or "Lider"
@@ -629,7 +634,7 @@ def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, no
         used = [(n, v) for n, v in votes if not (dec and n == lead_label)]
         agree = sum(1 for _, v in used if v == s)
         score = round(agree / len(used) * 100)
-        trig = [f"Supertrend {'AL' if s == 1 else 'SAT'}'a döndü"] if flip == s else []
+        trig = [f"TrendFlex {'AL' if s == 1 else 'SAT'} verdi"] if flip == s else []
         why = []
         if dec:
             icon = "🚀" if s == 1 else "💥"
@@ -1106,7 +1111,7 @@ def build_message(res, direction, cfg, now_utc):
 
     if res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
-        lines += ["", SEP, f"📌 Supertrend: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        lines += ["", SEP, f"📌 TrendFlex: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
@@ -1170,9 +1175,9 @@ def build_radar_message(res, rd, cfg, now_utc):
                   f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     if res.get("votes"):
-        st = f["st_dir"][i]
+        st = f["tflex"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 Supertrend: {st_txt}", ""] + indicator_list_lines(res, direction)
+        lines += ["", SEP, f"📌 TrendFlex: {st_txt}", ""] + indicator_list_lines(res, direction)
     for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
@@ -1371,10 +1376,10 @@ def main():
             results.append(r)
     print(f"Analiz edilen: {len(results)}")
 
-    # Önizleme: Supertrend AL ve SAT örnekleri (kripto) + bir hisse; o anki verilerle, kayıt tutulmaz
+    # Önizleme: TrendFlex AL ve SAT örnekleri (kripto) + bir hisse; o anki verilerle, kayıt tutulmaz
     if os.environ.get("PREVIEW") == "1":
         def st_of(r):
-            return r["f"]["st_dir"][r["i"]]
+            return r["f"]["tflex"][r["i"]]
         def best(pool, st):
             key = "long" if st == 1 else "short"
             pool = [r for r in pool if st_of(r) == st]

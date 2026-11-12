@@ -409,10 +409,11 @@ def dynarange(open_, high, low, close, fast=10, slow=18):
 def trendflex(high, low, close, factor=4.0, atr_len=11):
     """TrendFlex_Algo (kullanıcının TradingView göstergesi) – mum rengi.
     Kapanış fiyatı üzerinden Supertrend (çarpan 4, ATR 11); kapanış çizginin üstündeyse
-    mum yeşil (+1 AL), altındaysa kırmızı (-1 SAT). Pine kodundaki supertrend() birebir."""
+    mum yeşil (+1 AL), altındaysa kırmızı (-1 SAT). Pine kodundaki supertrend() birebir.
+    Döner: (renk listesi, çizgi listesi)."""
     n = len(close)
     a = atr(high, low, close, atr_len)
-    out = [None] * n
+    out, line = [None] * n, [None] * n
     up_f = lo_f = st_prev = None
     for i in range(n):
         if a[i] is None:
@@ -431,5 +432,20 @@ def trendflex(high, low, close, factor=4.0, atr_len=11):
             d = 1 if close[i] < lo_new else -1
         st = lo_new if d == -1 else up_new
         out[i] = 1 if close[i] > st else -1
+        line[i] = st
         up_f, lo_f, st_prev = up_new, lo_new, st
-    return out
+    return out, line
+
+
+def trendflex_signal(close, line, sma, i):
+    """TrendFlex_Algo _BUY / SELL etiketi (i. mum kapanışında):
+    AL : kapanış çizgiyi yukarı keser (ta.crossover) ve kapanış >= SMA13
+    SAT: kapanış çizgiyi aşağı keser (ta.crossunder) ve kapanış <= SMA13
+    Döner: +1, -1 veya 0."""
+    if i < 1 or None in (line[i], line[i - 1], sma[i]):
+        return 0
+    if close[i] > line[i] and close[i - 1] <= line[i - 1] and close[i] >= sma[i]:
+        return 1
+    if close[i] < line[i] and close[i - 1] >= line[i - 1] and close[i] <= sma[i]:
+        return -1
+    return 0

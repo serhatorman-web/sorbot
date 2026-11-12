@@ -404,11 +404,17 @@ def test_dynarange():
 
 def test_trendflex():
     up = [100 + x * 0.5 for x in range(200)]
-    t = ta.trendflex([x + 1 for x in up], [x - 1 for x in up], up)
+    t, _ = ta.trendflex([x + 1 for x in up], [x - 1 for x in up], up)
     assert t[-1] == 1 and t[5] is None     # yükselişte yeşil
     dn = list(reversed(up))
-    t = ta.trendflex([x + 1 for x in dn], [x - 1 for x in dn], dn)
+    t, _ = ta.trendflex([x + 1 for x in dn], [x - 1 for x in dn], dn)
     assert t[-1] == -1                     # düşüşte kırmızı
+    # _BUY etiketi: düşüşten sonra sert yükseliş
+    c = dn[:150] + [dn[149] + x * 3 for x in range(1, 40)]
+    col, line = ta.trendflex([x + 1 for x in c], [x - 1 for x in c], c)
+    sma = ta.sma(c, 13)
+    sig = [ta.trendflex_signal(c, line, sma, i) for i in range(len(c))]
+    assert 1 in sig and sig.count(1) == 1
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

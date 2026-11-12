@@ -297,5 +297,7 @@
       4.0,
       11
     ]
-  }
+  },
+  "signal_trigger": "trendflex",
+  "_signal_trigger_aciklama": "Sinyal tetiği: 'trendflex' = TrendFlex_Algo _BUY/SELL etiketi (kapanış ST 4/11 kesişimi + SMA13), 'supertrend' = Supertrend 10/3 dönüşü."
 }
