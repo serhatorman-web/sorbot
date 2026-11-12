@@ -553,6 +553,92 @@ def tr_long_date(d):
     return f"{d.day} {TR_MONTH_NAMES[d.month - 1]} {d.year} {TR_DAYS[d.weekday()]}"
 
 
+# --------------------------------------------------------------------------- #
+# Piyasalar bölümü
+# --------------------------------------------------------------------------- #
+# (ad, Yahoo sembolü, Binance spot endeks sembolü veya None, para birimi öneki)
+MARKET_GROUPS = [
+    ("📈 Borsalar", [
+        ("Dow Jones", "^DJI", None, ""), ("S&P 500", "^GSPC", None, ""), ("Nasdaq 100", "^NDX", None, ""),
+        ("BIST 100", "XU100.IS", None, ""), ("Nikkei 225 (Japonya)", "^N225", None, ""),
+        ("DAX (Almanya)", "^GDAXI", None, ""), ("FTSE 100 (İngiltere)", "^FTSE", None, ""),
+        ("CAC 40 (Fransa)", "^FCHI", None, ""), ("Hang Seng (Hong Kong)", "^HSI", None, ""),
+        ("Şanghay (Çin)", "000001.SS", None, ""), ("KOSPI (Kore)", "^KS11", None, ""),
+    ]),
+    ("🥇 Değerli Metaller & Emtia", [
+        ("Spot Altın (ons)", "GC=F", "XAUUSDT", "$"), ("Gram Altın", "GRAM", None, "₺"),
+        ("Gümüş (ons)", "SI=F", "XAGUSDT", "$"), ("Platin (ons)", "PL=F", "XPTUSDT", "$"),
+        ("Paladyum (ons)", "PA=F", "XPDUSDT", "$"), ("Brent Petrol", "BZ=F", None, "$"),
+        ("WTI Petrol", "CL=F", None, "$"), ("Doğalgaz", "NG=F", None, "$"), ("Bakır", "HG=F", None, "$"),
+    ]),
+    ("💵 Döviz", [
+        ("Dolar Endeksi (DXY)", "DX-Y.NYB", None, ""), ("USD/TRY", "TRY=X", None, "₺"), ("EUR/TRY", "EURTRY=X", None, "₺"),
+    ]),
+]
+GRAM_PER_OUNCE = 31.1034768
+
+
+def yahoo_quote(symbol):
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1d&range=1d"
+    meta = get(url)["chart"]["result"][0]["meta"]
+    price = meta.get("regularMarketPrice")
+    prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+    reg = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
+    now = time.time()
+    return {"price": price, "chg": (price / prev - 1) * 100 if price and prev else None,
+            "open": reg.get("start", 0) <= now < reg.get("end", 0)}
+
+
+def tr_num(x, dec=2):
+    """Türkçe sayı biçimi: 52.680,84"""
+    s = f"{x:,.{dec}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def collect_markets(api):
+    syms = {sym for _, items in MARKET_GROUPS for _, sym, _, _ in items if sym != "GRAM"}
+    spot = {bsym for _, items in MARKET_GROUPS for _, _, bsym, _ in items if bsym}
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        fq = {s_: ex.submit(safe, yahoo_quote, s_) for s_ in syms}
+        fs = {b: ex.submit(safe, lambda b=b: float(api.get("/fapi/v1/premiumIndex", {"symbol": b})["indexPrice"]))
+              for b in spot}
+        quotes = {s_: f_.result() for s_, f_ in fq.items()}
+        spots = {b: f_.result() for b, f_ in fs.items()}
+    # Spot metaller: fiyat Binance spot endeksinden, değişim ve açık/kapalı vadeli kontrattan
+    for _, items in MARKET_GROUPS:
+        for _, sym, bsym, _ in items:
+            if bsym and spots.get(bsym) and quotes.get(sym):
+                quotes[sym] = dict(quotes[sym], price=spots[bsym])
+    gold, usd = quotes.get("GC=F"), quotes.get("TRY=X")
+    if gold and usd and gold["price"] and usd["price"]:
+        chg = None
+        if gold["chg"] is not None and usd["chg"] is not None:
+            chg = ((1 + gold["chg"] / 100) * (1 + usd["chg"] / 100) - 1) * 100
+        quotes["GRAM"] = {"price": gold["price"] * usd["price"] / GRAM_PER_OUNCE, "chg": chg, "open": gold["open"]}
+    return quotes
+
+
+def markets_block(quotes):
+    if not quotes or not any(quotes.values()):
+        return []
+    L = ["🌍 <b>PİYASALAR</b>"]
+    for title, items in MARKET_GROUPS:
+        rows = []
+        for name, sym, _, cur in items:
+            q = quotes.get(sym)
+            if not q or q.get("price") is None:
+                continue
+            chg = q.get("chg")
+            icon = "🟢" if chg and chg > 0 else ("🔴" if chg and chg < 0 else "⚪")
+            dec = 4 if sym in ("TRY=X", "EURTRY=X") else (3 if q["price"] < 10 else 2)
+            ch = "–" if chg is None else ("+" if chg > 0 else ("-" if chg < 0 else "")) + "%" + tr_num(abs(chg))
+            status = "Açık" if q.get("open") else "Kapalı"
+            rows.append(f"{icon} {name}: <b>{cur}{tr_num(q['price'], dec)}</b> · {ch} · <i>{status}</i>")
+        if rows:
+            L += ["", f"<b>{title}</b>"] + rows
+    return L
+
+
 def released_block(events):
     L = []
     for e in events:
@@ -590,8 +676,11 @@ def news_block(items, per_cat):
     return L
 
 
-def bulletin_message(now_tr, released, upcoming, news, rcfg):
+def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
     sections = []
+    mk = markets_block(markets) if markets else []
+    if mk:
+        sections.append(mk)
     if released:
         sections.append(["📊 <b>AÇIKLANAN VERİLER</b> <i>(son 1 saat)</i>", ""] + released_block(released))
     if upcoming:
@@ -677,6 +766,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
         print(f"  [uyarı] takvim alınamadı: {e}")
         events = None
     news, seen_now, n_scanned = collect_news(feeds, state, rcfg, now_utc)
+    markets = collect_markets(sc.Binance()) if rcfg.get("markets", True) else None
 
     last = datetime.fromtimestamp(state.get("last_bulletin", (now_utc - timedelta(hours=1)).timestamp()), timezone.utc)
     last = max(last, now_utc - timedelta(hours=3))
@@ -693,7 +783,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
     if events is not None and now_tr.hour >= rcfg.get("calendar_daily_hour", 9) and state.get("calendar_day") != day_key:
         todays = [e for e in events if e["dt"].astimezone(TR_TZ).date() == now_tr.date() and e["importance"] >= min_imp]
         messages.append(("calendar", morning_calendar_message(now_tr, todays)))
-    b = bulletin_message(now_tr, released, upcoming, news, rcfg)
+    b = bulletin_message(now_tr, released, upcoming, news, rcfg, markets)
     if b:
         messages.append(("bulletin", b))
 

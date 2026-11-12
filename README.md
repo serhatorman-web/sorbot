@@ -49,6 +49,9 @@ Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece
 ## Saatlik bülten (`report.py`, `econ.py`, `config.json → report`, mode: bulletin)
 
 Her saat başı (1s taramasından hemen sonra) Telegram'a tek, düzenli bir **📰 Saatlik Piyasa Bülteni**:
+- **🌍 Piyasalar:** borsalar (Dow, S&P 500, Nasdaq 100, BIST 100, Nikkei, DAX, FTSE, CAC, Hang Seng, Şanghay, KOSPI),
+  metaller/emtia (spot altın, gram altın, gümüş, platin, paladyum, Brent, WTI, doğalgaz, bakır) ve döviz (DXY, USD/TRY, EUR/TRY);
+  günlük değişim 🟢 yükseliş / 🔴 düşüş, piyasa Açık/Kapalı. Spot metal fiyatları Binance emtia endeksinden, diğerleri Yahoo Finance'ten.
 - **📊 Açıklanan veriler (son 1 saat):** ABD ve Türkiye'nin orta/yüksek önemli verileri – gerçekleşen, beklenti,
   önceki ve 🟢/🔴 beklentiye göre ekonomi açısından yorum (TradingView ekonomik takvim, Türkçe veri adları)
 - **🗓 Yaklaşan veriler (3 saat)**

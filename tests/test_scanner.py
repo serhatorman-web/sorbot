@@ -361,6 +361,15 @@ def test_econ_bulletin():
     assert report.bulletin_message(now, [], [], {"💵 Ekonomi & Finans": []}, {}) is None
 
 
+def test_markets_block():
+    import report
+    assert report.tr_num(52680.84) == "52.680,84"
+    out = "\n".join(report.markets_block({"^DJI": {"price": 52680.84, "chg": 0.13, "open": True},
+                                           "XU100.IS": {"price": 11811.19, "chg": -0.5, "open": False}}))
+    assert "🟢 Dow Jones: <b>52.680,84</b> · +%0,13 · <i>Açık</i>" in out
+    assert "🔴 BIST 100" in out and "-%0,50" in out and "Kapalı" in out
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
