@@ -954,8 +954,9 @@ def tf_table_html(res):
 
 def technical_rating(votes):
     """Teknik görünüm: net = (AL - SAT) / toplam (tam sayılarla, yuvarlama hatası olmadan).
-      net ≥ +50  GÜÇLÜ AL | +20 ≤ net < +50  AL | -20 < net < +20  NÖTR
-      -50 < net ≤ -20  SAT | net ≤ -50  GÜÇLÜ SAT
+      net ≥ +50  GÜÇLÜ AL | +30 ≤ net < +50  AL | -30 < net < +30  NÖTR
+      -50 < net ≤ -30  SAT | net ≤ -50  GÜÇLÜ SAT
+    (nötr gösterge yokken: AL %65+ = AL, %75+ = GÜÇLÜ AL; %40–60 = NÖTR)
     Döner: (etiket, ikon, AL %, SAT %, net %)"""
     n = len(votes) or 1
     b = sum(1 for _, v in votes if v == 1)
@@ -963,9 +964,9 @@ def technical_rating(votes):
     d100 = (b - sl) * 100          # net × n (yüzde cinsinden, tam sayı)
     if d100 >= 50 * n:
         label, icon = "GÜÇLÜ AL", "🟢🟢"
-    elif d100 >= 20 * n:
+    elif d100 >= 30 * n:
         label, icon = "AL", "🟢"
-    elif d100 > -20 * n:
+    elif d100 > -30 * n:
         label, icon = "NÖTR", "⚪"
     elif d100 > -50 * n:
         label, icon = "SAT", "🔴"

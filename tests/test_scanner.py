@@ -308,11 +308,12 @@ def test_technical_rating():
     r = lambda *a: scanner.technical_rating(v(*a))[0]
     assert r(11, 9) == "NÖTR"            # %55 / %45 -> nötr (kullanıcı örneği)
     assert r(10, 10) == "NÖTR" and r(9, 11) == "NÖTR"
-    assert r(12, 8) == "AL" and r(14, 6) == "AL"
+    assert r(12, 8) == "NÖTR"            # %60 -> nötr
+    assert r(13, 7) == "AL" and r(14, 6) == "AL"     # %65 ve %70 -> AL
     assert r(15, 5) == "GÜÇLÜ AL" and r(19, 1) == "GÜÇLÜ AL"
-    assert r(8, 12) == "SAT" and r(6, 14) == "SAT"
+    assert r(8, 12) == "NÖTR" and r(7, 13) == "SAT" and r(6, 14) == "SAT"
     assert r(5, 15) == "GÜÇLÜ SAT"
-    assert r(10, 5, 5) == "AL"           # net +25
+    assert r(10, 5, 5) == "NÖTR" and r(11, 5, 4) == "AL"   # net +25 / +30
 
 
 def test_market_status():
