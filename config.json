@@ -165,6 +165,8 @@
     "cci": 20,
     "volume_ma": 20,
     "bollinger": [20, 2.0],
-    "ichimoku": [9, 26, 52, 26]
+    "ichimoku": [9, 26, 52, 26],
+    "cmf": 20,
+    "ewo": [5, 35]
   }
 }

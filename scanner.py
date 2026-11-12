@@ -206,6 +206,8 @@ def compute_features(candles, cfg):
     f["vwap"] = ta.vwap_daily(t, h, l, c, v)
     f["bb_mid"], f["bb_up"], f["bb_lo"], f["bb_bw"] = ta.bollinger(c, *p["bollinger"])
     f["ichi_tenkan"], f["ichi_kijun"], f["ichi_top"], f["ichi_bot"] = ta.ichimoku(h, l, *p.get("ichimoku", [9, 26, 52, 26]))
+    f["cmf"] = ta.cmf(h, l, c, v, p.get("cmf", 20))
+    f["ewo"] = ta.ewo(c, *p.get("ewo", [5, 35]))
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -578,6 +580,8 @@ def indicator_votes(f, i, leader_bias, leader_name):
         ("Hacim", candle if vr >= 1.0 else 0),     # ortalama üstü hacimde mumun yönü
         ("Bollinger", sgn(c - f["bb_mid"][i]) if f["bb_mid"][i] is not None else 0),   # orta bandın üstü/altı
         ("Ichimoku", ichimoku_vote(f, i)),          # bulutun üstü / altı / içi
+        ("CMF", sgn(f["cmf"][i]) if f["cmf"][i] is not None else 0),   # para girişi / çıkışı
+        ("EWO", sgn(f["ewo"][i]) if f["ewo"][i] is not None else 0),   # SMA5 - SMA35
     ]
     if leader_name != "4s trend":
         votes.append((leader_name or "Lider", sgn(leader_bias)))

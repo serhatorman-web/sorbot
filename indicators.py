@@ -350,6 +350,25 @@ def volume_profile(high, low, volume, rows=24, value_area=0.70):
     return vah, poc_price, val
 
 
+def cmf(high, low, close, volume, n=20):
+    """Chaikin Money Flow: sum(MFM × hacim, n) / sum(hacim, n); MFM = ((c-l) - (h-c)) / (h-l)."""
+    mfv = []
+    for h, l, c, v in zip(high, low, close, volume):
+        mfm = 0.0 if h == l else ((c - l) - (h - c)) / (h - l)
+        mfv.append(mfm * v)
+    out = [None] * len(close)
+    for i in range(n - 1, len(close)):
+        vs = sum(volume[i - n + 1:i + 1])
+        out[i] = 0.0 if vs == 0 else sum(mfv[i - n + 1:i + 1]) / vs
+    return out
+
+
+def ewo(close, fast=5, slow=35):
+    """Elliott Wave Oscillator: SMA(fast) - SMA(slow)."""
+    a, b = sma(close, fast), sma(close, slow)
+    return [None if x is None or y is None else x - y for x, y in zip(a, b)]
+
+
 def crossed_above(a, b, i):
     """a, i. mumda b'yi yukarı kesti mi?"""
     if i < 1 or None in (a[i], b[i], a[i - 1], b[i - 1]):

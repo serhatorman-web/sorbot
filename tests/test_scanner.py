@@ -312,6 +312,13 @@ def test_technical_rating():
     assert scanner.technical_rating(v(1, 15, 1))[0] == "GÜÇLÜ SAT"
 
 
+def test_cmf_ewo():
+    h = [101 + k for k in range(60)]; l = [99 + k for k in range(60)]; c = [100.9 + k for k in range(60)]
+    assert ta.cmf(h, l, c, [10] * 60)[-1] > 0.5 and ta.ewo(c)[-1] > 0
+    c2 = [99.1 + k for k in range(60)]
+    assert ta.cmf(h, l, c2, [10] * 60)[-1] < -0.5
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
