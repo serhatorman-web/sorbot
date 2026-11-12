@@ -1033,10 +1033,9 @@ def indicator_list_lines(res, direction):
     word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
     icon = {"AL": "🟢", "SAT": "🔴"}
     out = [f"{icon[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same)]
-    if opp:
-        out += ["", f"{icon[oword]} {oword}: " + ", ".join(opp)]
-    if neu:
-        out += ["", "⚪ Nötr: " + ", ".join(neu)]
+    # AL, SAT ve Nötr satırları her zaman gösterilir (boşsa "yok")
+    out += ["", f"{icon[oword]} {oword}: " + (", ".join(opp) or "yok")]
+    out += ["", "⚪ Nötr: " + (", ".join(neu) or "yok")]
     return out
 
 
