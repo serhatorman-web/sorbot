@@ -76,6 +76,18 @@ TITLES = {
     "building permits": "İnşaat İzinleri",
     "housing starts": "Konut Başlangıçları",
     "existing home sales": "Mevcut Konut Satışları",
+    "existing home sales mom": "Mevcut Konut Satışları (Aylık)",
+    "new home sales mom": "Yeni Konut Satışları (Aylık)",
+    "housing starts mom": "Konut Başlangıçları (Aylık)",
+    "building permits mom": "İnşaat İzinleri (Aylık)",
+    "net foreign exchange reserves": "Net Döviz Rezervleri",
+    "foreign exchange reserves": "Döviz Rezervleri",
+    "capacity utilization rate": "Kapasite Kullanım Oranı",
+    "consumer confidence": "Tüketici Güveni",
+    "economic confidence index": "Ekonomik Güven Endeksi",
+    "real sector confidence": "Reel Kesim Güven Endeksi",
+    "tourist arrivals yoy": "Turist Girişleri (Yıllık)",
+    "unemployment rate": "İşsizlik Oranı",
     "new home sales": "Yeni Konut Satışları",
     "pending home sales mom": "Bekleyen Konut Satışları (Aylık)",
     "balance of trade": "Dış Ticaret Dengesi",
@@ -131,6 +143,7 @@ WORDS = [
     (r"\bHome\b", "Konut"), (r"\bHousing\b", "Konut"), (r"\bBudget\b", "Bütçe"), (r"\bTrade\b", "Ticaret"),
     (r"\bBalance\b", "Dengesi"), (r"\bStocks\b", "Stokları"), (r"\bChange\b", "Değişimi"),
     (r"\bEarnings\b", "Kazanç"), (r"\bWages\b", "Ücretler"), (r"\bClaims\b", "Başvuruları"),
+    (r"\bExisting\b", "Mevcut"), (r"\bForeign Exchange\b", "Döviz"), (r"\bNet\b", "Net"),
     (r"\bWholesale\b", "Toptan Satış"), (r"\bRetail\b", "Perakende"), (r"\bMortgage\b", "Konut Kredisi"),
     (r"\bCore\b", "Çekirdek"), (r"\bRate\b", "Oranı"), (r"\bDecision\b", "Kararı"),
     (r"\bMinutes\b", "Tutanakları"), (r"\bAuction\b", "İhalesi"), (r"\bOutlook\b", "Görünümü"),
@@ -148,6 +161,13 @@ HIGHER_IS_WORSE = re.compile(r"unemploy|jobless|claims|inflation|cpi|ppi|pce|pri
 # Bu verilerde iyi/kötü yorumu yapılmaz (stoklar, ihaleler, konuşmalar, faiz kararları)
 NO_VERDICT = re.compile(r"stock|inventor|auction|speech|minutes|press|decision|rig count|budget|projection",
                         re.IGNORECASE)
+
+
+# Takvimi kalabalıklaştıran önemsiz kalemler (ihale alt satırları, yan stok verileri vb.)
+NOISE = re.compile(r"allotted|bid-to-cover|total accepted|high yield|ethanol|cushing|distillate|refinery|"
+                   r"heating oil|crude oil imports|exports change|imports change|redbook|"
+                   r"\b(4|6|8|13|17|26|42|52)-week bill|money supply|fed balance sheet|"
+                   r"reserve balances|treasury refunding", re.IGNORECASE)
 
 
 def tr_title(title):
@@ -171,6 +191,8 @@ def fetch_events(start_utc, end_utc, countries=("US",), timeout=20):
     data = json.loads(urllib.request.urlopen(req, timeout=timeout).read())
     out = []
     for e in data.get("result", []):
+        if NOISE.search(e.get("title", "")):
+            continue
         try:
             dt = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
         except (KeyError, ValueError):
