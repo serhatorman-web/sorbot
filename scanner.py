@@ -1034,9 +1034,9 @@ def indicator_list_lines(res, direction):
     icon = {"AL": "🟢", "SAT": "🔴"}
     out = [f"{icon[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same)]
     if opp:
-        out.append(f"{icon[oword]} {oword}: " + ", ".join(opp))
+        out += ["", f"{icon[oword]} {oword}: " + ", ".join(opp)]
     if neu:
-        out.append("⚪ Nötr: " + ", ".join(neu))
+        out += ["", "⚪ Nötr: " + ", ".join(neu)]
     return out
 
 
