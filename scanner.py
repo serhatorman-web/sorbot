@@ -1060,11 +1060,12 @@ def build_message(res, direction, cfg, now_utc):
         score_line,
         "",
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
+        "",
         f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
     for n, tp in enumerate(tps, 1):
         r = cfg["risk"]["tp_r_multiples"][n - 1]
-        lines.append(f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R")
+        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
     if cfg["risk"].get("show_breakeven_note", True):
         lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
 
@@ -1132,11 +1133,11 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
-        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}",
+        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
                   f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines.append(f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R")
+            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
     else:
