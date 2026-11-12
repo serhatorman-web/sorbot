@@ -1067,7 +1067,7 @@ def build_message(res, direction, cfg, now_utc):
         r = cfg["risk"]["tp_r_multiples"][n - 1]
         lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
     if cfg["risk"].get("show_breakeven_note", True):
-        lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
+        lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
     trend_line = tf_table_html(res)
     if res["leader_name"] != "4s trend":
@@ -1139,7 +1139,7 @@ def build_radar_message(res, rd, cfg, now_utc):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
         if cfg["risk"].get("show_breakeven_note", True):
-            lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
+            lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
