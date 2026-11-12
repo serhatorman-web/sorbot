@@ -1,0 +1,38 @@
+name: Kaynak Erisim Testi
+
+# Gecici: TradingView ekonomik takvim erisimi (aciklanan degerler).
+on:
+  push:
+    paths:
+      - ".github/workflows/source-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Kaynaklar
+        shell: python3 {0}
+        run: |
+          import urllib.request, json
+          from datetime import datetime, timedelta, timezone
+          now = datetime.now(timezone.utc)
+          frm = (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+          to = (now + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+          for lang in ("", "&lang=tr"):
+              u = f"https://economic-calendar.tradingview.com/events?from={frm}&to={to}&countries=US{lang}"
+              try:
+                  req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0", "Origin": "https://tr.tradingview.com",
+                                                           "Referer": "https://tr.tradingview.com/"})
+                  d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+                  ev = d.get("result", [])
+                  print(f"[OK] lang={lang!r} {len(ev)} olay, alanlar: {sorted(ev[0].keys()) if ev else None}")
+                  done = [e for e in ev if e.get("actual") is not None][-6:]
+                  for e in done:
+                      print("   ", e.get("date"), e.get("importance"), e.get("title"), "| gerçek", e.get("actual"), "bkl", e.get("forecast"), "önc", e.get("previous"), e.get("unit"), e.get("scale"))
+              except Exception as ex:
+                  print(f"[HATA] lang={lang!r}", getattr(ex, "code", ""), str(ex)[:150])
