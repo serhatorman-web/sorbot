@@ -397,28 +397,10 @@ def crossed_below(a, b, i):
     return a[i - 1] >= b[i - 1] and a[i] < b[i]
 
 
-def range_oscillator(high, low, close, length=50, mult=2.0, atr_long=2000, atr_short=200):
-    """Range Oscillator (Zeiierman, TradingView, CC BY-NC-SA 4.0) – Python uyarlaması.
-    ma  = son 'length' mumun, mumdan muma değişim oranıyla ağırlıklı kapanış ortalaması
-    osc = 100 * (kapanış - ma) / (ATR * mult)     (ATR: 2000 mum yoksa 200)
-    0 üstü yükseliş (AL), 0 altı düşüş (SAT); ±100 aralık sınırları."""
-    n = len(close)
-    a = atr(high, low, close, atr_long) if n >= atr_long else [None] * n
-    a2 = atr(high, low, close, atr_short)
-    out = [None] * n
-    for i in range(length, n):
-        rng = a[i] if a[i] is not None else a2[i]
-        if rng is None:
-            continue
-        rng *= mult
-        sw = swc = 0.0
-        for k in range(length):
-            cur, prev = close[i - k], close[i - k - 1]
-            w = abs(cur - prev) / prev if prev else 0.0
-            swc += cur * w
-            sw += w
-        if sw == 0 or rng == 0:
-            continue
-        ma = swc / sw
-        out[i] = 100 * (close[i] - ma) / rng
-    return out
+
+def dynarange(open_, high, low, close, fast=10, slow=18):
+    """DynaRange Oscillator (kullanıcının TradingView göstergesi):
+    diff = EMA(ohlc4, 10) - EMA(ohlc4, 18); 0 üstü yükseliş (AL), 0 altı düşüş (SAT)."""
+    src = [(o + h + l + c) / 4 for o, h, l, c in zip(open_, high, low, close)]
+    ef, es = ema(src, fast), ema(src, slow)
+    return [a - b if a is not None and b is not None else None for a, b in zip(ef, es)]

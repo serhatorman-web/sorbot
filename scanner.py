@@ -210,7 +210,7 @@ def compute_features(candles, cfg):
     f["cmf"] = ta.cmf(h, l, c, v, p.get("cmf", 20))
     f["ewo"] = ta.ewo(c, *p.get("ewo", [5, 35]))
     f["wt1"], f["wt2"] = ta.wavetrend(h, l, c, *p.get("wavetrend", [10, 21]))
-    f["rosc"] = ta.range_oscillator(h, l, c, *p.get("range_oscillator", [50, 2.0]))
+    f["dyna"] = ta.dynarange(f["o"], h, l, c, *p.get("dynarange", [10, 18]))
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -586,7 +586,7 @@ def indicator_votes(f, i, leader_bias, leader_name):
         ("CMF", sgn(f["cmf"][i]) if f["cmf"][i] is not None else 0),   # para girişi / çıkışı
         ("EWO", sgn(f["ewo"][i]) if f["ewo"][i] is not None else 0),   # SMA5 - SMA35
         ("WaveTrend", sgn(f["wt1"][i] - f["wt2"][i]) if None not in (f["wt1"][i], f["wt2"][i]) else 0),  # WT1/WT2
-        ("Range Osc", sgn(f["rosc"][i]) if f["rosc"][i] is not None else 0),   # Zeiierman: 0 üstü/altı
+        ("DynaRange", sgn(f["dyna"][i]) if f["dyna"][i] is not None else 0),   # EMA10(ohlc4) - EMA18(ohlc4)
     ]
     if leader_name != "4s trend":
         votes.append((leader_name or "Lider", sgn(leader_bias)))

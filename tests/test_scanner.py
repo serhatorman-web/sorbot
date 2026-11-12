@@ -393,14 +393,13 @@ def test_market_status():
 
 
 
-def test_range_oscillator():
-    up = [float(x) for x in range(100, 400)]
-    o = ta.range_oscillator([x + 1 for x in up], [x - 1 for x in up], up)
-    assert o[-1] > 0                       # yükselişte 0 üstü
+def test_dynarange():
+    up = [float(x) for x in range(100, 200)]
+    d = ta.dynarange(up, [x + 1 for x in up], [x - 1 for x in up], up)
+    assert d[-1] > 0 and d[0] is None      # yükselişte 0 üstü
     dn = list(reversed(up))
-    o = ta.range_oscillator([x + 1 for x in dn], [x - 1 for x in dn], dn)
-    assert o[-1] < 0                       # düşüşte 0 altı
-    assert o[150] is None                  # ATR(200) hazır olmadan değer yok
+    d = ta.dynarange(dn, [x + 1 for x in dn], [x - 1 for x in dn], dn)
+    assert d[-1] < 0                       # düşüşte 0 altı
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

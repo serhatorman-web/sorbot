@@ -289,9 +289,9 @@
       10,
       21
     ],
-    "range_oscillator": [
-      50,
-      2.0
+    "dynarange": [
+      10,
+      18
     ]
   }
 }
