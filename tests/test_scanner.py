@@ -319,6 +319,18 @@ def test_cmf_ewo():
     assert ta.cmf(h, l, c2, [10] * 60)[-1] < -0.5
 
 
+def test_wavetrend():
+    import math
+    c = [100 + 10 * math.sin(k / 8) for k in range(200)]
+    h, l = [x + 0.5 for x in c], [x - 0.5 for x in c]
+    wt1, wt2 = ta.wavetrend(h, l, c)
+    # yükselen bölümde WT1 > WT2, düşen bölümde WT1 < WT2 olmalı (çoğunlukla)
+    rising = [k for k in range(80, 200) if c[k] > c[k - 1] and c[k - 1] > c[k - 2]]
+    agree = sum(1 for k in rising if wt1[k] > wt2[k]) / len(rising)
+    assert agree > 0.7, agree
+    assert all(-150 < x < 150 for x in wt1[60:])
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

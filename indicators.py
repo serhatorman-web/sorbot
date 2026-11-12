@@ -369,6 +369,21 @@ def ewo(close, fast=5, slow=35):
     return [None if x is None or y is None else x - y for x, y in zip(a, b)]
 
 
+def wavetrend(high, low, close, n1=10, n2=21):
+    """WaveTrend Oscillator (LazyBear):
+    ap = hlc3, esa = EMA(ap, n1), d = EMA(|ap - esa|, n1), ci = (ap - esa) / (0.015 × d),
+    wt1 = EMA(ci, n2), wt2 = SMA(wt1, 4). Döner: (wt1, wt2)."""
+    ap = [(h + l + c) / 3 for h, l, c in zip(high, low, close)]
+    esa = ema(ap, n1)
+    dev = [None if e is None else abs(a - e) for a, e in zip(ap, esa)]
+    d = ema(dev, n1)
+    ci = [None if e is None or dd is None else (0.0 if dd == 0 else (a - e) / (0.015 * dd))
+          for a, e, dd in zip(ap, esa, d)]
+    wt1 = ema(ci, n2)
+    wt2 = sma(wt1, 4)
+    return wt1, wt2
+
+
 def crossed_above(a, b, i):
     """a, i. mumda b'yi yukarı kesti mi?"""
     if i < 1 or None in (a[i], b[i], a[i - 1], b[i - 1]):
