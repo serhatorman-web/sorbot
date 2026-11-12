@@ -975,6 +975,21 @@ def technical_rating(votes):
     return label, icon, b / n * 100, sl / n * 100, d100 / n
 
 
+def trend_alignment_line(res, direction):
+    """Trend tablosundaki zaman dilimlerinin (15dk/1s/4s/1g) hepsi sinyalle aynı yöndeyse
+    'uyumlu', hepsi ters yöndeyse 'uyumlu değil – BEKLE' uyarısı. Karışıksa boş."""
+    tf = res.get("tf") or {}
+    dirs = [tf.get(k) for k, _ in TF_ROWS if tf.get(k) is not None]
+    if len(dirs) < 3:
+        return None
+    s = 1 if direction == "long" else -1
+    if all(d == s for d in dirs):
+        return f"🟢 <b>Bu işlem trend ile uyumlu – {'AL' if s == 1 else 'SAT'}</b>"
+    if all(d == -s for d in dirs):
+        return "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil – BEKLE</b>"
+    return None
+
+
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
     return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
@@ -1011,6 +1026,9 @@ def build_message(res, direction, cfg, now_utc):
     else:
         score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
+    align = trend_alignment_line(res, direction)
+    if align:
+        score_line += "\n" + align
     lines = [
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
         score_line,
@@ -1082,6 +1100,9 @@ def build_radar_message(res, rd, cfg, now_utc):
         side = res[direction]
         lines += ["", technical_rating_line(res["votes"]),
                   f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
+    align = trend_alignment_line(res, direction)
+    if align:
+        lines.append(align)
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)

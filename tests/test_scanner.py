@@ -316,6 +316,17 @@ def test_technical_rating():
     assert r(10, 5, 5) == "NÖTR" and r(11, 5, 4) == "AL"   # net +25 / +30
 
 
+def test_trend_alignment():
+    t = lambda a, b, c, d: {"tf": {"15m": a, "1h": b, "4h": c, "1d": d}}
+    assert "BEKLE" in scanner.trend_alignment_line(t(-1, -1, -1, -1), "long")
+    assert "uyumlu – AL" in scanner.trend_alignment_line(t(1, 1, 1, 1), "long")
+    assert "uyumlu – SAT" in scanner.trend_alignment_line(t(-1, -1, -1, -1), "short")
+    assert "BEKLE" in scanner.trend_alignment_line(t(1, 1, 1, 1), "short")
+    assert scanner.trend_alignment_line(t(1, -1, -1, -1), "long") is None      # karışık
+    assert scanner.trend_alignment_line(t(-1, -1, -1, None), "long") is not None  # 1g veri yok, 3 dilim yeterli
+    assert scanner.trend_alignment_line({}, "long") is None
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
