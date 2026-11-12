@@ -858,6 +858,39 @@ def compute_volume_profile(res, cfg):
     res["vp"] = out
 
 
+def volume_lines(res, cfg):
+    """Hacim durumu (yüksek/düşük), son mumlardaki büyük yükseliş/düşüş ve hacim patlaması."""
+    vc = cfg.get("volume_info", {})
+    f, i = res["f"], res["i"]
+    if f["vol_ma"][i] in (None, 0):
+        return []
+    ratio = lambda k: f["v"][k] / f["vol_ma"][k] if f["vol_ma"][k] else 0
+    vr = ratio(i)
+    out = ["🔊 Hacim: " + ("🟢 Yüksek" if vr >= vc.get("high_ratio", 1.0) else "🔴 Düşük")
+           + f" ({vr:.1f}x ortalama)"]
+    # Son N mumdaki en büyük gövdeli hareket (ATR'ye göre)
+    big = None
+    for k in range(max(1, i - vc.get("big_move_lookback", 3) + 1), i + 1):
+        atr_k = f["atr"][k]
+        body = f["c"][k] - f["o"][k]
+        if atr_k and abs(body) >= vc.get("big_move_atr", 1.5) * atr_k:
+            if big is None or abs(body) / atr_k > abs(big[1]) / f["atr"][big[0]]:
+                big = (k, body)
+    if big:
+        k, body = big
+        chg = (f["c"][k] / f["o"][k] - 1) * 100
+        when = "sinyal mumu" if k == i else f"{i - k} mum önce"
+        if body > 0:
+            out.append(f"📈 Büyük yükseliş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when})")
+        else:
+            out.append(f"📉 Büyük düşüş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when})")
+    peak = max(range(max(0, i - 2), i + 1), key=ratio)
+    if ratio(peak) >= vc.get("spike_ratio", 3.0):
+        when = "sinyal mumu" if peak == i else f"{i - peak} mum önce"
+        out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when})")
+    return out
+
+
 def volume_profile_lines(res, cfg):
     vp = res.get("vp")
     if not vp:
@@ -971,6 +1004,9 @@ def build_message(res, direction, cfg, now_utc):
         div = divergence_lines(res)
         if div:
             lines += [""] + div
+        vol = volume_lines(res, cfg)
+        if vol:
+            lines += [""] + vol
         vpl = volume_profile_lines(res, cfg)
         if vpl:
             lines += [""] + vpl
@@ -1013,6 +1049,9 @@ def build_radar_message(res, rd, cfg, now_utc):
     div = divergence_lines(res)
     if div:
         lines += [""] + div
+    vol = volume_lines(res, cfg)
+    if vol:
+        lines += [""] + vol
     vpl = volume_profile_lines(res, cfg)
     if vpl:
         lines += [""] + vpl

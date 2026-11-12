@@ -291,6 +291,18 @@ def test_volume_profile():
     assert 100 <= poc <= 102 and val <= 100.01 and vah >= 101.99 and val < poc < vah
 
 
+def test_volume_lines():
+    cfg = scanner.load_json(scanner.CONFIG_PATH, None)
+    n = 30
+    f = {"o": [100.0] * n, "c": [100.5] * n, "v": [1.0] * n, "vol_ma": [1.0] * n, "atr": [1.0] * n}
+    f["c"][-1], f["v"][-1] = 103.0, 4.2
+    out = scanner.volume_lines({"f": f, "i": n - 1}, cfg)
+    assert "Yüksek" in out[0] and any("Büyük yükseliş" in x for x in out) and any("patlaması" in x for x in out)
+    f["c"][-1], f["v"][-1] = 100.2, 0.6
+    out = scanner.volume_lines({"f": f, "i": n - 1}, cfg)
+    assert "Düşük" in out[0] and len(out) == 1
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

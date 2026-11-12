@@ -34,6 +34,14 @@
     }
   },
 
+  "volume_info": {
+    "_aciklama": "Mesajdaki hacim bölümü. high_ratio: sinyal mumu hacmi / 20 mum ortalaması bu değer ve üstüyse Yüksek. big_move_atr: gövdesi bu kadar ATR'yi geçen mum 'büyük yükseliş/düşüş'. spike_ratio: hacim patlaması eşiği.",
+    "high_ratio": 1.0,
+    "big_move_atr": 1.5,
+    "big_move_lookback": 3,
+    "spike_ratio": 3.0
+  },
+
   "volume_profile": {
     "_aciklama": "Sinyal mesajındaki hacim profili (VAH/POC/VAL). TradingView varsayılanı: 24 satır, %70 değer alanı. lookback_bars: zaman dilimine göre kaç mum (1h: 96 = 4 gün, 15m: 96 = 24 saat).",
     "enabled": true,

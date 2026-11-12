@@ -87,7 +87,9 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
 6. **RSI uyumsuzluğu** (bilgi): 15 dakika, 1 saat, 4 saat, 1 gün ve 1 hafta grafiklerinde TradingView mantığıyla (pivot 5/5, 5–60 mum)
    aranır; bulunursa 🟢 pozitif / 🔴 negatif olarak hangi zaman dilimlerinde olduğu yazılır.
-7. **Hacim profili** (bilgi): sinyalin kendi zaman diliminin grafiğinden (15dk sinyalde 15dk, 1s sinyalde 1s)
+7. **Hacim** (bilgi): 🔊 sinyal mumu hacmi 🟢 Yüksek / 🔴 Düşük (20 mum ortalamasına oran), son 3 mumda gövdesi
+   1.5 ATR'yi aşan 📈 büyük yükseliş / 📉 büyük düşüş (yüzde ve hacim oranı), 💥 hacim patlaması (≥3x).
+8. **Hacim profili** (bilgi): sinyalin kendi zaman diliminin grafiğinden (15dk sinyalde 15dk, 1s sinyalde 1s)
    🔴 VAH, 🟡 POC, 🟢 VAL seviyeleri ve girişe uzaklıkları (24 satır, %70 değer alanı, son 96 mum).
 
 **BTC'den ayrışan coinler:** BTC güçlü ters yöndeyken bile, son 24 saatte BTC'den en az %5 ayrışan, dönüş mumunda hacmi
