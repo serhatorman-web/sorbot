@@ -1351,18 +1351,22 @@ def main():
             results.append(r)
     print(f"Analiz edilen: {len(results)}")
 
-    # Önizleme: kriptoda BTC ve bir hisse için o anki duruma göre örnek sinyal mesajı (kayıt tutulmaz)
+    # Önizleme: Supertrend AL ve SAT örnekleri (kripto) + bir hisse; o anki verilerle, kayıt tutulmaz
     if os.environ.get("PREVIEW") == "1":
-        want = [cfg["market_leaders"].get("COIN", "BTCUSDT")]
-        eq = sorted((r for r in results if r["meta"]["type"] == "EQUITY"),
-                    key=lambda r: -max(r["long"]["score"], r["short"]["score"]))
-        if eq:
-            want.append(eq[0]["meta"]["symbol"])
+        def st_of(r):
+            return r["f"]["st_dir"][r["i"]]
+        def best(pool, st):
+            key = "long" if st == 1 else "short"
+            pool = [r for r in pool if st_of(r) == st]
+            return max(pool, key=lambda r: r[key]["score"]) if pool else None
+        coins = [r for r in results if r["meta"]["type"] == "COIN"]
+        eqs = [r for r in results if r["meta"]["type"] == "EQUITY"]
+        picks_pv = [best(coins, 1), best(coins, -1), best(eqs, 1) or best(eqs, -1)]
         n = 0
-        for r in results:
-            if r["meta"]["symbol"] not in want:
+        for r in picks_pv:
+            if not r:
                 continue
-            d = "long" if r["long"]["score"] >= r["short"]["score"] else "short"
+            d = "long" if st_of(r) == 1 else "short"
             fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
             compute_volume_profile(r, cfg)
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
