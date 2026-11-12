@@ -1,39 +1,106 @@
 {
   "_aciklama": "Tüm ayarlar burada. Değiştirip commit etmeniz yeterli, bir sonraki taramada geçerli olur.",
-
   "timeframe": "1h",
-
   "tf_profiles": {
     "_aciklama": "SORBOT_TF ortam değişkeniyle seçilen zaman dilimi ayarları; ana ayarların üzerine yazılır. Üst zaman dilimi = 4 x ana (15m -> 1h, 1h -> 4h).",
     "15m": {
       "timeframe": "15m",
       "state_file": "state_15m.json",
-      "signal_supertrend": {"cooldown_hours": 0.25},
-      "pump_radar": {"enabled": false},
-      "report": {"enabled": false}
+      "signal_supertrend": {
+        "cooldown_hours": 0.25
+      },
+      "pump_radar": {
+        "enabled": false
+      },
+      "report": {
+        "enabled": false
+      }
     }
   },
   "kline_limit": 499,
   "min_candles": 250,
-
   "universe": {
     "_aciklama": "COIN = kripto, EQUITY = ABD hisseleri. İsterseniz COMMODITY (altın, petrol), HK_EQUITY, KR_EQUITY, FX de eklenebilir.",
-    "include_types": ["COIN", "EQUITY"],
-    "exclude_symbols": ["USDCUSDT", "BTCDOMUSDT"],
+    "include_types": [
+      "COIN",
+      "EQUITY"
+    ],
+    "exclude_symbols": [
+      "USDCUSDT",
+      "BTCDOMUSDT"
+    ],
     "_equity_aciklama": "Hisselerde sadece bu büyük şirketler taranır (piyasa değeri ~100 milyar $ ve üzeri). Boş liste = tüm hisseler. Ayrıca min_quote_volume_24h.EQUITY hacim filtresi uygulanır.",
-    "equity_whitelist": ["NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "TSM", "BRKB",
-                         "LLY", "JPM", "V", "WMT", "ORCL", "XOM", "UNH", "COST", "NFLX", "HD", "ABBV",
-                         "BAC", "KO", "PLTR", "AMD", "ASML", "CRM", "CSCO", "MU", "IBM", "MRK", "GEV",
-                         "CAT", "NOW", "TXN", "QCOM", "ADBE", "AMAT", "INTC", "LRCX", "KLAC", "ARM",
-                         "APP", "MCD", "DIS", "GS", "SHOP", "UBER", "ANET", "PANW", "CRWD", "ACN",
-                         "BABA", "PDD", "SONY", "NVO", "MELI", "AMGN", "PFE", "CEG", "BX"],
+    "equity_whitelist": [
+      "NVDA",
+      "MSFT",
+      "AAPL",
+      "GOOGL",
+      "AMZN",
+      "META",
+      "AVGO",
+      "TSLA",
+      "TSM",
+      "BRKB",
+      "LLY",
+      "JPM",
+      "V",
+      "WMT",
+      "ORCL",
+      "XOM",
+      "UNH",
+      "COST",
+      "NFLX",
+      "HD",
+      "ABBV",
+      "BAC",
+      "KO",
+      "PLTR",
+      "AMD",
+      "ASML",
+      "CRM",
+      "CSCO",
+      "MU",
+      "IBM",
+      "MRK",
+      "GEV",
+      "CAT",
+      "NOW",
+      "TXN",
+      "QCOM",
+      "ADBE",
+      "AMAT",
+      "INTC",
+      "LRCX",
+      "KLAC",
+      "ARM",
+      "APP",
+      "MCD",
+      "DIS",
+      "GS",
+      "SHOP",
+      "UBER",
+      "ANET",
+      "PANW",
+      "CRWD",
+      "ACN",
+      "BABA",
+      "PDD",
+      "SONY",
+      "NVO",
+      "MELI",
+      "AMGN",
+      "PFE",
+      "CEG",
+      "BX"
+    ],
     "min_quote_volume_24h": {
       "COIN": 5000000,
       "EQUITY": 1000000,
-      "default": 2000000
-    }
+      "default": 2000000,
+      "EQUITY_closed": 100000
+    },
+    "_equity_closed_aciklama": "ABD borsası kapalıyken ve hafta sonu hisseler için 24s hacim eşiği (EQUITY_closed). Böylece listedeki hisseler 7/24 taranır, Supertrend sinyalleri gelir."
   },
-
   "volume_info": {
     "_aciklama": "Mesajdaki hacim bölümü. high_ratio: sinyal mumu hacmi / 20 mum ortalaması bu değer ve üstüyse Yüksek. big_move_atr: gövdesi bu kadar ATR'yi geçen mum 'büyük yükseliş/düşüş'. spike_ratio: hacim patlaması eşiği.",
     "high_ratio": 1.0,
@@ -41,29 +108,30 @@
     "big_move_lookback": 3,
     "spike_ratio": 3.0
   },
-
   "volume_profile": {
     "_aciklama": "Sinyal mesajındaki hacim profili (VAH/POC/VAL). Kullanıcı isteğiyle KAPALI; açmak için enabled: true. TradingView varsayılanı: 24 satır, %70 değer alanı. lookback_bars: zaman dilimine göre kaç mum.",
     "enabled": false,
     "rows": 24,
-    "value_area": 0.70,
-    "lookback_bars": {"1h": 96, "15m": 96}
+    "value_area": 0.7,
+    "lookback_bars": {
+      "1h": 96,
+      "15m": 96
+    }
   },
-
   "liquidity": {
     "_aciklama": "Mesajdaki likidite: 24s işlem hacmi bu değerin üstündeyse Yüksek, altındaysa Düşük. Hisselerde ABD borsası kapalıyken her zaman Düşük.",
-    "high_volume_usd": {"COIN": 50000000, "EQUITY": 5000000}
+    "high_volume_usd": {
+      "COIN": 50000000,
+      "EQUITY": 5000000
+    }
   },
-
   "market_leaders": {
     "_aciklama": "Sinyaller bu sembollerin yönüne göre filtrelenir. Hisseler için QQQ yoksa hissenin kendi 4s trendi kullanılır.",
     "COIN": "BTCUSDT",
     "EQUITY": "QQQUSDT"
   },
-
   "strategy": "supertrend",
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
-
   "signal_supertrend": {
     "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, lider filtresi kapalı). Eski filtreli hal için min_score 90 ve block_against_leader true yapın.",
     "min_score": 0,
@@ -72,14 +140,12 @@
     "cooldown_hours": 1,
     "max_signals_per_run": 200
   },
-
   "decoupling": {
     "_aciklama": "BTC/QQQ ters yöndeyken ondan ayrışan semboller: 24s getiri farkı ≥ min_rel_return_24h, dönüş mumunda hacim ≥ min_volume_ratio, kendi 4s trendi ters değil. Bu sinyallerde lider filtresi ve lider oyu atlanır.",
     "enabled": true,
     "min_rel_return_24h": 0.05,
     "min_volume_ratio": 1.5
   },
-
   "signal": {
     "min_score": 80,
     "min_score_gap": 25,
@@ -89,7 +155,6 @@
     "max_signals_per_run": 5,
     "trigger_lookback_bars": 2
   },
-
   "risk": {
     "_aciklama": "sl_method: 'atr' (giriş ± sl_atr_mult × ATR) veya 'swing_atr' (son swing dibi/tepesi ötesi, min_atr–max_atr aralığında). TP'ler stop mesafesinin katları (R).",
     "sl_method": "atr",
@@ -98,17 +163,29 @@
     "swing_buffer_atr": 0.3,
     "min_atr": 1.0,
     "max_atr": 2.5,
-    "tp_r_multiples": [1.0, 2.0, 3.0],
+    "tp_r_multiples": [
+      1.0,
+      2.0,
+      3.0
+    ],
     "show_breakeven_note": true
   },
-
   "report": {
     "_aciklama": "mode 'bulletin': saat başı Türkçe bülten (önemli ekonomi/finans + kripto haberleri, son 1 saatte açıklanan ve yaklaşan veriler) + her sabah calendar_daily_hour'da günün takvimi. Takvim: TradingView (calendar_countries, calendar_min_importance: 1 yüksek, 0 orta).",
     "enabled": true,
     "mode": "bulletin",
-    "news_categories": ["💵 Ekonomi & Finans", "🪙 Kripto", "🤖 Yapay Zeka"],
-    "news_min_importance_by_category": {"🤖 Yapay Zeka": 1},
-    "calendar_countries": ["US", "TR"],
+    "news_categories": [
+      "💵 Ekonomi & Finans",
+      "🪙 Kripto",
+      "🤖 Yapay Zeka"
+    ],
+    "news_min_importance_by_category": {
+      "🤖 Yapay Zeka": 1
+    },
+    "calendar_countries": [
+      "US",
+      "TR"
+    ],
     "calendar_min_importance": 0,
     "market_hourly": true,
     "news_hourly": true,
@@ -118,7 +195,13 @@
     "news_max_age_hours": 2,
     "calendar_daily_hour": 9,
     "calendar_lookahead_hours": 3,
-    "calendar_currencies": ["USD", "EUR", "CNY", "GBP", "JPY"],
+    "calendar_currencies": [
+      "USD",
+      "EUR",
+      "CNY",
+      "GBP",
+      "JPY"
+    ],
     "calendar_min_impact_daily": "Medium",
     "calendar_min_impact_hourly": "Medium",
     "whales": true,
@@ -129,18 +212,19 @@
     "etf_alert_eth_musd": 50,
     "etf_alert_fund_musd": 20
   },
-
   "pump_radar": {
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",
     "enabled": true,
-    "types": ["COIN", "EQUITY"],
+    "types": [
+      "COIN",
+      "EQUITY"
+    ],
     "min_score": 70,
     "early_alerts": true,
     "min_score_early": 55,
     "cooldown_hours": 12,
     "max_per_run": 3
   },
-
   "pump_dump": {
     "volume_spike_ratio": 3.0,
     "squeeze_lookback": 120,
@@ -148,31 +232,62 @@
     "breakout_lookback": 20,
     "oi_change_strong": 0.08,
     "oi_change_confirm": 0.03,
-    "already_pumped_3h": 0.10,
+    "already_pumped_3h": 0.1,
     "already_pumped_24h": 0.25
   },
-
   "funding": {
     "crowded_long": 0.0005,
     "crowded_short": -0.0005
   },
-
   "indicators": {
     "rsi": 14,
-    "stoch_rsi": [14, 14, 3, 3],
-    "macd": [12, 26, 9],
-    "supertrend": [10, 3.0],
+    "stoch_rsi": [
+      14,
+      14,
+      3,
+      3
+    ],
+    "macd": [
+      12,
+      26,
+      9
+    ],
+    "supertrend": [
+      10,
+      3.0
+    ],
     "momentum": 10,
-    "ema": [20, 50, 200],
-    "ma": [50, 200],
+    "ema": [
+      20,
+      50,
+      200
+    ],
+    "ma": [
+      50,
+      200
+    ],
     "atr": 14,
     "adx": 14,
     "cci": 20,
     "volume_ma": 20,
-    "bollinger": [20, 2.0],
-    "ichimoku": [9, 26, 52, 26],
+    "bollinger": [
+      20,
+      2.0
+    ],
+    "ichimoku": [
+      9,
+      26,
+      52,
+      26
+    ],
     "cmf": 20,
-    "ewo": [5, 35],
-    "wavetrend": [10, 21]
+    "ewo": [
+      5,
+      35
+    ],
+    "wavetrend": [
+      10,
+      21
+    ]
   }
 }

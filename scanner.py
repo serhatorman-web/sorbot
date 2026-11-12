@@ -1262,7 +1262,12 @@ def build_universe(api, cfg):
         if typ == "EQUITY" and wl and s["symbol"].removesuffix("USDT") not in wl:
             continue
         qv = tickers.get(s["symbol"], {}).get("qv", 0)
-        if qv < min_qv.get(typ, min_qv["default"]):
+        need = min_qv.get(typ, min_qv["default"])
+        # Borsa kapalıyken / hafta sonu hisse hacmi düşer; listedeki hisseler düşmesin diye
+        # daha düşük eşik kullanılır (Binance hisse kontratları 7/24 işlem görür).
+        if typ == "EQUITY" and us_market_status(datetime.now(timezone.utc)) != "open":
+            need = min_qv.get("EQUITY_closed", need)
+        if qv < need:
             continue
         universe.append(meta)
     return universe, all_meta, tickers, funding
