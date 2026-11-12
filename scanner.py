@@ -796,7 +796,14 @@ def confidence_label(score):
 
 SEP = "━━━━━━━━━━━━━━━━"   # bölümler arası yatay çizgi
 
-TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Nötr", None: "– Veri yok"}
+TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Nötr", None: "⚫ Veri yok"}
+
+
+def icon_row(label, value):
+    """Tablo satırı: ikon en başta (tüm ikonlar alt alta aynı hizada), sonra etiket ve değer.
+    value '🟢 Yükseliş' gibi ikonlu metin olmalı."""
+    icon, word = value.split(" ", 1)
+    return f"{icon} {label} · {word}"
 TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
 
 
@@ -928,7 +935,7 @@ def divergence_lines(res):
 def leader_line(res):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) – aynı hesap ve format."""
     lb_ = res["leader_bias"]
-    return f"{res['leader_name']} yönü: " + TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
+    return icon_row(f"{res['leader_name']} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
 
 
 def market_lines(res, cfg, now_utc):
@@ -937,13 +944,13 @@ def market_lines(res, cfg, now_utc):
     out = []
     ms = us_market_status(now_utc) if meta["type"] == "EQUITY" else None
     if ms:
-        out.append("🏛 ABD borsası: " + {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
-                                        "weekend": "🔴 Kapalı (hafta sonu)"}[ms])
+        out.append(icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
+                                            "weekend": "🔴 Kapalı (hafta sonu)"}[ms]))
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
     qv = res.get("qv24")
     if qv is not None:
         high = qv >= lq.get(meta["type"], lq.get("COIN", 50_000_000)) and ms in (None, "open")
-        out.append("💧 Likidite: " + ("🟢 Yüksek" if high else "🔴 Düşük"))
+        out.append(icon_row("Likidite", "🟢 Yüksek" if high else "🔴 Düşük"))
     return out
 
 
@@ -952,8 +959,8 @@ def tf_table_html(res):
     tf = res.get("tf")
     if not tf:
         return ""
-    rows = [f"▸ <b>{name}</b> · {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
-    return "\n".join(["📊 <b>TREND TABLOSU</b>", "┄┄┄┄┄┄┄┄┄┄┄┄┄┄"] + rows + ["┄┄┄┄┄┄┄┄┄┄┄┄┄┄"])
+    rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in TF_ROWS]
+    return "\n".join(["📊 <b>TREND TABLOSU</b>"] + rows)
 
 
 def technical_rating(votes):
