@@ -6,8 +6,8 @@ sinyallerini Telegram'a gönderir.
 
 - ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
 - ⏱️ Zamanlama (`loop.yml` + `runner.py`): GitHub'ın zamanlayıcısı çok geciktiği için taramalar tek bir uzun çalıştırmada,
-  mum kapanışından 1 dk sonra yapılır: 5dk taraması her 5 dakikada (:01, :06, :11 ...), 15dk taraması :01/:16/:31/:46'da,
-  1s taraması saat başında (:01). 5dk sinyalleri de TrendFlex_Algo etiketiyle çalışır (`tf_profiles.5m`).
+  mum kapanışından 1 dk sonra yapılır: 15dk taraması :01/:16/:31/:46'da, 1s taraması saat başında (:01).
+  5dk taraması kapalı (açmak için runner.py içinde `ENABLE_5M = True`; ayarlar `tf_profiles.5m`).
   Döngü ~6 saatte bir kendini yeniden başlatır; durursa yedek zamanlayıcı 20 dk içinde tekrar başlatır.
   `config.json` değişiklikleri en geç 15 dk içinde geçerli olur. Repo public olduğu için Actions dakikaları sınırsız.
 - 🔁 Commit koruması (`keepalive.yml`): ayda bir otomatik commit, böylece GitHub 60 gün kuralıyla zamanlanmış görevleri durdurmaz.
@@ -99,7 +99,7 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 3. **Teknik görünüm** (TradingView teknik özet mantığı): net = AL% − SAT%; ≥+50 🟢🟢 GÜÇLÜ AL, +30…+50 🟢 AL,
    −30…+30 ⚪ NÖTR, −50…−30 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT (nötr gösterge yokken AL %65+ = AL, %75+ = GÜÇLÜ AL).
    **Güven skoru** = sinyalle (TrendFlex) aynı yöndeki indikatörlerin yüzdesi.
-   **Trend uyumu:** trend tablosundaki 5dk/15dk/1s/4s/1g'nin hepsi sinyal yönündeyse "Bu işlem trend ile uyumlu",
+   **Trend uyumu:** trend tablosundaki 15dk/1s/4s/1g'nin hepsi sinyal yönündeyse "Bu işlem trend ile uyumlu",
    hepsi ters yöndeyse "Uyarı: Bu işlem trend ile uyumlu değil"; karışıksa satır yok. Ayrıca sinyalin kendi
    zaman dilimindeki trend: uyumlu / uyumlu değil / nötr (ikon trend tablosundaki gibi: 🟢 yükseliş, 🔴 düşüş, ⚪ nötr).
    "Bu işlem trend ile uyumlu" satırında ikon işlem yönündedir (LONG 🟢, SHORT 🔴); tüm "Uyarı: … uyumlu değil" satırları 🔴. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).

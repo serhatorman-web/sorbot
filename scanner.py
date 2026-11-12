@@ -813,7 +813,7 @@ def icon_row(label, value):
     value '🟢 Yükseliş' gibi ikonlu metin olmalı."""
     icon, word = value.split(" ", 1)
     return f"{icon} {label} · {word}"
-TF_ROWS = (("5m", "5dk"), ("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
+TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
 
 
 def tf_trend(candles):
@@ -839,7 +839,7 @@ def tf_trend(candles):
 
 
 TF_NAMES = {"5m": "5dk", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "1w": "1 hafta"}
-DIV_TFS = ("5m", "15m", "1h", "4h", "1d", "1w")
+DIV_TFS = ("15m", "1h", "4h", "1d", "1w")
 
 
 def fetch_tf_trends(api, res, now_ms, base_tf="1h"):

@@ -19,7 +19,8 @@ import time
 from datetime import datetime, timezone
 
 QUARTER = 900
-STEP = 300          # 5 dakikalık mum
+ENABLE_5M = False   # 5 dakikalık sinyaller kullanıcı isteğiyle kapalı
+STEP = 300 if ENABLE_5M else QUARTER
 OFFSET = int(os.environ.get("SORBOT_OFFSET_SEC", "60"))           # mum kapanışından sonra bekleme
 LOOP_MINUTES = int(os.environ.get("SORBOT_LOOP_MINUTES", "340"))  # GitHub iş sınırı 360 dk
 SCAN_TIMEOUT = 600
@@ -111,7 +112,8 @@ def main():
         if minute == 0:
             scan("1h")
             report()
-        scan("5m")              # her 5 dakikada (TrendFlex)
+        if ENABLE_5M:
+            scan("5m")          # 5 dakikalık tarama (şu an kapalı)
         nxt = (int(time.time()) // STEP + 1) * STEP + OFFSET
     log("Süre doldu, döngü bitiyor (workflow yeniden başlatacak)")
 
