@@ -358,6 +358,7 @@ def test_econ_bulletin():
             "country": "US", "importance": 0, "actual": 200, "forecast": 195, "previous": 191, "unit": "", "scale": "K"}]
     m = report.bulletin_message(now, rel, [], {"💵 Ekonomi & Finans": []}, {})
     assert "SAATLİK PİYASA BÜLTENİ" in m and "Gerçekleşen: <b>200K</b>" in m and "ekonomi için olumsuz" in m
+    assert "🇺🇸 ABD · 14:30" in m
     assert report.bulletin_message(now, [], [], {"💵 Ekonomi & Finans": []}, {}) is None
 
 

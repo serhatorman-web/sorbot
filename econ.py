@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
 FLAGS = {"US": "🇺🇸", "TR": "🇹🇷", "EU": "🇪🇺", "CN": "🇨🇳", "GB": "🇬🇧", "JP": "🇯🇵", "DE": "🇩🇪"}
+COUNTRY_NAMES = {"US": "ABD", "TR": "Türkiye", "EU": "Euro Bölgesi", "CN": "Çin", "GB": "İngiltere",
+                 "JP": "Japonya", "DE": "Almanya"}
+
+
+def country_label(code):
+    """Bayrak + ülke adı, örn. '🇺🇸 ABD'."""
+    return f"{FLAGS.get(code, '')} {COUNTRY_NAMES.get(code, code)}".strip()
 
 # Sık açıklanan verilerin Türkçe adları (tam eşleşme, küçük harf)
 TITLES = {

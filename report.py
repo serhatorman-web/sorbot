@@ -673,7 +673,7 @@ def released_block(events):
     L = []
     for e in events:
         t = e["dt"].astimezone(TR_TZ)
-        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b> · {econ.FLAGS.get(e['country'], '')} {t:%H:%M}")
+        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b> · {econ.country_label(e['country'])} · {t:%H:%M}")
         L.append(f"      Gerçekleşen: <b>{esc(econ.fmt_val(e, 'actual'))}</b>  │  Beklenti: {esc(econ.fmt_val(e, 'forecast'))}"
                  f"  │  Önceki: {esc(econ.fmt_val(e, 'previous'))}")
         v = econ.verdict(e)
@@ -696,7 +696,7 @@ def upcoming_block(events):
         if e.get("previous") is not None:
             extra.append(f"Önc {econ.fmt_val(e, 'previous')}")
         tail = f"\n      <i>{esc(' · '.join(extra))}</i>" if extra else ""
-        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{t:%H:%M}</b> {econ.FLAGS.get(e['country'], '')} {esc(e['tr'])}{tail}")
+        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{t:%H:%M}</b> {econ.country_label(e['country'])} · {esc(e['tr'])}{tail}")
     return L
 
 
