@@ -866,8 +866,8 @@ def volume_profile_lines(res, cfg):
     f, i = res["f"], res["i"]
     price = f["c"][i]
     prec = res["meta"].get("precision")
-    span = {"1h": "son 4 gün", "15m": "son 24 saat"}.get(cfg.get("timeframe", "1h"), "")
-    return [f"📊 Hacim profili ({span})",
+    span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    return [f"📊 Hacim profili · {span}",
             f"🔴 VAH: <code>{fmt_price(vah, prec)}</code> ({pct(vah, price):+.2f}%)",
             f"🟡 POC: <code>{fmt_price(poc, prec)}</code> ({pct(poc, price):+.2f}%)",
             f"🟢 VAL: <code>{fmt_price(val, prec)}</code> ({pct(val, price):+.2f}%)"]
