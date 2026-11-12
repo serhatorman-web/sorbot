@@ -1431,6 +1431,7 @@ def main():
             if notifier.send(msg):
                 sent += 1
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
+                print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
 
