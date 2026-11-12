@@ -1,0 +1,36 @@
+name: Kaynak Erisim Testi
+
+# Gecici: piyasa sembolleri (Yahoo Finance) ve acik/kapali bilgisi.
+on:
+  push:
+    paths:
+      - ".github/workflows/source-test.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Kaynaklar
+        shell: python3 {0}
+        run: |
+          import urllib.request, json, time
+          syms = ["^DJI", "^GSPC", "^NDX", "XU100.IS", "^N225", "^GDAXI", "^FTSE", "^FCHI", "^HSI", "000001.SS",
+                  "^KS11", "XAUUSD=X", "GC=F", "XAGUSD=X", "SI=F", "PL=F", "BZ=F", "CL=F", "NG=F", "HG=F",
+                  "DX-Y.NYB", "TRY=X", "EURTRY=X"]
+          now = time.time()
+          for s in syms:
+              u = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.request.quote(s)}?interval=1d&range=1d"
+              try:
+                  m = json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=20).read())["chart"]["result"][0]["meta"]
+                  reg = (m.get("currentTradingPeriod") or {}).get("regular") or {}
+                  st = "ACIK" if reg.get("start", 0) <= now < reg.get("end", 0) else "KAPALI"
+                  p, pc = m.get("regularMarketPrice"), m.get("chartPreviousClose") or m.get("previousClose")
+                  ch = (p / pc - 1) * 100 if p and pc else None
+                  print(f"[OK] {s:10} {p} onceki {pc} degisim {ch if ch is None else round(ch, 2)} {st} tz={m.get('exchangeTimezoneName')} keys={'marketState' in m}")
+              except Exception as e:
+                  print(f"[HATA] {s}: {getattr(e, 'code', '')} {str(e)[:100]}")
