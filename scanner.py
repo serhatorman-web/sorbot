@@ -977,6 +977,22 @@ def technical_rating_line(votes):
     return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
 
 
+def indicator_list_lines(res, direction):
+    """İndikatörlerin 🟢 AL / 🔴 SAT / ⚪ Nötr listesi (sinyal yönüne göre sıralı)."""
+    s = 1 if direction == "long" else -1
+    same = [n for n, v in res["votes"] if v == s]
+    opp = [n for n, v in res["votes"] if v == -s]
+    neu = [n for n, v in res["votes"] if v == 0]
+    word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
+    icon = {"AL": "🟢", "SAT": "🔴"}
+    out = [f"{icon[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same)]
+    if opp:
+        out.append(f"{icon[oword]} {oword}: " + ", ".join(opp))
+    if neu:
+        out.append("⚪ Nötr: " + ", ".join(neu))
+    return out
+
+
 def build_message(res, direction, cfg, now_utc):
     meta, f, i = res["meta"], res["f"], res["i"]
     side = res[direction]
@@ -1022,17 +1038,7 @@ def build_message(res, direction, cfg, now_utc):
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
-        s = 1 if direction == "long" else -1
-        same = [n for n, v in res["votes"] if v == s]
-        opp = [n for n, v in res["votes"] if v == -s]
-        neu = [n for n, v in res["votes"] if v == 0]
-        word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
-        ICON = {"AL": "🟢", "SAT": "🔴"}
-        lines.append(f"{ICON[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same))
-        if opp:
-            lines.append(f"{ICON[oword]} {oword}: " + ", ".join(opp))
-        if neu:
-            lines.append("⚪ Nötr: " + ", ".join(neu))
+        lines += indicator_list_lines(res, direction)
         div = divergence_lines(res)
         if div:
             lines += [""] + div
@@ -1056,43 +1062,51 @@ def build_message(res, direction, cfg, now_utc):
 
 
 def build_radar_message(res, rd, cfg, now_utc):
+    """Pump/Dump radarı mesajı: Supertrend sinyalleriyle aynı düzen,
+    radar skoru ve kırılım sebebi en üstte."""
     meta, f, i = res["meta"], res["f"], res["i"]
     prec = meta.get("precision")
-    long_ = rd["dir"] == "long"
+    direction = rd["dir"]
+    long_ = direction == "long"
     if rd["kind"] == "start":
         head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
     else:
         head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
     lines = [f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
-             f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'LONG' if long_ else 'SHORT'}", ""]
+             f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
+             "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
+    if res.get("votes"):
+        side = res[direction]
+        lines += ["", technical_rating_line(res["votes"]),
+                  f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
+    lines.append("")
     if rd["kind"] == "start":
-        entry, sl, tps, sl_label = levels(res, rd["dir"], cfg)
+        entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"Giriş: <code>{fmt_price(entry, prec)}</code>",
                   f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
             lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%) · {r:g}R")
+        if cfg["risk"].get("show_breakeven_note", True):
+            lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
                   f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
-    lines += ["", "📌 " + " · ".join(rd["reasons"])]
-    div = divergence_lines(res)
-    if div:
-        lines += [""] + div
-    vol = volume_lines(res, cfg)
-    if vol:
-        lines += [""] + vol
-    vpl = volume_profile_lines(res, cfg)
-    if vpl:
-        lines += [""] + vpl
-    if res.get("tf"):
-        lines += ["", tf_table_html(res)]
+    if res.get("votes"):
+        st = f["st_dir"][i]
+        st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
+        lines += ["", f"📌 Supertrend: {st_txt}"] + indicator_list_lines(res, direction)
+    for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
+        if block:
+            lines += [""] + block
+    trend = tf_table_html(res)
+    if trend:
+        lines += ["", trend]
     if res.get("leader_name") and res["leader_name"] != "4s trend":
         lines.append(leader_line(res))
     lines += market_lines(res, cfg, now_utc)
-    lines += ["", f"24s {res['chg24']:+.1f}%"]
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir.</i>"]
     return "\n".join(lines)
