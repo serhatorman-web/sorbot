@@ -794,6 +794,8 @@ def confidence_label(score):
     return "İyi"
 
 
+SEP = "━━━━━━━━━━━━━━━━"   # bölümler arası yatay çizgi
+
 TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Nötr", None: "– Veri yok"}
 TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
 
@@ -1059,6 +1061,7 @@ def build_message(res, direction, cfg, now_utc):
         "",
         score_line,
         "",
+        SEP,
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
         "",
         f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
@@ -1071,7 +1074,7 @@ def build_message(res, direction, cfg, now_utc):
 
     trend_line = tf_table_html(res)
     if res["leader_name"] != "4s trend":
-        trend_line += "\n\n" + leader_line(res)
+        trend_line += "\n\n" + SEP + "\n" + leader_line(res)
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -1082,21 +1085,21 @@ def build_message(res, direction, cfg, now_utc):
 
     if res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
-        lines += ["", f"📌 Supertrend: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        lines += ["", SEP, f"📌 Supertrend: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += indicator_list_lines(res, direction)
         div = divergence_lines(res)
         if div:
-            lines += [""] + div
+            lines += ["", SEP] + div
         vol = volume_lines(res, cfg)
         if vol:
-            lines += [""] + vol
+            lines += ["", SEP] + vol
         vpl = volume_profile_lines(res, cfg)
         if vpl:
-            lines += [""] + vpl
-    lines += ["", trend_line] + market_lines(res, cfg, now_utc)
+            lines += ["", SEP] + vpl
+    lines += ["", SEP, trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
 
@@ -1130,7 +1133,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             lines += ["", extra_line]
-    lines.append("")
+    lines += ["", SEP]
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
@@ -1148,15 +1151,15 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         st = f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", f"📌 Supertrend: {st_txt}"] + indicator_list_lines(res, direction)
+        lines += ["", SEP, f"📌 Supertrend: {st_txt}"] + indicator_list_lines(res, direction)
     for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
         if block:
-            lines += [""] + block
+            lines += ["", SEP] + block
     trend = tf_table_html(res)
     if trend:
-        lines += ["", trend]
+        lines += ["", SEP, trend]
     if res.get("leader_name") and res["leader_name"] != "4s trend":
-        lines += ["", leader_line(res)]
+        lines += ["", SEP, leader_line(res)]
     lines += market_lines(res, cfg, now_utc)
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
