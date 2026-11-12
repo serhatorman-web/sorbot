@@ -331,9 +331,9 @@ def test_trend_alignment():
 def test_own_tf_alignment():
     o = scanner.own_tf_alignment_line
     c15 = {"timeframe": "15m"}
-    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ <b>Sinyal kendi zaman diliminde (15dk) nötr</b>"
-    assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 <b>Sinyal kendi zaman dilimiyle (15dk) uyumlu</b>"
-    assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 <b>Sinyal kendi zaman dilimiyle (15dk) uyumlu</b>"
+    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ Sinyal kendi zaman diliminde (15dk) nötr"
+    assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 Sinyal kendi zaman dilimiyle (15dk) uyumlu"
+    assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 Sinyal kendi zaman dilimiyle (15dk) uyumlu"
     assert o({"tf": {"15m": -1}}, "long", c15).startswith("🔴 <b>Uyarı")
     assert o({"tf": {"15m": 1}}, "short", c15).startswith("🔴 <b>Uyarı")
     assert o({}, "long", {"timeframe": "1h"}) is None

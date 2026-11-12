@@ -1004,15 +1004,15 @@ def own_tf_alignment_line(res, direction, cfg):
     s = 1 if direction == "long" else -1
     icon = {1: "🟢", -1: "🔴", 0: "⚪"}[t]
     if t == s:
-        return f"{icon} <b>Sinyal kendi zaman dilimiyle ({name}) uyumlu</b>"
+        return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
-    return f"{icon} <b>Sinyal kendi zaman diliminde ({name}) nötr</b>"
+    return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
 
 
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
-    return f"<b>Teknik görünüm: {icon} {label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
+    return f"<b>Teknik görünüm:</b> {icon} {label} · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
 
 
 def indicator_list_lines(res, direction):
@@ -1046,8 +1046,8 @@ def build_message(res, direction, cfg, now_utc):
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
     if res.get("votes"):
-        score_line = (technical_rating_line(res["votes"]) + "\n"
-                      + f"<b>Güven skoru: %{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)")
+        score_line = (technical_rating_line(res["votes"]) + "\n\n"
+                      + f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)")
     else:
         score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
@@ -1058,12 +1058,12 @@ def build_message(res, direction, cfg, now_utc):
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
         score_line,
         "",
-        f"<b>Giriş: {fmt_price(entry, prec)}</b>",
-        f"<b>Stop: {fmt_price(sl, prec)}</b> ({pct(sl, entry):+.2f}%) · {sl_label}",
+        f"<b>Giriş:</b> {fmt_price(entry, prec)}",
+        f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
     for n, tp in enumerate(tps, 1):
         r = cfg["risk"]["tp_r_multiples"][n - 1]
-        lines.append(f"<b>TP{n}: {fmt_price(tp, prec)}</b> ({pct(tp, entry):+.2f}%) · {r:g}R")
+        lines.append(f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R")
     if cfg["risk"].get("show_breakeven_note", True):
         lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
 
@@ -1123,19 +1123,19 @@ def build_radar_message(res, rd, cfg, now_utc):
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
     if res.get("votes"):
         side = res[direction]
-        lines += ["", technical_rating_line(res["votes"]),
-                  f"<b>Güven skoru: %{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
+        lines += ["", technical_rating_line(res["votes"]), "",
+                  f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)"]
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             lines.append(extra_line)
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
-        lines += [f"<b>Giriş: {fmt_price(entry, prec)}</b>",
-                  f"<b>Stop: {fmt_price(sl, prec)}</b> ({pct(sl, entry):+.2f}%) · {sl_label}"]
+        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}",
+                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines.append(f"<b>TP{n}: {fmt_price(tp, prec)}</b> ({pct(tp, entry):+.2f}%) · {r:g}R")
+            lines.append(f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R")
         if cfg["risk"].get("show_breakeven_note", True):
             lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
     else:
