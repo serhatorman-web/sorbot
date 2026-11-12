@@ -987,7 +987,7 @@ def trend_alignment_line(res, direction):
     if all(d == s for d in dirs):
         return f"{icon} <b>Bu işlem trend ile uyumlu</b>"
     if all(d == -s for d in dirs):
-        return f"{icon} <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+        return "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
     return None
 
 
@@ -1004,7 +1004,7 @@ def own_tf_alignment_line(res, direction, cfg):
     if t == s:
         return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
-        return f"{icon} <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
+        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
     return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
 
 
