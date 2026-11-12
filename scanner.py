@@ -953,23 +953,25 @@ def tf_table_html(res):
 
 
 def technical_rating(votes):
-    """TradingView teknik özet mantığı: net = (AL - SAT) / toplam.
+    """Teknik görünüm: net = (AL - SAT) / toplam (tam sayılarla, yuvarlama hatası olmadan).
+      net ≥ +50  GÜÇLÜ AL | +20 ≤ net < +50  AL | -20 < net < +20  NÖTR
+      -50 < net ≤ -20  SAT | net ≤ -50  GÜÇLÜ SAT
     Döner: (etiket, ikon, AL %, SAT %, net %)"""
     n = len(votes) or 1
-    buy = sum(1 for _, v in votes if v == 1) / n
-    sell = sum(1 for _, v in votes if v == -1) / n
-    net = buy - sell
-    if net >= 0.5:
+    b = sum(1 for _, v in votes if v == 1)
+    sl = sum(1 for _, v in votes if v == -1)
+    d100 = (b - sl) * 100          # net × n (yüzde cinsinden, tam sayı)
+    if d100 >= 50 * n:
         label, icon = "GÜÇLÜ AL", "🟢🟢"
-    elif net >= 0.1:
+    elif d100 >= 20 * n:
         label, icon = "AL", "🟢"
-    elif net > -0.1:
+    elif d100 > -20 * n:
         label, icon = "NÖTR", "⚪"
-    elif net > -0.5:
+    elif d100 > -50 * n:
         label, icon = "SAT", "🔴"
     else:
         label, icon = "GÜÇLÜ SAT", "🔴🔴"
-    return label, icon, buy * 100, sell * 100, net * 100
+    return label, icon, b / n * 100, sl / n * 100, d100 / n
 
 
 def technical_rating_line(votes):

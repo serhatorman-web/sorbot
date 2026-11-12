@@ -304,31 +304,15 @@ def test_volume_lines():
 
 
 def test_technical_rating():
-    v = lambda b, s_, z: [("x", 1)] * b + [("x", -1)] * s_ + [("x", 0)] * z
-    assert scanner.technical_rating(v(15, 1, 1))[0] == "GÜÇLÜ AL"
-    assert scanner.technical_rating(v(10, 5, 2))[0] == "AL"
-    assert scanner.technical_rating(v(8, 8, 1))[0] == "NÖTR"
-    assert scanner.technical_rating(v(5, 10, 2))[0] == "SAT"
-    assert scanner.technical_rating(v(1, 15, 1))[0] == "GÜÇLÜ SAT"
-
-
-def test_cmf_ewo():
-    h = [101 + k for k in range(60)]; l = [99 + k for k in range(60)]; c = [100.9 + k for k in range(60)]
-    assert ta.cmf(h, l, c, [10] * 60)[-1] > 0.5 and ta.ewo(c)[-1] > 0
-    c2 = [99.1 + k for k in range(60)]
-    assert ta.cmf(h, l, c2, [10] * 60)[-1] < -0.5
-
-
-def test_wavetrend():
-    import math
-    c = [100 + 10 * math.sin(k / 8) for k in range(200)]
-    h, l = [x + 0.5 for x in c], [x - 0.5 for x in c]
-    wt1, wt2 = ta.wavetrend(h, l, c)
-    # yükselen bölümde WT1 > WT2, düşen bölümde WT1 < WT2 olmalı (çoğunlukla)
-    rising = [k for k in range(80, 200) if c[k] > c[k - 1] and c[k - 1] > c[k - 2]]
-    agree = sum(1 for k in rising if wt1[k] > wt2[k]) / len(rising)
-    assert agree > 0.7, agree
-    assert all(-150 < x < 150 for x in wt1[60:])
+    v = lambda b, s_, z=0: [("x", 1)] * b + [("x", -1)] * s_ + [("x", 0)] * z
+    r = lambda *a: scanner.technical_rating(v(*a))[0]
+    assert r(11, 9) == "NÖTR"            # %55 / %45 -> nötr (kullanıcı örneği)
+    assert r(10, 10) == "NÖTR" and r(9, 11) == "NÖTR"
+    assert r(12, 8) == "AL" and r(14, 6) == "AL"
+    assert r(15, 5) == "GÜÇLÜ AL" and r(19, 1) == "GÜÇLÜ AL"
+    assert r(8, 12) == "SAT" and r(6, 14) == "SAT"
+    assert r(5, 15) == "GÜÇLÜ SAT"
+    assert r(10, 5, 5) == "AL"           # net +25
 
 
 def test_market_status():

@@ -83,8 +83,8 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
    ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü),
    Bollinger (orta bandın üstü/altı), Ichimoku (bulutun üstü/altı, içindeyse nötr), CMF (20; 0 üstü para girişi),
    EWO (SMA5 − SMA35; 0 üstü/altı), WaveTrend (LazyBear 10/21; WT1 > WT2 AL), BTC/QQQ yönü.
-3. **Teknik görünüm** (TradingView teknik özet mantığı): net = AL% − SAT%; ≥+50 🟢🟢 GÜÇLÜ AL, +10…+50 🟢 AL,
-   −10…+10 ⚪ NÖTR, −50…−10 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT.
+3. **Teknik görünüm** (TradingView teknik özet mantığı): net = AL% − SAT%; ≥+50 🟢🟢 GÜÇLÜ AL, +20…+50 🟢 AL,
+   −20…+20 ⚪ NÖTR, −50…−20 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT.
    **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
 4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
 5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
