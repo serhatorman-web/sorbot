@@ -15,6 +15,7 @@ Ortam değişkenleri:
 """
 
 import json
+import re
 import os
 import sys
 import threading
@@ -945,11 +946,12 @@ def market_lines(res, cfg, now_utc):
 
 
 def tf_table_html(res):
+    """Trend tablosu – normal yazı ile (sabit genişlikli yazı yok)."""
     tf = res.get("tf")
     if not tf:
         return ""
-    rows = [f"{name:<7}│ {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
-    return "<pre>Zaman  │ Trend\n───────┼──────────\n" + "\n".join(rows) + "</pre>"
+    rows = [f"{name}: {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
+    return "📊 <b>Trend</b>\n" + "\n".join(rows)
 
 
 def technical_rating(votes):
@@ -1029,6 +1031,11 @@ def indicator_list_lines(res, direction):
     return out
 
 
+def plain_font(text):
+    """Tüm mesajı normal yazı tipinde bırakır: <i>, <code>, <pre> kaldırılır (kalın <b> ve linkler kalır)."""
+    return re.sub(r"</?(i|code|pre)>", "", text)
+
+
 def build_message(res, direction, cfg, now_utc):
     meta, f, i = res["meta"], res["f"], res["i"]
     side = res[direction]
@@ -1096,8 +1103,8 @@ def build_message(res, direction, cfg, now_utc):
         lines += [""] + notes
 
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
-    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Yatırım tavsiyesi değildir.</i>"]
-    return "\n".join(lines)
+    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Yatırım tavsiyesi değildir."]
+    return plain_font("\n".join(lines))
 
 
 def build_radar_message(res, rd, cfg, now_utc):
@@ -1150,8 +1157,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         lines.append(leader_line(res))
     lines += market_lines(res, cfg, now_utc)
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
-    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "<i>Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir.</i>"]
-    return "\n".join(lines)
+    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
+    return plain_font("\n".join(lines))
 
 
 # --------------------------------------------------------------------------- #

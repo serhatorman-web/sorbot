@@ -822,6 +822,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
 
     ok = True
     for kind, text in messages:
+        text = sc.plain_font(text)       # tek yazı tipi: eğik / sabit genişlikli yok
         for part in split_message(text):
             try:
                 ok = notifier.send(part) and ok
