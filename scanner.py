@@ -845,6 +845,34 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
     res["div"] = {"pos": pos, "neg": neg}
 
 
+def compute_volume_profile(res, cfg):
+    """Sinyal zaman diliminin son N mumundan hacim profili (VAH / POC / VAL)."""
+    vp = cfg.get("volume_profile", {})
+    if not vp.get("enabled", True):
+        return
+    f, i = res["f"], res["i"]
+    n = vp.get("lookback_bars", {}).get(cfg.get("timeframe", "1h"), 96)
+    a = max(0, i - n + 1)
+    out = ta.volume_profile(f["h"][a:i + 1], f["l"][a:i + 1], f["v"][a:i + 1],
+                            vp.get("rows", 24), vp.get("value_area", 0.70))
+    res["vp"] = out
+
+
+def volume_profile_lines(res, cfg):
+    vp = res.get("vp")
+    if not vp:
+        return []
+    vah, poc, val = vp
+    f, i = res["f"], res["i"]
+    price = f["c"][i]
+    prec = res["meta"].get("precision")
+    span = {"1h": "son 4 gün", "15m": "son 24 saat"}.get(cfg.get("timeframe", "1h"), "")
+    return [f"📊 Hacim profili ({span})",
+            f"🔴 VAH: <code>{fmt_price(vah, prec)}</code> ({pct(vah, price):+.2f}%)",
+            f"🟡 POC: <code>{fmt_price(poc, prec)}</code> ({pct(poc, price):+.2f}%)",
+            f"🟢 VAL: <code>{fmt_price(val, prec)}</code> ({pct(val, price):+.2f}%)"]
+
+
 def divergence_lines(res):
     d = res.get("div") or {}
     out = []
@@ -943,6 +971,9 @@ def build_message(res, direction, cfg, now_utc):
         div = divergence_lines(res)
         if div:
             lines += [""] + div
+        vpl = volume_profile_lines(res, cfg)
+        if vpl:
+            lines += [""] + vpl
     lines += ["", trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
@@ -982,6 +1013,9 @@ def build_radar_message(res, rd, cfg, now_utc):
     div = divergence_lines(res)
     if div:
         lines += [""] + div
+    vpl = volume_profile_lines(res, cfg)
+    if vpl:
+        lines += [""] + vpl
     if res.get("tf"):
         lines += ["", tf_table_html(res)]
     if res.get("leader_name") and res["leader_name"] != "4s trend":
@@ -1211,6 +1245,7 @@ def main():
     sent = 0
     for score, d, r in picks[:maxn]:
         fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+        compute_volume_profile(r, cfg)
         msg = build_message(r, d, cfg, now_utc)
         try:
             if notifier.send(msg):
@@ -1251,6 +1286,8 @@ def main():
         for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
             if "tf" not in r:
                 fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+            if "vp" not in r:
+                compute_volume_profile(r, cfg)
             try:
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc)):
                     sent += 1

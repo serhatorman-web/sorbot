@@ -305,6 +305,51 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
     return check(lows, True), check(highs, False)
 
 
+def volume_profile(high, low, volume, rows=24, value_area=0.70):
+    """Hacim profili (TradingView Volume Profile mantığı).
+    Her mumun hacmi, mumun düşük–yüksek aralığına düşen satırlara orantılı dağıtılır.
+    Döner: (VAH, POC, VAL) veya veri yoksa None.
+    """
+    if not high:
+        return None
+    lo, hi = min(low), max(high)
+    if hi <= lo:
+        return None
+    step = (hi - lo) / rows
+    bins = [0.0] * rows
+    for h, l, v in zip(high, low, volume):
+        if v <= 0:
+            continue
+        if h <= l:
+            k = min(rows - 1, int((h - lo) / step))
+            bins[k] += v
+            continue
+        for k in range(max(0, int((l - lo) / step)), min(rows - 1, int((h - lo) / step)) + 1):
+            b_lo, b_hi = lo + k * step, lo + (k + 1) * step
+            overlap = min(h, b_hi) - max(l, b_lo)
+            if overlap > 0:
+                bins[k] += v * overlap / (h - l)
+    total = sum(bins)
+    if total <= 0:
+        return None
+    poc = max(range(rows), key=lambda k: bins[k])
+    a = b = poc
+    acc = bins[poc]
+    while acc < value_area * total and (a > 0 or b < rows - 1):
+        up = bins[b + 1] if b < rows - 1 else -1
+        dn = bins[a - 1] if a > 0 else -1
+        if up >= dn:
+            b += 1
+            acc += up
+        else:
+            a -= 1
+            acc += dn
+    vah = lo + (b + 1) * step
+    val = lo + a * step
+    poc_price = lo + (poc + 0.5) * step
+    return vah, poc_price, val
+
+
 def crossed_above(a, b, i):
     """a, i. mumda b'yi yukarı kesti mi?"""
     if i < 1 or None in (a[i], b[i], a[i - 1], b[i - 1]):

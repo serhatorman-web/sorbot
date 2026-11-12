@@ -283,6 +283,14 @@ def test_rsi_divergence():
     assert scanner.divergence_lines({"div": {"pos": [], "neg": []}}) == []
 
 
+def test_volume_profile():
+    h = [102] * 50 + [110] * 5 + [95.5] * 5
+    l = [100] * 50 + [108] * 5 + [94] * 5
+    v = [100] * 50 + [5] * 5 + [5] * 5
+    vah, poc, val = ta.volume_profile(h, l, v)
+    assert 100 <= poc <= 102 and val <= 100.01 and vah >= 101.99 and val < poc < vah
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
