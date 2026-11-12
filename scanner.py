@@ -1053,9 +1053,10 @@ def build_message(res, direction, cfg, now_utc):
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
-            score_line += "\n" + extra_line
+            score_line += "\n\n" + extra_line
     lines = [
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
+        "",
         score_line,
         "",
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
@@ -1127,7 +1128,7 @@ def build_radar_message(res, rd, cfg, now_utc):
                   f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)"]
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
-            lines.append(extra_line)
+            lines += ["", extra_line]
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
