@@ -990,6 +990,21 @@ def trend_alignment_line(res, direction):
     return None
 
 
+def own_tf_alignment_line(res, direction, cfg):
+    """Sinyalin kendi zaman dilimindeki trend (trend tablosundaki satır) sinyalle uyumlu mu?"""
+    tf_key = cfg.get("timeframe", "1h")
+    t = (res.get("tf") or {}).get(tf_key)
+    if t is None:
+        return None
+    name = TF_NAMES.get(tf_key, tf_key)
+    s = 1 if direction == "long" else -1
+    if t == s:
+        return f"🟢 Sinyal kendi zaman dilimiyle ({name}) uyumlu"
+    if t == -s:
+        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
+    return f"⚪ Sinyalin kendi zaman diliminde ({name}) trend nötr"
+
+
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
     return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
@@ -1026,9 +1041,9 @@ def build_message(res, direction, cfg, now_utc):
     else:
         score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
-    align = trend_alignment_line(res, direction)
-    if align:
-        score_line += "\n" + align
+    for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
+        if extra_line:
+            score_line += "\n" + extra_line
     lines = [
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
         score_line,
@@ -1100,9 +1115,9 @@ def build_radar_message(res, rd, cfg, now_utc):
         side = res[direction]
         lines += ["", technical_rating_line(res["votes"]),
                   f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
-    align = trend_alignment_line(res, direction)
-    if align:
-        lines.append(align)
+    for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
+        if extra_line:
+            lines.append(extra_line)
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)

@@ -327,6 +327,14 @@ def test_trend_alignment():
     assert scanner.trend_alignment_line({}, "long") is None
 
 
+def test_own_tf_alignment():
+    r = {"tf": {"15m": -1, "1h": 1, "4h": 1, "1d": 1}}
+    assert "uyumlu değil" in scanner.own_tf_alignment_line(r, "long", {"timeframe": "15m"})
+    assert "(1 saat) uyumlu" in scanner.own_tf_alignment_line(r, "long", {"timeframe": "1h"})
+    assert "nötr" in scanner.own_tf_alignment_line({"tf": {"15m": 0}}, "short", {"timeframe": "15m"})
+    assert scanner.own_tf_alignment_line({}, "long", {"timeframe": "1h"}) is None
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

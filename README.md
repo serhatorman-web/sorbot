@@ -87,7 +87,8 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
    −30…+30 ⚪ NÖTR, −50…−30 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT (nötr gösterge yokken AL %65+ = AL, %75+ = GÜÇLÜ AL).
    **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi.
    **Trend uyumu:** trend tablosundaki 15dk/1s/4s/1g'nin hepsi sinyal yönündeyse 🟢 "Bu işlem trend ile uyumlu – AL/SAT",
-   hepsi ters yöndeyse 🔴 "Uyarı: Bu işlem trend ile uyumlu değil – BEKLE"; karışıksa satır yok. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
+   hepsi ters yöndeyse 🔴 "Uyarı: Bu işlem trend ile uyumlu değil – BEKLE"; karışıksa satır yok.
+   Ayrıca sinyalin kendi zaman dilimindeki trend: 🟢 uyumlu / 🔴 uyumlu değil / ⚪ nötr. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
 4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
 5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
 6. **RSI uyumsuzluğu** (bilgi): 15 dakika, 1 saat, 4 saat, 1 gün ve 1 hafta grafiklerinde TradingView mantığıyla (pivot 5/5, 5–60 mum)
