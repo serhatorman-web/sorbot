@@ -53,7 +53,9 @@ Her saat başı (1s taramasından hemen sonra) Telegram'a tek, düzenli bir **�
   metaller/emtia (spot altın, gram altın, gümüş, platin, paladyum, Brent, WTI, doğalgaz, bakır) ve döviz (DXY, USD/TRY, EUR/TRY);
   günlük değişim 🟢 yükseliş / 🔴 düşüş, piyasa Açık/Kapalı. Spot metal fiyatları Binance emtia endeksinden, diğerleri Yahoo Finance'ten.
 - **📊 Açıklanan veriler (son 1 saat):** ABD ve Türkiye'nin orta/yüksek önemli verileri – gerçekleşen, beklenti,
-  önceki ve 🟢/🔴 beklentiye göre ekonomi açısından yorum (TradingView ekonomik takvim, Türkçe veri adları)
+  önceki ve 🟢/🔴 beklentiye göre ekonomi açısından yorum (TradingView ekonomik takvim, Türkçe veri adları).
+  ABD verilerinde ayrıca 💡 sebep ve **kripto / altın / faiz indirimi** için 🟢 olumlu / 🔴 olumsuz etki:
+  yüksek enflasyon veya güçlü ekonomi → Fed şahin → olumsuz; düşük enflasyon, zayıf ekonomi, yüksek işsizlik → olumlu.
 - **🗓 Yaklaşan veriler (3 saat)**
 - **💵 Ekonomi & Finans** ve **🪙 Kripto**: sadece önemli, Türkçe haberler (başlık + link)
 Bölümlerin hepsi boşsa o saat bülten gönderilmez. Her sabah 09:00'dan sonraki ilk saat başında **🗓 Günün Ekonomik Takvimi**.

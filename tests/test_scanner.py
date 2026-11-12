@@ -370,6 +370,20 @@ def test_markets_block():
     assert "🔴 BIST 100" in out and "-%0,50" in out and "Kapalı" in out
 
 
+def test_asset_impact():
+    import econ
+    us = lambda t, a, f: {"country": "US", "title": t, "actual": a, "forecast": f}
+    i = econ.asset_impact(us("Inflation Rate YoY", 3.4, 3.1))
+    assert i["hawkish"] and i["items"][0] == ("🔴", "Kripto için olumsuz")
+    assert not econ.asset_impact(us("Non Farm Payrolls", 95, 150))["hawkish"]
+    assert not econ.asset_impact(us("Initial Jobless Claims", 200, 195))["hawkish"]
+    assert econ.asset_impact(us("Initial Jobless Claims", 180, 195))["hawkish"]
+    assert econ.asset_impact(us("Fed Interest Rate Decision", 4.5, 4.25))["hawkish"]
+    assert econ.asset_impact(us("EIA Crude Oil Stocks Change", 3, -1)) is None
+    assert econ.asset_impact(dict(us("Inflation Rate YoY", 3.4, 3.1), country="TR")) is None
+    assert econ.asset_impact(us("Retail Sales MoM", 0.3, 0.3)) is None
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

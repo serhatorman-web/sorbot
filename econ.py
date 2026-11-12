@@ -229,3 +229,44 @@ def verdict(e):
         return "⚪", arrow
     good = (not higher) if HIGHER_IS_WORSE.search(e["title"]) else higher
     return ("🟢", arrow + " · ekonomi için olumlu") if good else ("🔴", arrow + " · ekonomi için olumsuz")
+
+
+# --------------------------------------------------------------------------- #
+# Kripto / altın / faiz etkisi (ABD verileri)
+# --------------------------------------------------------------------------- #
+# Yorum yapılmayan, yönü belirsiz veriler
+NO_ANALYSIS = re.compile(r"stock|inventor|auction|speech|minutes|press|rig count|budget|balance|current account|"
+                         r"projection|mortgage|refinance|purchase index", re.IGNORECASE)
+RATE_DECISION = re.compile(r"interest rate decision|rate decision|fed funds", re.IGNORECASE)
+INFLATION = re.compile(r"inflation|cpi|ppi|pce|price index|prices|earnings|wage|unit labo|employment cost",
+                       re.IGNORECASE)
+LABOR_WEAK = re.compile(r"unemploy|jobless|claims|job cuts", re.IGNORECASE)
+
+
+def asset_impact(e):
+    """ABD verisinin beklentiye göre sürprizini kripto, altın ve faiz indirimi açısından yorumlar.
+    Döner: {"hawkish": bool, "reason": str, "items": [(ikon, metin), ...]} veya None."""
+    if e.get("country") != "US":
+        return None
+    a, f, title = e.get("actual"), e.get("forecast"), e.get("title", "")
+    if not isinstance(a, (int, float)) or not isinstance(f, (int, float)) or a == f:
+        return None
+    higher = a > f
+    if RATE_DECISION.search(title):
+        hawkish = higher
+        reason = "Fed faizi beklentiden " + ("yüksek" if higher else "düşük")
+    elif NO_ANALYSIS.search(title):
+        return None
+    elif INFLATION.search(title):
+        hawkish = higher
+        reason = "Enflasyon beklentiden " + ("yüksek" if higher else "düşük")
+    elif LABOR_WEAK.search(title):
+        hawkish = not higher
+        reason = "İşgücü piyasası beklentiden " + ("zayıf" if higher else "güçlü")
+    else:
+        hawkish = higher
+        reason = "Ekonomi beklentiden " + ("güçlü" if higher else "zayıf")
+    reason += " → Fed'in faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
+    icon, word = ("🔴", "olumsuz") if hawkish else ("🟢", "olumlu")
+    return {"hawkish": hawkish, "reason": reason,
+            "items": [(icon, f"Kripto için {word}"), (icon, f"Altın için {word}"), (icon, f"Faiz indirimi için {word}")]}
