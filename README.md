@@ -6,7 +6,8 @@ sinyallerini Telegram'a gönderir.
 
 - ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
 - ⏱️ Zamanlama (`loop.yml` + `runner.py`): GitHub'ın zamanlayıcısı çok geciktiği için taramalar tek bir uzun çalıştırmada,
-  mum kapanışından 1 dk sonra yapılır: 15dk taraması :01/:16/:31/:46'da, 1s taraması saat başında (:01).
+  mum kapanışından 1 dk sonra yapılır: 5dk taraması her 5 dakikada (:01, :06, :11 ...), 15dk taraması :01/:16/:31/:46'da,
+  1s taraması saat başında (:01). 5dk sinyalleri de TrendFlex_Algo etiketiyle çalışır (`tf_profiles.5m`).
   Döngü ~6 saatte bir kendini yeniden başlatır; durursa yedek zamanlayıcı 20 dk içinde tekrar başlatır.
   `config.json` değişiklikleri en geç 15 dk içinde geçerli olur. Repo public olduğu için Actions dakikaları sınırsız.
 - 🔁 Commit koruması (`keepalive.yml`): ayda bir otomatik commit, böylece GitHub 60 gün kuralıyla zamanlanmış görevleri durdurmaz.

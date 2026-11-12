@@ -41,7 +41,7 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 TR_TZ = timezone(timedelta(hours=3))
 NY_TZ = ZoneInfo("America/New_York")
 HOUR_MS = 3_600_000
-TF_MS = {"15m": 900_000, "30m": 1_800_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+TF_MS = {"5m": 300_000, "15m": 900_000, "30m": 1_800_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 
 
 def tf_ms(cfg):
@@ -838,7 +838,7 @@ def tf_trend(candles):
     return 0
 
 
-TF_NAMES = {"15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "1w": "1 hafta"}
+TF_NAMES = {"5m": "5dk", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "1w": "1 hafta"}
 DIV_TFS = ("15m", "1h", "4h", "1d", "1w")
 
 

@@ -19,6 +19,7 @@ import time
 from datetime import datetime, timezone
 
 QUARTER = 900
+STEP = 300          # 5 dakikalık mum
 OFFSET = int(os.environ.get("SORBOT_OFFSET_SEC", "60"))           # mum kapanışından sonra bekleme
 LOOP_MINUTES = int(os.environ.get("SORBOT_LOOP_MINUTES", "340"))  # GitHub iş sınırı 360 dk
 SCAN_TIMEOUT = 600
@@ -54,8 +55,8 @@ def git_pull():
 
 def scan(tf):
     env = dict(os.environ)
-    if tf == "15m":
-        env["SORBOT_TF"] = "15m"
+    if tf in ("5m", "15m"):
+        env["SORBOT_TF"] = tf
     else:
         env.pop("SORBOT_TF", None)
     t0 = time.time()
@@ -96,20 +97,22 @@ def main():
     log(f"Döngü başladı, bitiş {datetime.fromtimestamp(deadline, timezone.utc):%H:%M} UTC")
     # Döngü bir mum kapanışından hemen sonra (2 dk içinde) başladıysa o kapanışı da tara
     now = time.time()
-    cur = (int(now) // QUARTER) * QUARTER + OFFSET
-    nxt = now if cur <= now < cur + 120 else (int(now) // QUARTER + 1) * QUARTER + OFFSET
+    cur = (int(now) // STEP) * STEP + OFFSET
+    nxt = now if cur <= now < cur + 120 else (int(now) // STEP + 1) * STEP + OFFSET
     while nxt <= deadline:
         wait = nxt - time.time()
         if wait > 0:
             time.sleep(wait)
-        boundary = int(time.time() - OFFSET) // QUARTER * QUARTER
+        boundary = int(time.time() - OFFSET) // STEP * STEP
         minute = datetime.fromtimestamp(boundary, timezone.utc).minute
         git_pull()
-        scan("15m")
+        if minute % 15 == 0:
+            scan("15m")
         if minute == 0:
             scan("1h")
             report()
-        nxt = (int(time.time()) // QUARTER + 1) * QUARTER + OFFSET
+        scan("5m")              # her 5 dakikada (TrendFlex)
+        nxt = (int(time.time()) // STEP + 1) * STEP + OFFSET
     log("Süre doldu, döngü bitiyor (workflow yeniden başlatacak)")
 
 
