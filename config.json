@@ -43,8 +43,8 @@
   },
 
   "volume_profile": {
-    "_aciklama": "Sinyal mesajındaki hacim profili (VAH/POC/VAL). TradingView varsayılanı: 24 satır, %70 değer alanı. lookback_bars: zaman dilimine göre kaç mum (1h: 96 = 4 gün, 15m: 96 = 24 saat).",
-    "enabled": true,
+    "_aciklama": "Sinyal mesajındaki hacim profili (VAH/POC/VAL). Kullanıcı isteğiyle KAPALI; açmak için enabled: true. TradingView varsayılanı: 24 satır, %70 değer alanı. lookback_bars: zaman dilimine göre kaç mum.",
+    "enabled": false,
     "rows": 24,
     "value_area": 0.70,
     "lookback_bars": {"1h": 96, "15m": 96}
