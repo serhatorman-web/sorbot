@@ -29,13 +29,27 @@ def log(msg):
     print(f"[{datetime.now(timezone.utc):%Y-%m-%d %H:%M:%S} UTC] {msg}", flush=True)
 
 
+def file_hash(path):
+    try:
+        import hashlib
+        with open(path, "rb") as fh:
+            return hashlib.sha1(fh.read()).hexdigest()
+    except OSError:
+        return None
+
+
 def git_pull():
+    """Son kodu çeker; runner.py değiştiyse döngüyü aynı süre sınırıyla yeniden başlatır."""
+    before = file_hash(os.path.join(BASE, "runner.py"))
     try:
         r = subprocess.run(["git", "pull", "--ff-only", "-q"], cwd=BASE, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             log(f"git pull başarısız: {r.stderr.strip()[:200]}")
     except Exception as e:  # noqa: BLE001
         log(f"git pull hatası: {e}")
+    if before and file_hash(os.path.join(BASE, "runner.py")) != before:
+        log("runner.py güncellendi, döngü yeni kodla yeniden başlatılıyor")
+        os.execv(sys.executable, [sys.executable, os.path.join(BASE, "runner.py")])
 
 
 def scan(tf):
@@ -62,9 +76,24 @@ def report():
         log("bülten zaman aşımına uğradı")
 
 
+def bulletin_due():
+    """Son bülten 55 dakikadan eskiyse (veya hiç yoksa) True."""
+    try:
+        import json
+        with open(os.path.join(BASE, "state", "report_state.json"), encoding="utf-8") as fh:
+            last = json.load(fh).get("last_bulletin", 0)
+    except (OSError, ValueError):
+        last = 0
+    return time.time() - last >= 55 * 60
+
+
 def main():
-    deadline = time.time() + LOOP_MINUTES * 60
-    log(f"Döngü başladı, {LOOP_MINUTES} dk sürecek")
+    # Yeniden başlatmada süre sınırı korunur
+    deadline = float(os.environ.get("SORBOT_DEADLINE") or (time.time() + LOOP_MINUTES * 60))
+    os.environ["SORBOT_DEADLINE"] = str(deadline)
+    if bulletin_due():
+        report()      # kaçırılmış saatlik bülten varsa hemen gönder
+    log(f"Döngü başladı, bitiş {datetime.fromtimestamp(deadline, timezone.utc):%H:%M} UTC")
     # Döngü bir mum kapanışından hemen sonra (2 dk içinde) başladıysa o kapanışı da tara
     now = time.time()
     cur = (int(now) // QUARTER) * QUARTER + OFFSET
