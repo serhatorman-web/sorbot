@@ -814,12 +814,12 @@ def tf_trend(candles):
 
 
 TF_NAMES = {"15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "1w": "1 hafta"}
-DIV_TFS = ("1h", "4h", "1d", "1w")
+DIV_TFS = ("15m", "1h", "4h", "1d", "1w")
 
 
 def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
     """Mesaj gönderilecek sembol için diğer zaman dilimlerini çeker:
-    trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (1s / 4s / 1g / 1h)."""
+    trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (15dk / 1s / 4s / 1g / 1h)."""
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
     candles = {base_tf: [{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
