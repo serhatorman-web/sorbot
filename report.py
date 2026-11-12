@@ -85,7 +85,7 @@ IMPORTANCE = [
     (r"faiz|para politikas|parasal", 2),
     # Makro veriler
     (r"enflasyon|TÜFE|ÜFE|\bCPI\b|\bPPI\b|PCE|tarım dışı|istihdam|işsizlik|GSYH|büyüme verisi|resesyon|durgunluk", 3),
-    (r"perakende satış|imalat|PMI|cari açık|bütçe açığı|kredi notu|Moody|Fitch|S&P Global", 2),
+    (r"perakende satış|(imalat|hizmet|bileşik) PMI|PMI (verisi|endeksi)|cari açık|bütçe açığı|kredi notu|Moody|Fitch|S&P Global", 2),
     # Jeopolitik ve politika
     (r"savaş|saldırı|füze|ateşkes|yaptırım|gümrük|tarife|ambargo|seçim|darbe|Hürmüz", 3),
     (r"Trump|Beyaz Saray|Kongre|Hazine|Putin|Şi Cinping|Xi Jinping|NATO|AB Komisyon|OPEC", 2),
