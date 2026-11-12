@@ -211,6 +211,7 @@ def compute_features(candles, cfg):
     f["ewo"] = ta.ewo(c, *p.get("ewo", [5, 35]))
     f["wt1"], f["wt2"] = ta.wavetrend(h, l, c, *p.get("wavetrend", [10, 21]))
     f["dyna"] = ta.dynarange(f["o"], h, l, c, *p.get("dynarange", [10, 18]))
+    f["tflex"] = ta.trendflex(h, l, c, *p.get("trendflex", [4.0, 11]))
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -587,6 +588,7 @@ def indicator_votes(f, i, leader_bias, leader_name):
         ("EWO", sgn(f["ewo"][i]) if f["ewo"][i] is not None else 0),   # SMA5 - SMA35
         ("WaveTrend", sgn(f["wt1"][i] - f["wt2"][i]) if None not in (f["wt1"][i], f["wt2"][i]) else 0),  # WT1/WT2
         ("DynaRange", sgn(f["dyna"][i]) if f["dyna"][i] is not None else 0),   # EMA10(ohlc4) - EMA18(ohlc4)
+        ("TrendFlex", f["tflex"][i] or 0),          # mum rengi: kapanış ST(4, 11) üstü/altı
     ]
     if leader_name != "4s trend":
         votes.append((leader_name or "Lider", sgn(leader_bias)))

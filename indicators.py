@@ -404,3 +404,32 @@ def dynarange(open_, high, low, close, fast=10, slow=18):
     src = [(o + h + l + c) / 4 for o, h, l, c in zip(open_, high, low, close)]
     ef, es = ema(src, fast), ema(src, slow)
     return [a - b if a is not None and b is not None else None for a, b in zip(ef, es)]
+
+
+def trendflex(high, low, close, factor=4.0, atr_len=11):
+    """TrendFlex_Algo (kullanıcının TradingView göstergesi) – mum rengi.
+    Kapanış fiyatı üzerinden Supertrend (çarpan 4, ATR 11); kapanış çizginin üstündeyse
+    mum yeşil (+1 AL), altındaysa kırmızı (-1 SAT). Pine kodundaki supertrend() birebir."""
+    n = len(close)
+    a = atr(high, low, close, atr_len)
+    out = [None] * n
+    up_f = lo_f = st_prev = None
+    for i in range(n):
+        if a[i] is None:
+            continue
+        up, lo = close[i] + factor * a[i], close[i] - factor * a[i]
+        p_lo = lo_f if lo_f is not None else 0.0
+        p_up = up_f if up_f is not None else 0.0
+        c1 = close[i - 1] if i > 0 else close[i]
+        lo_new = lo if (lo > p_lo or c1 < p_lo) else p_lo
+        up_new = up if (up < p_up or c1 > p_up) else p_up
+        if i == 0 or a[i - 1] is None:
+            d = 1
+        elif st_prev == p_up:
+            d = -1 if close[i] > up_new else 1
+        else:
+            d = 1 if close[i] < lo_new else -1
+        st = lo_new if d == -1 else up_new
+        out[i] = 1 if close[i] > st else -1
+        up_f, lo_f, st_prev = up_new, lo_new, st
+    return out

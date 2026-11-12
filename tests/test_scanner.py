@@ -401,6 +401,15 @@ def test_dynarange():
     d = ta.dynarange(dn, [x + 1 for x in dn], [x - 1 for x in dn], dn)
     assert d[-1] < 0                       # düşüşte 0 altı
 
+
+def test_trendflex():
+    up = [100 + x * 0.5 for x in range(200)]
+    t = ta.trendflex([x + 1 for x in up], [x - 1 for x in up], up)
+    assert t[-1] == 1 and t[5] is None     # yükselişte yeşil
+    dn = list(reversed(up))
+    t = ta.trendflex([x + 1 for x in dn], [x - 1 for x in dn], dn)
+    assert t[-1] == -1                     # düşüşte kırmızı
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
