@@ -46,9 +46,16 @@ Secret'lar eklenene kadar bot otomatik olarak deneme modunda çalışır (sadece
 
 ---
 
-## Saatlik piyasa raporu (`report.py`) – ŞU AN KAPALI
+## Saatlik bülten (`report.py`, `econ.py`, `config.json → report`, mode: bulletin)
 
-> Kullanıcı isteğiyle kapatıldı. Tekrar açmak için `config.json` → `report.enabled: true`.
+Her saat başı (1s taramasından hemen sonra) Telegram'a tek, düzenli bir **📰 Saatlik Piyasa Bülteni**:
+- **📊 Açıklanan veriler (son 1 saat):** ABD ve Türkiye'nin orta/yüksek önemli verileri – gerçekleşen, beklenti,
+  önceki ve 🟢/🔴 beklentiye göre ekonomi açısından yorum (TradingView ekonomik takvim, Türkçe veri adları)
+- **🗓 Yaklaşan veriler (3 saat)**
+- **💵 Ekonomi & Finans** ve **🪙 Kripto**: sadece önemli, Türkçe haberler (başlık + link)
+Bölümlerin hepsi boşsa o saat bülten gönderilmez. Her sabah 09:00'dan sonraki ilk saat başında **🗓 Günün Ekonomik Takvimi**.
+
+> Eski piyasa raporu bölümleri (BTC türev verileri, balina, ETF) `mode` değeri `bulletin` dışındayken çalışır.
 
 Her taramadan sonra Telegram'a:
 

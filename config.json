@@ -103,8 +103,12 @@
   },
 
   "report": {
-    "_aciklama": "Saatlik piyasa raporu ve haberler. Ekonomik takvim her sabah calendar_daily_hour'da (TSİ) gelir. Kullanıcı isteğiyle KAPALI (enabled: false); açmak için true yapın.",
-    "enabled": false,
+    "_aciklama": "mode 'bulletin': saat başı Türkçe bülten (önemli ekonomi/finans + kripto haberleri, son 1 saatte açıklanan ve yaklaşan veriler) + her sabah calendar_daily_hour'da günün takvimi. Takvim: TradingView (calendar_countries, calendar_min_importance: 1 yüksek, 0 orta).",
+    "enabled": true,
+    "mode": "bulletin",
+    "news_categories": ["💵 Ekonomi & Finans", "🪙 Kripto"],
+    "calendar_countries": ["US", "TR"],
+    "calendar_min_importance": 0,
     "market_hourly": true,
     "news_hourly": true,
     "news_per_category": 5,

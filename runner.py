@@ -5,7 +5,7 @@ GitHub'ın zamanlayıcısı (cron) yoğun saatlerde çok gecikebildiği için ta
 uzun çalıştırma içinde, kendi saatimize göre yapılır:
 
   * Her 15 dakikalık mum kapanışından OFFSET saniye sonra  -> 15dk taraması
-  * Saat başlarında (1 saatlik mum kapanışı) ek olarak       -> 1s taraması (+ radar)
+  * Saat başlarında (1 saatlik mum kapanışı) ek olarak       -> 1s taraması (+ radar) ve saatlik bülten
 
 Her taramadan önce repodaki son kod/ayar çekilir (git pull), böylece config.json
 değişiklikleri en geç 15 dakika içinde geçerli olur.
@@ -52,6 +52,16 @@ def scan(tf):
         log(f"{tf} taraması zaman aşımına uğradı")
 
 
+def report():
+    """Saat başı bülten (haberler + ekonomik veriler); config.json -> report ayarları."""
+    t0 = time.time()
+    try:
+        r = subprocess.run([sys.executable, "report.py"], cwd=BASE, env=dict(os.environ), timeout=300)
+        log(f"bülten bitti (kod {r.returncode}, {time.time() - t0:.0f}s)")
+    except subprocess.TimeoutExpired:
+        log("bülten zaman aşımına uğradı")
+
+
 def main():
     deadline = time.time() + LOOP_MINUTES * 60
     log(f"Döngü başladı, {LOOP_MINUTES} dk sürecek")
@@ -69,6 +79,7 @@ def main():
         scan("15m")
         if minute == 0:
             scan("1h")
+            report()
         nxt = (int(time.time()) // QUARTER + 1) * QUARTER + OFFSET
     log("Süre doldu, döngü bitiyor (workflow yeniden başlatacak)")
 

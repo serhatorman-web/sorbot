@@ -339,6 +339,28 @@ def test_own_tf_alignment():
     assert o({}, "long", {"timeframe": "1h"}) is None
 
 
+def test_econ_bulletin():
+    import econ
+    import report
+    from datetime import datetime, timezone, timedelta
+    assert econ.tr_title("Non Farm Payrolls") == "Tarım Dışı İstihdam"
+    assert econ.tr_title("Fed Bowman Speech") == "Fed Üyesi Bowman Konuşması"
+    assert "(Aylık)" in econ.tr_title("Wholesale Prices MoM") and "Toptan" in econ.tr_title("Wholesale Prices MoM")
+    e = {"title": "Initial Jobless Claims", "actual": 200, "forecast": 195, "unit": "", "scale": "K"}
+    assert econ.verdict(e)[0] == "🔴" and econ.fmt_val(e, "actual") == "200K"
+    e = {"title": "Retail Sales MoM", "actual": 0.6, "forecast": 0.3, "unit": "%", "scale": ""}
+    assert econ.verdict(e)[0] == "🟢"
+    e = {"title": "EIA Crude Oil Stocks Change", "actual": 3.0, "forecast": -1.0, "unit": "", "scale": "M"}
+    assert econ.verdict(e)[0] == "⚪"
+    assert report.tr_upper("Ekonomi & Finans") == "EKONOMİ & FİNANS" and report.tr_upper("Kripto") == "KRİPTO"
+    now = datetime(2026, 11, 12, 15, 0, tzinfo=report.TR_TZ)
+    rel = [{"dt": now - timedelta(minutes=30), "tr": "İlk İşsizlik Başvuruları", "title": "Initial Jobless Claims",
+            "country": "US", "importance": 0, "actual": 200, "forecast": 195, "previous": 191, "unit": "", "scale": "K"}]
+    m = report.bulletin_message(now, rel, [], {"💵 Ekonomi & Finans": []}, {})
+    assert "SAATLİK PİYASA BÜLTENİ" in m and "Gerçekleşen: <b>200K</b>" in m and "ekonomi için olumsuz" in m
+    assert report.bulletin_message(now, [], [], {"💵 Ekonomi & Finans": []}, {}) is None
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"

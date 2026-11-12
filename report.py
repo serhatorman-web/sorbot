@@ -30,6 +30,7 @@ from email.utils import parsedate_to_datetime
 
 import scanner as sc
 import whales
+import econ
 
 TR_TZ = sc.TR_TZ
 STATE_PATH = os.path.join(sc.BASE_DIR, "state", "report_state.json")
@@ -534,6 +535,188 @@ def split_message(text, limit=4000):
 
 
 # --------------------------------------------------------------------------- #
+# Saatlik bülten (haberler + açıklanan/yaklaşan veriler) ve sabah takvimi
+# --------------------------------------------------------------------------- #
+TR_DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+TR_MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül",
+                  "Ekim", "Kasım", "Aralık"]
+LINE = "━━━━━━━━━━━━━━━━━━━━"
+IMP_ICON = {1: "🔴", 0: "🟠", -1: "🟡"}
+
+
+def tr_upper(t):
+    """Türkçe büyük harf (i -> İ, ı -> I)."""
+    return t.replace("i", "İ").replace("ı", "I").upper()
+
+
+def tr_long_date(d):
+    return f"{d.day} {TR_MONTH_NAMES[d.month - 1]} {d.year} {TR_DAYS[d.weekday()]}"
+
+
+def released_block(events):
+    L = []
+    for e in events:
+        t = e["dt"].astimezone(TR_TZ)
+        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b> · {econ.FLAGS.get(e['country'], '')} {t:%H:%M}")
+        L.append(f"      Gerçekleşen: <b>{esc(econ.fmt_val(e, 'actual'))}</b>  │  Beklenti: {esc(econ.fmt_val(e, 'forecast'))}"
+                 f"  │  Önceki: {esc(econ.fmt_val(e, 'previous'))}")
+        v = econ.verdict(e)
+        if v:
+            L.append(f"      {v[0]} {v[1]}")
+    return L
+
+
+def upcoming_block(events):
+    L = []
+    for e in events:
+        t = e["dt"].astimezone(TR_TZ)
+        extra = []
+        if e.get("forecast") is not None:
+            extra.append(f"Bkl {econ.fmt_val(e, 'forecast')}")
+        if e.get("previous") is not None:
+            extra.append(f"Önc {econ.fmt_val(e, 'previous')}")
+        tail = f"\n      <i>{esc(' · '.join(extra))}</i>" if extra else ""
+        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{t:%H:%M}</b> {econ.FLAGS.get(e['country'], '')} {esc(e['tr'])}{tail}")
+    return L
+
+
+def news_block(items, per_cat):
+    L = []
+    for it in items[:per_cat]:
+        mark = "🔥" if it.get("imp", 0) >= 5 else "▪️"
+        t = it["dt"].astimezone(TR_TZ).strftime("%H:%M") if it.get("dt") else ""
+        L.append(f"{mark} <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a>")
+        L.append(f"      <i>{esc(it['source'])}{' · ' + t if t else ''}</i>")
+    return L
+
+
+def bulletin_message(now_tr, released, upcoming, news, rcfg):
+    sections = []
+    if released:
+        sections.append(["📊 <b>AÇIKLANAN VERİLER</b> <i>(son 1 saat)</i>", ""] + released_block(released))
+    if upcoming:
+        h = rcfg.get("calendar_lookahead_hours", 3)
+        sections.append([f"🗓 <b>YAKLAŞAN VERİLER</b> <i>(önümüzdeki {h} saat)</i>", ""] + upcoming_block(upcoming))
+    for cat, items in news.items():
+        if items:
+            title = tr_upper(cat.split(" ", 1)[1] if " " in cat else cat)
+            icon = cat.split(" ", 1)[0]
+            sections.append([f"{icon} <b>{title}</b>", ""] + news_block(items, rcfg.get("news_per_category", 5)))
+    if not sections:
+        return None
+    L = [LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE]
+    for sec in sections:
+        L += [""] + sec
+    L += ["", LINE, "🔴 yüksek önem · 🟠 orta önem · 🔥 öne çıkan haber", "<i>Yatırım tavsiyesi değildir.</i>"]
+    return "\n".join(L)
+
+
+def morning_calendar_message(now_tr, events):
+    L = [LINE, "🗓 <b>GÜNÜN EKONOMİK TAKVİMİ</b>", f"📅 {tr_long_date(now_tr)}", LINE]
+    if not events:
+        L += ["", "Bugün önemli veri yok."]
+    by_c = {}
+    for e in events:
+        by_c.setdefault(e["country"], []).append(e)
+    names = {"US": "ABD", "TR": "Türkiye", "EU": "Euro Bölgesi", "CN": "Çin"}
+    for c in sorted(by_c, key=lambda x: (x != "US", x != "TR", x)):
+        L += ["", f"{econ.FLAGS.get(c, '')} <b>{names.get(c, c)}</b>", ""] + upcoming_block(by_c[c])
+    L += ["", LINE, "🔴 yüksek önem · 🟠 orta önem · Bkl = beklenti · Önc = önceki", "<i>Kaynak: TradingView ekonomik takvim</i>"]
+    return "\n".join(L)
+
+
+def collect_news(feeds, state, rcfg, now_utc):
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futs = {(cat, src, url, (rest[0] if rest else None)): ex.submit(safe, parse_feed, src, url)
+                for cat, lst in feeds.items() for src, url, *rest in lst}
+        feed_items = {k: fu.result() or [] for k, fu in futs.items()}
+    max_age = timedelta(hours=rcfg.get("news_max_age_hours", 2))
+    min_imp = rcfg.get("news_min_importance", 2)
+    new_by_cat, seen_now, picked_sigs = {cat: [] for cat in feeds}, {}, []
+    run_links = set()
+    for (cat, src, url, flt), items in feed_items.items():
+        for it in items:
+            seen_now[it["link"]] = time.time()
+            if it["link"] in state["seen"] or it["link"] in run_links or not keep_item(it, flt):
+                continue
+            if it["dt"] and now_utc - it["dt"] > max_age:
+                continue
+            it["imp"] = importance(it["title"])
+            if rcfg.get("news_important_only", True) and it["imp"] < min_imp:
+                continue
+            run_links.add(it["link"])
+            new_by_cat[cat].append(it)
+    for cat in new_by_cat:
+        new_by_cat[cat].sort(key=lambda x: (x["imp"], x["dt"] or now_utc), reverse=True)
+        per_src, picked = {}, []
+        for it in new_by_cat[cat]:
+            sig = title_signature(it["title"])
+            if any(similar(sig, p_) for p_ in picked_sigs):
+                continue
+            if per_src.get(it["source"], 0) < PER_SOURCE_MAX:
+                per_src[it["source"]] = per_src.get(it["source"], 0) + 1
+                picked.append(it)
+                picked_sigs.append(sig)
+        new_by_cat[cat] = picked
+    return new_by_cat, seen_now, sum(len(v) for v in feed_items.values())
+
+
+def run_bulletin(cfg, rcfg, notifier, state):
+    now_utc = datetime.now(timezone.utc)
+    now_tr = now_utc.astimezone(TR_TZ)
+    countries = tuple(rcfg.get("calendar_countries", ["US", "TR"]))
+    min_imp = rcfg.get("calendar_min_importance", 0)
+    cats = rcfg.get("news_categories", ["💵 Ekonomi & Finans", "🪙 Kripto"])
+    feeds = {c: v for c, v in (rcfg.get("feeds") or DEFAULT_FEEDS).items() if c in cats}
+
+    day_start = now_tr.replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        events = econ.fetch_events(day_start.astimezone(timezone.utc) - timedelta(hours=6),
+                                   now_utc + timedelta(hours=30), countries)
+    except Exception as e:  # noqa: BLE001
+        print(f"  [uyarı] takvim alınamadı: {e}")
+        events = None
+    news, seen_now, n_scanned = collect_news(feeds, state, rcfg, now_utc)
+
+    last = datetime.fromtimestamp(state.get("last_bulletin", (now_utc - timedelta(hours=1)).timestamp()), timezone.utc)
+    last = max(last, now_utc - timedelta(hours=3))
+    sent_ids = set(state.get("sent_events", []))
+    released, upcoming = [], []
+    if events is not None:
+        released = [e for e in events if e["actual"] is not None and last < e["dt"] <= now_utc
+                    and e["importance"] >= min_imp and e["id"] not in sent_ids]
+        horizon = now_utc + timedelta(hours=rcfg.get("calendar_lookahead_hours", 3))
+        upcoming = [e for e in events if now_utc < e["dt"] <= horizon and e["importance"] >= min_imp]
+
+    messages = []
+    day_key = now_tr.strftime("%Y-%m-%d")
+    if events is not None and now_tr.hour >= rcfg.get("calendar_daily_hour", 9) and state.get("calendar_day") != day_key:
+        todays = [e for e in events if e["dt"].astimezone(TR_TZ).date() == now_tr.date() and e["importance"] >= min_imp]
+        messages.append(("calendar", morning_calendar_message(now_tr, todays)))
+    b = bulletin_message(now_tr, released, upcoming, news, rcfg)
+    if b:
+        messages.append(("bulletin", b))
+
+    ok = True
+    for kind, text in messages:
+        for part in split_message(text):
+            try:
+                ok = notifier.send(part) and ok
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                print(f"  Telegram hatası ({kind}): {e}", file=sys.stderr)
+        if kind == "calendar" and ok:
+            state["calendar_day"] = day_key
+    if ok:
+        state["seen"].update(seen_now)
+        state["last_bulletin"] = now_utc.timestamp()
+        state["sent_events"] = (list(sent_ids) + [e["id"] for e in released])[-300:]
+    n_news = sum(len(v[:rcfg.get("news_per_category", 5)]) for v in news.values())
+    print(f"Bülten: {len(messages)} mesaj · {len(released)} açıklanan veri · {len(upcoming)} yaklaşan · "
+          f"{n_news} haber ({n_scanned} tarandı)")
+
+
+# --------------------------------------------------------------------------- #
 # Ana akış
 # --------------------------------------------------------------------------- #
 def main():
@@ -545,6 +728,13 @@ def main():
     notifier = sc.Notifier()
     state = sc.load_json(STATE_PATH, {"seen": {}, "calendar_day": ""})
     state.setdefault("seen", {})
+    if rcfg.get("mode") == "bulletin":
+        run_bulletin(cfg, rcfg, notifier, state)
+        cutoff = time.time() - 7 * 86400
+        state["seen"] = {k: v for k, v in state["seen"].items() if v >= cutoff}
+        if not notifier.dry or os.environ.get("SORBOT_SAVE_DRY_STATE") == "1":
+            sc.save_json(STATE_PATH, state)
+        return 0
     now_utc = datetime.now(timezone.utc)
     now_tr = now_utc.astimezone(TR_TZ)
     api = sc.Binance()
