@@ -273,7 +273,10 @@ def asset_impact(e):
     else:
         hawkish = higher
         reason = "Ekonomi beklentiden " + ("güçlü" if higher else "zayıf")
-    reason += " → Fed'in faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
+    if RATE_DECISION.search(title):
+        reason += " → para politikası " + ("beklenenden sıkı" if hawkish else "beklenenden gevşek")
+    else:
+        reason += " → Fed'in faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
     icon, word = ("🔴", "olumsuz") if hawkish else ("🟢", "olumlu")
     return {"hawkish": hawkish, "reason": reason,
             "items": [(icon, f"Kripto için {word}"), (icon, f"Altın için {word}"), (icon, f"Faiz indirimi için {word}")]}
