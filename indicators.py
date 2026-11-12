@@ -271,6 +271,40 @@ def ichimoku(high, low, tenkan_n=9, kijun_n=26, senkou_b_n=52, shift=26):
     return tenkan, kijun, top, bottom
 
 
+def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, range_max=60, recent=10):
+    """TradingView RSI uyumsuzluk mantığı (normal uyumsuzluk):
+      pozitif: RSI pivot dibi bir öncekinden YÜKSEK, fiyat dibi bir öncekinden DÜŞÜK
+      negatif: RSI pivot tepesi bir öncekinden DÜŞÜK, fiyat tepesi bir öncekinden YÜKSEK
+    Pivot, solunda `left` ve sağında `right` mum olan yerel dip/tepedir (sağdaki mumlar kapanınca kesinleşir).
+    Sadece son pivot yeterince yeniyse (son `right + recent` mum içinde) uyumsuzluk 'var' sayılır.
+    Döner: (pozitif_var, negatif_var)
+    """
+    r = rsi(close, rsi_len)
+    n = len(close)
+    lows, highs = [], []
+    for p in range(left, n - right):
+        w = r[p - left:p + right + 1]
+        if r[p] is None or any(x is None for x in w):
+            continue
+        if r[p] == min(w):
+            lows.append(p)
+        if r[p] == max(w):
+            highs.append(p)
+    cutoff = n - 1 - right - recent
+
+    def check(pivots, bullish):
+        if len(pivots) < 2 or pivots[-1] < cutoff:
+            return False
+        p2, p1 = pivots[-1], pivots[-2]
+        if not (range_min <= p2 - p1 <= range_max):
+            return False
+        if bullish:
+            return r[p2] > r[p1] and low[p2] < low[p1]
+        return r[p2] < r[p1] and high[p2] > high[p1]
+
+    return check(lows, True), check(highs, False)
+
+
 def crossed_above(a, b, i):
     """a, i. mumda b'yi yukarı kesti mi?"""
     if i < 1 or None in (a[i], b[i], a[i - 1], b[i - 1]):

@@ -813,18 +813,46 @@ def tf_trend(candles):
     return 0
 
 
+TF_NAMES = {"15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "1w": "1 hafta"}
+DIV_TFS = ("1h", "4h", "1d", "1w")
+
+
 def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
-    """Mesaj gönderilecek sembol için 15dk / 4s / 1g trendlerini çeker (1s zaten elde)."""
+    """Mesaj gönderilecek sembol için diğer zaman dilimlerini çeker:
+    trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (1s / 4s / 1g / 1h)."""
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
-    out = {base_tf: tf_trend([{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)])}
-    for tf in [x for x, _ in TF_ROWS if x != base_tf]:
+    candles = {base_tf: [{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
+    for tf in dict.fromkeys([x for x, _ in TF_ROWS] + list(DIV_TFS)):
+        if tf in candles:
+            continue
         try:
             raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 150})
-            out[tf] = tf_trend(parse_klines(raw, now_ms))
+            candles[tf] = parse_klines(raw, now_ms)
         except Exception:  # noqa: BLE001
-            out[tf] = None
-    res["tf"] = out
+            candles[tf] = []
+    res["tf"] = {tf: tf_trend(candles.get(tf, [])) for tf, _ in TF_ROWS}
+    pos, neg = [], []
+    for tf in DIV_TFS:
+        cs = candles.get(tf, [])
+        if len(cs) < 40:
+            continue
+        p_, n_ = ta.rsi_divergence([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs])
+        if p_:
+            pos.append(TF_NAMES[tf])
+        if n_:
+            neg.append(TF_NAMES[tf])
+    res["div"] = {"pos": pos, "neg": neg}
+
+
+def divergence_lines(res):
+    d = res.get("div") or {}
+    out = []
+    if d.get("pos"):
+        out.append("🟢 RSI pozitif uyumsuzluk: " + ", ".join(d["pos"]))
+    if d.get("neg"):
+        out.append("🔴 RSI negatif uyumsuzluk: " + ", ".join(d["neg"]))
+    return out
 
 
 def leader_line(res):
@@ -912,6 +940,9 @@ def build_message(res, direction, cfg, now_utc):
             lines.append(f"{ICON[oword]} {oword}: " + ", ".join(opp))
         if neu:
             lines.append("⚪ Nötr: " + ", ".join(neu))
+        div = divergence_lines(res)
+        if div:
+            lines += [""] + div
     lines += ["", trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
@@ -948,6 +979,9 @@ def build_radar_message(res, rd, cfg, now_utc):
                   f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     lines += ["", "📌 " + " · ".join(rd["reasons"])]
+    div = divergence_lines(res)
+    if div:
+        lines += [""] + div
     if res.get("tf"):
         lines += ["", tf_table_html(res)]
     if res.get("leader_name") and res["leader_name"] != "4s trend":

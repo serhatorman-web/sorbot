@@ -85,6 +85,8 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 3. **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
 4. BTC (kripto) / QQQ (hisse) güçlü ters yöndeyse sinyal gönderilmez. Aynı sembol + yön için 12 saat tekrar yok.
 5. Stop 1.5 ATR, TP1/TP2/TP3 = 1R/2R/3R. Mesajda AL/SAT veren indikatörlerin listesi yer alır.
+6. **RSI uyumsuzluğu** (bilgi): 1 saat, 4 saat, 1 gün ve 1 hafta grafiklerinde TradingView mantığıyla (pivot 5/5, 5–60 mum)
+   aranır; bulunursa 🟢 pozitif / 🔴 negatif olarak hangi zaman dilimlerinde olduğu yazılır.
 
 **BTC'den ayrışan coinler:** BTC güçlü ters yöndeyken bile, son 24 saatte BTC'den en az %5 ayrışan, dönüş mumunda hacmi
 ≥1.5x olan ve kendi 4s trendi ters olmayan semboller için sinyal gelir (mesajda "🚀 BTC'den ayrışıyor" notu, `decoupling`).

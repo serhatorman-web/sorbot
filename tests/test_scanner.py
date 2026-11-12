@@ -269,6 +269,20 @@ def test_15m_profile():
             os.remove(p15)
 
 
+def test_rsi_divergence():
+    c, p = [], 100.0
+    for k in range(40): p -= 0.8; c.append(p)
+    for k in range(15): p += 0.6; c.append(p)
+    for k in range(25): p -= 0.45; c.append(p)
+    for k in range(8): p += 0.5; c.append(p)
+    hi, lo = [x + 0.2 for x in c], [x - 0.2 for x in c]
+    assert ta.rsi_divergence(hi, lo, c) == (True, False)
+    c2 = [300 - x for x in c]
+    assert ta.rsi_divergence([x + 0.2 for x in c2], [x - 0.2 for x in c2], c2) == (False, True)
+    assert scanner.divergence_lines({"div": {"pos": ["4 saat"], "neg": []}}) == ["🟢 RSI pozitif uyumsuzluk: 4 saat"]
+    assert scanner.divergence_lines({"div": {"pos": [], "neg": []}}) == []
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
