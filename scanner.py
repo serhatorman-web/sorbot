@@ -946,12 +946,12 @@ def market_lines(res, cfg, now_utc):
 
 
 def tf_table_html(res):
-    """Trend tablosu – normal yazı ile (sabit genişlikli yazı yok)."""
+    """Trend tablosu – normal yazı, kalın başlık ve zaman dilimleri, ayraç çizgili."""
     tf = res.get("tf")
     if not tf:
         return ""
-    rows = [f"{name}: {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
-    return "📊 <b>Trend</b>\n" + "\n".join(rows)
+    rows = [f"▸ <b>{name}</b> · {TREND_LABEL[tf.get(key)]}" for key, name in TF_ROWS]
+    return "\n".join(["📊 <b>TREND TABLOSU</b>", "┄┄┄┄┄┄┄┄┄┄┄┄┄┄"] + rows + ["┄┄┄┄┄┄┄┄┄┄┄┄┄┄"])
 
 
 def technical_rating(votes):
@@ -1004,15 +1004,15 @@ def own_tf_alignment_line(res, direction, cfg):
     s = 1 if direction == "long" else -1
     icon = {1: "🟢", -1: "🔴", 0: "⚪"}[t]
     if t == s:
-        return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
+        return f"{icon} <b>Sinyal kendi zaman dilimiyle ({name}) uyumlu</b>"
     if t == -s:
         return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
-    return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
+    return f"{icon} <b>Sinyal kendi zaman diliminde ({name}) nötr</b>"
 
 
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
-    return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
+    return f"<b>Teknik görünüm: {icon} {label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
 
 
 def indicator_list_lines(res, direction):
@@ -1047,7 +1047,7 @@ def build_message(res, direction, cfg, now_utc):
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
     if res.get("votes"):
         score_line = (technical_rating_line(res["votes"]) + "\n"
-                      + f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)")
+                      + f"<b>Güven skoru: %{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)")
     else:
         score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
@@ -1058,18 +1058,18 @@ def build_message(res, direction, cfg, now_utc):
         f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
         score_line,
         "",
-        f"Giriş: <code>{fmt_price(entry, prec)}</code>",
-        f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}",
+        f"<b>Giriş: {fmt_price(entry, prec)}</b>",
+        f"<b>Stop: {fmt_price(sl, prec)}</b> ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
     for n, tp in enumerate(tps, 1):
         r = cfg["risk"]["tp_r_multiples"][n - 1]
-        lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%) · {r:g}R")
+        lines.append(f"<b>TP{n}: {fmt_price(tp, prec)}</b> ({pct(tp, entry):+.2f}%) · {r:g}R")
     if cfg["risk"].get("show_breakeven_note", True):
         lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
 
     trend_line = tf_table_html(res)
     if res["leader_name"] != "4s trend":
-        trend_line += "\n" + leader_line(res)
+        trend_line += "\n\n" + leader_line(res)
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -1124,18 +1124,18 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         side = res[direction]
         lines += ["", technical_rating_line(res["votes"]),
-                  f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
+                  f"<b>Güven skoru: %{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"]
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             lines.append(extra_line)
     lines.append("")
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
-        lines += [f"Giriş: <code>{fmt_price(entry, prec)}</code>",
-                  f"Stop: <code>{fmt_price(sl, prec)}</code> ({pct(sl, entry):+.2f}%) · {sl_label}"]
+        lines += [f"<b>Giriş: {fmt_price(entry, prec)}</b>",
+                  f"<b>Stop: {fmt_price(sl, prec)}</b> ({pct(sl, entry):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines.append(f"TP{n}: <code>{fmt_price(tp, prec)}</code> ({pct(tp, entry):+.2f}%) · {r:g}R")
+            lines.append(f"<b>TP{n}: {fmt_price(tp, prec)}</b> ({pct(tp, entry):+.2f}%) · {r:g}R")
         if cfg["risk"].get("show_breakeven_note", True):
             lines.append("<i>TP1 sonrası stop girişe çekilebilir.</i>")
     else:
@@ -1154,7 +1154,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     if trend:
         lines += ["", trend]
     if res.get("leader_name") and res["leader_name"] != "4s trend":
-        lines.append(leader_line(res))
+        lines += ["", leader_line(res)]
     lines += market_lines(res, cfg, now_utc)
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
