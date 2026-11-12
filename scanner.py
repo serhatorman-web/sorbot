@@ -946,6 +946,31 @@ def tf_table_html(res):
     return "<pre>Zaman  │ Trend\n───────┼──────────\n" + "\n".join(rows) + "</pre>"
 
 
+def technical_rating(votes):
+    """TradingView teknik özet mantığı: net = (AL - SAT) / toplam.
+    Döner: (etiket, ikon, AL %, SAT %, net %)"""
+    n = len(votes) or 1
+    buy = sum(1 for _, v in votes if v == 1) / n
+    sell = sum(1 for _, v in votes if v == -1) / n
+    net = buy - sell
+    if net >= 0.5:
+        label, icon = "GÜÇLÜ AL", "🟢🟢"
+    elif net >= 0.1:
+        label, icon = "AL", "🟢"
+    elif net > -0.1:
+        label, icon = "NÖTR", "⚪"
+    elif net > -0.5:
+        label, icon = "SAT", "🔴"
+    else:
+        label, icon = "GÜÇLÜ SAT", "🔴🔴"
+    return label, icon, buy * 100, sell * 100, net * 100
+
+
+def technical_rating_line(votes):
+    label, icon, buy, sell, net = technical_rating(votes)
+    return f"Teknik görünüm: {icon} <b>{label}</b> · AL %{buy:.0f} · SAT %{sell:.0f} · net {net:+.0f}%"
+
+
 def build_message(res, direction, cfg, now_utc):
     meta, f, i = res["meta"], res["f"], res["i"]
     side = res[direction]
@@ -956,7 +981,8 @@ def build_message(res, direction, cfg, now_utc):
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
     if res.get("votes"):
-        score_line = f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)"
+        score_line = (technical_rating_line(res["votes"]) + "\n"
+                      + f"Güven skoru: <b>%{side['score']}</b> ({side['agree']}/{side['total']} indikatör aynı yönde)")
     else:
         score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
                       f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")

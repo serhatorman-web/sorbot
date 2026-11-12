@@ -303,6 +303,15 @@ def test_volume_lines():
     assert "Düşük" in out[0] and len(out) == 1
 
 
+def test_technical_rating():
+    v = lambda b, s_, z: [("x", 1)] * b + [("x", -1)] * s_ + [("x", 0)] * z
+    assert scanner.technical_rating(v(15, 1, 1))[0] == "GÜÇLÜ AL"
+    assert scanner.technical_rating(v(10, 5, 2))[0] == "AL"
+    assert scanner.technical_rating(v(8, 8, 1))[0] == "NÖTR"
+    assert scanner.technical_rating(v(5, 10, 2))[0] == "SAT"
+    assert scanner.technical_rating(v(1, 15, 1))[0] == "GÜÇLÜ SAT"
+
+
 def test_market_status():
     from datetime import datetime, timezone
     assert scanner.us_market_status(datetime(2026, 11, 14, 15, 0, tzinfo=timezone.utc)) == "weekend"
