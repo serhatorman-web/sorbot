@@ -57,7 +57,7 @@ Her saat başı (1s taramasından hemen sonra) Telegram'a tek, düzenli bir **�
   ABD verilerinde ayrıca 💡 sebep ve **kripto / altın / faiz indirimi** için 🟢 olumlu / 🔴 olumsuz etki:
   yüksek enflasyon veya güçlü ekonomi → Fed şahin → olumsuz; düşük enflasyon, zayıf ekonomi, yüksek işsizlik → olumlu.
 - **🗓 Yaklaşan veriler (3 saat)**
-- **💵 Ekonomi & Finans** ve **🪙 Kripto**: sadece önemli, Türkçe haberler (başlık + link)
+- **💵 Ekonomi & Finans**, **🪙 Kripto** ve **🤖 Yapay Zeka**: sadece önemli, Türkçe haberler (başlık + link)
 Bölümlerin hepsi boşsa o saat bülten gönderilmez. Her sabah 09:00'dan sonraki ilk saat başında **🗓 Günün Ekonomik Takvimi**.
 
 > Eski piyasa raporu bölümleri (BTC türev verileri, balina, ETF) `mode` değeri `bulletin` dışındayken çalışır.

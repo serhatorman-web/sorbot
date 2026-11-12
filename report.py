@@ -735,7 +735,8 @@ def collect_news(feeds, state, rcfg, now_utc):
             if it["dt"] and now_utc - it["dt"] > max_age:
                 continue
             it["imp"] = importance(it["title"])
-            if rcfg.get("news_important_only", True) and it["imp"] < min_imp:
+            cat_min = rcfg.get("news_min_importance_by_category", {}).get(cat, min_imp)
+            if rcfg.get("news_important_only", True) and it["imp"] < cat_min:
                 continue
             run_links.add(it["link"])
             new_by_cat[cat].append(it)
