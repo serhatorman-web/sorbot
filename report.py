@@ -705,8 +705,9 @@ def news_block(items, per_cat):
     for it in items[:per_cat]:
         mark = "🔥" if it.get("imp", 0) >= 5 else "▫️"
         t = it["dt"].astimezone(TR_TZ).strftime("%H:%M") if it.get("dt") else ""
-        L.append(f"{mark} <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a>"
-                 f"  <i>{esc(it['source'])}{' · ' + t if t else ''}</i>")
+        # başlık normal yazı (link rengi/soluk alıntı yok); link kısa bir "oku" bağlantısında
+        L.append(f"{mark} {esc(it['title'])}\n      {esc(it['source'])}{' · ' + t if t else ''}"
+                 f" · <a href=\"{html.escape(it['link'])}\">oku</a>")
     return L
 
 
@@ -724,7 +725,7 @@ def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
         if items:
             icon, title = (cat.split(" ", 1) + [""])[:2] if " " in cat else ("", cat)
             blocks.append(f"{icon} <b>{tr_upper(title)}</b>\n"
-                          + quote(news_block(items, rcfg.get("news_per_category", 5))))
+                          + "\n".join(news_block(items, rcfg.get("news_per_category", 5))))
     if not blocks:
         return None
     header = "\n".join([LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE])
