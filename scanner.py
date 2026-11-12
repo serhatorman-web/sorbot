@@ -960,7 +960,7 @@ def tf_table_html(res):
     if not tf:
         return ""
     rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in TF_ROWS]
-    return "\n".join(["📊 <b>TREND TABLOSU</b>"] + rows)
+    return "\n".join(["📊 <b>TREND TABLOSU</b>", ""] + rows)
 
 
 def technical_rating(votes):
@@ -1096,7 +1096,7 @@ def build_message(res, direction, cfg, now_utc):
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
-        lines += indicator_list_lines(res, direction)
+        lines += [""] + indicator_list_lines(res, direction)
         div = divergence_lines(res)
         if div:
             lines += ["", SEP] + div
@@ -1158,7 +1158,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         st = f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 Supertrend: {st_txt}"] + indicator_list_lines(res, direction)
+        lines += ["", SEP, f"📌 Supertrend: {st_txt}", ""] + indicator_list_lines(res, direction)
     for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
