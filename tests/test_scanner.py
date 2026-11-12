@@ -318,21 +318,23 @@ def test_technical_rating():
 
 def test_trend_alignment():
     t = lambda a, b, c, d: {"tf": {"15m": a, "1h": b, "4h": c, "1d": d}}
-    assert "BEKLE" in scanner.trend_alignment_line(t(-1, -1, -1, -1), "long")
-    assert "uyumlu – AL" in scanner.trend_alignment_line(t(1, 1, 1, 1), "long")
-    assert "uyumlu – SAT" in scanner.trend_alignment_line(t(-1, -1, -1, -1), "short")
-    assert "BEKLE" in scanner.trend_alignment_line(t(1, 1, 1, 1), "short")
-    assert scanner.trend_alignment_line(t(1, -1, -1, -1), "long") is None      # karışık
-    assert scanner.trend_alignment_line(t(-1, -1, -1, None), "long") is not None  # 1g veri yok, 3 dilim yeterli
-    assert scanner.trend_alignment_line({}, "long") is None
+    al = scanner.trend_alignment_line
+    assert al(t(-1, -1, -1, -1), "long") == "🟢 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+    assert al(t(1, 1, 1, 1), "long") == "🟢 <b>Bu işlem trend ile uyumlu</b>"
+    assert al(t(-1, -1, -1, -1), "short") == "🔴 <b>Bu işlem trend ile uyumlu</b>"
+    assert al(t(1, 1, 1, 1), "short") == "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+    assert al(t(1, -1, -1, -1), "long") is None
+    assert al(t(-1, -1, -1, None), "long") is not None
+    assert al({}, "long") is None
 
 
 def test_own_tf_alignment():
     r = {"tf": {"15m": -1, "1h": 1, "4h": 1, "1d": 1}}
-    assert "uyumlu değil" in scanner.own_tf_alignment_line(r, "long", {"timeframe": "15m"})
-    assert "(1 saat) uyumlu" in scanner.own_tf_alignment_line(r, "long", {"timeframe": "1h"})
-    assert "nötr" in scanner.own_tf_alignment_line({"tf": {"15m": 0}}, "short", {"timeframe": "15m"})
-    assert scanner.own_tf_alignment_line({}, "long", {"timeframe": "1h"}) is None
+    o = scanner.own_tf_alignment_line
+    assert o(r, "long", {"timeframe": "15m"}).startswith("🟢") and "uyumlu değil" in o(r, "long", {"timeframe": "15m"})
+    assert o(r, "short", {"timeframe": "15m"}) == "🔴 Sinyal kendi zaman dilimiyle (15dk) uyumlu"
+    assert "nötr" in o({"tf": {"15m": 0}}, "short", {"timeframe": "15m"})
+    assert o({}, "long", {"timeframe": "1h"}) is None
 
 
 def test_market_status():

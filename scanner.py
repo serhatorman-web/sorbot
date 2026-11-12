@@ -976,33 +976,35 @@ def technical_rating(votes):
 
 
 def trend_alignment_line(res, direction):
-    """Trend tablosundaki zaman dilimlerinin (15dk/1s/4s/1g) hepsi sinyalle aynı yöndeyse
-    'uyumlu', hepsi ters yöndeyse 'uyumlu değil – BEKLE' uyarısı. Karışıksa boş."""
+    """Trend tablosundaki zaman dilimlerinin (15dk/1s/4s/1g) hepsi sinyalle aynı yöndeyse 'uyumlu',
+    hepsi ters yöndeyse 'uyumlu değil' uyarısı; karışıksa boş. İkon işlem yönüne göre (LONG 🟢, SHORT 🔴)."""
     tf = res.get("tf") or {}
     dirs = [tf.get(k) for k, _ in TF_ROWS if tf.get(k) is not None]
     if len(dirs) < 3:
         return None
     s = 1 if direction == "long" else -1
+    icon = "🟢" if s == 1 else "🔴"
     if all(d == s for d in dirs):
-        return f"🟢 <b>Bu işlem trend ile uyumlu – {'AL' if s == 1 else 'SAT'}</b>"
+        return f"{icon} <b>Bu işlem trend ile uyumlu</b>"
     if all(d == -s for d in dirs):
-        return "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil – BEKLE</b>"
+        return f"{icon} <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
     return None
 
 
 def own_tf_alignment_line(res, direction, cfg):
-    """Sinyalin kendi zaman dilimindeki trend (trend tablosundaki satır) sinyalle uyumlu mu?"""
+    """Sinyalin kendi zaman dilimindeki trend sinyalle uyumlu mu? İkon işlem yönüne göre."""
     tf_key = cfg.get("timeframe", "1h")
     t = (res.get("tf") or {}).get(tf_key)
     if t is None:
         return None
     name = TF_NAMES.get(tf_key, tf_key)
     s = 1 if direction == "long" else -1
+    icon = "🟢" if s == 1 else "🔴"
     if t == s:
-        return f"🟢 Sinyal kendi zaman dilimiyle ({name}) uyumlu"
+        return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
-        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
-    return f"⚪ Sinyalin kendi zaman diliminde ({name}) trend nötr"
+        return f"{icon} <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
+    return f"{icon} Sinyalin kendi zaman diliminde ({name}) trend nötr"
 
 
 def technical_rating_line(votes):
