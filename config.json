@@ -288,6 +288,10 @@
     "wavetrend": [
       10,
       21
+    ],
+    "range_oscillator": [
+      50,
+      2.0
     ]
   }
 }

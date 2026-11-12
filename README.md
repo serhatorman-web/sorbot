@@ -94,7 +94,7 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
    RSI (50 üstü/altı), StochRSI (K/D), MACD (sinyal çizgisi), Momentum, fiyatın EMA20/50/200 ve MA50/200'e göre konumu,
    ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü),
    Bollinger (orta bandın üstü/altı), Ichimoku (bulutun üstü/altı, içindeyse nötr), CMF (20; 0 üstü para girişi),
-   EWO (SMA5 − SMA35; 0 üstü/altı), WaveTrend (LazyBear 10/21; WT1 > WT2 AL), BTC/QQQ yönü.
+   EWO (SMA5 − SMA35; 0 üstü/altı), WaveTrend (LazyBear 10/21; WT1 > WT2 AL), Range Oscillator (Zeiierman 50/2; 0 üstü AL), BTC/QQQ yönü.
 3. **Teknik görünüm** (TradingView teknik özet mantığı): net = AL% − SAT%; ≥+50 🟢🟢 GÜÇLÜ AL, +30…+50 🟢 AL,
    −30…+30 ⚪ NÖTR, −50…−30 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT (nötr gösterge yokken AL %65+ = AL, %75+ = GÜÇLÜ AL).
    **Güven skoru** = Supertrend ile aynı yöndeki indikatörlerin yüzdesi.
