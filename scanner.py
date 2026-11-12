@@ -1339,6 +1339,25 @@ def main():
             results.append(r)
     print(f"Analiz edilen: {len(results)}")
 
+    # Önizleme: kriptoda BTC ve bir hisse için o anki duruma göre örnek sinyal mesajı (kayıt tutulmaz)
+    if os.environ.get("PREVIEW") == "1":
+        want = [cfg["market_leaders"].get("COIN", "BTCUSDT")]
+        eq = sorted((r for r in results if r["meta"]["type"] == "EQUITY"),
+                    key=lambda r: -max(r["long"]["score"], r["short"]["score"]))
+        if eq:
+            want.append(eq[0]["meta"]["symbol"])
+        n = 0
+        for r in results:
+            if r["meta"]["symbol"] not in want:
+                continue
+            d = "long" if r["long"]["score"] >= r["short"]["score"] else "short"
+            fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+            compute_volume_profile(r, cfg)
+            msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
+            n += notifier.send(msg) and 1 or 0
+        print(f"Önizleme: {n} örnek sinyal gönderildi.")
+        return 0
+
     # Adaylar için açık pozisyon (OI) verisi
     min_s = cfg["signal"]["min_score"]
     cands = [r for r in results

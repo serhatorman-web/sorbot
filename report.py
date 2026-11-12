@@ -824,6 +824,8 @@ def run_bulletin(cfg, rcfg, notifier, state):
     ok = True
     for kind, text in messages:
         text = sc.plain_font(text)       # tek yazı tipi: eğik / sabit genişlikli yok
+        if os.environ.get("PREVIEW") == "1":
+            text = "🧪 <b>TEST · ÖNİZLEME</b>\n\n" + text
         for part in split_message(text):
             try:
                 ok = notifier.send(part) and ok
@@ -854,6 +856,12 @@ def main():
     state = sc.load_json(STATE_PATH, {"seen": {}, "calendar_day": ""})
     state.setdefault("seen", {})
     if rcfg.get("mode") == "bulletin":
+        if os.environ.get("PREVIEW") == "1":
+            # Önizleme: kayıt kullanılmaz/yazılmaz; son 3 saatin verileri, haberleri ve günün takvimi gelir
+            prev = {"seen": {}, "calendar_day": "",
+                    "last_bulletin": (datetime.now(timezone.utc) - timedelta(hours=3)).timestamp()}
+            run_bulletin(cfg, rcfg, notifier, prev)
+            return 0
         run_bulletin(cfg, rcfg, notifier, state)
         cutoff = time.time() - 7 * 86400
         state["seen"] = {k: v for k, v in state["seen"].items() if v >= cutoff}

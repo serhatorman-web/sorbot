@@ -13,6 +13,10 @@ on:
         description: "Sadece Telegram bağlantı testi mesajı gönder"
         type: boolean
         default: false
+      preview:
+        description: "Önizleme: örnek sinyal + bülten gönder (kayıt tutulmaz)"
+        type: boolean
+        default: false
 
 # En az yetki: repoyu sadece okuyabilir
 permissions:
@@ -44,6 +48,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
           TEST_TELEGRAM: ${{ inputs.test_telegram && '1' || '' }}
+          PREVIEW: ${{ inputs.preview && '1' || '' }}
         run: python3 scanner.py
 
       # Saatlik piyasa raporu + haberler (+ sabah ekonomik takvimi)
@@ -53,10 +58,11 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          PREVIEW: ${{ inputs.preview && '1' || '' }}
         run: python3 report.py
 
       - name: Durum kaydını sakla
-        if: always()
+        if: always() && !inputs.preview
         uses: actions/cache/save@v4
         with:
           path: state
