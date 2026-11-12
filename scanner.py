@@ -938,14 +938,49 @@ def leader_line(res):
     return icon_row(f"{res['leader_name']} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
 
 
+def market_direction(grp, leader_bias=None):
+    """Piyasa yönü – aynı türdeki (kripto / hisse) tüm taranan sembollerin verilerinden detaylı analiz.
+    8 ölçüt oy verir (+1 yükseliş, -1 düşüş, 0 kararsız):
+      1) 1s Supertrend AL oranı      2) 4s Supertrend AL oranı
+      3) EMA50 üstündeki oran         4) EMA200 üstündeki oran
+      5) 24s yükselen oranı           6) 24s medyan değişim (±%1)
+      7) ortalama RSI (55 / 45)       8) piyasa lideri (BTC / QQQ) eğilimi
+    Oran ölçütlerinde %60 ve üstü +1, %40 ve altı -1. Toplam +3 ve üstü Yükselişte, -3 ve altı Düşüşte."""
+    if not grp:
+        return None, {}
+    n = len(grp)
+    def share(cond):
+        return sum(1 for r in grp if cond(r)) / n
+    def at(r, k):
+        return r["f"][k][r["i"]]
+    m = {
+        "st_1s": share(lambda r: at(r, "st_dir") == 1),
+        "st_4s": share(lambda r: (at(r, "h4_st") or 0) > 0),
+        "ema50": share(lambda r: at(r, "ema50") is not None and at(r, "c") > at(r, "ema50")),
+        "ema200": share(lambda r: at(r, "ema200") is not None and at(r, "c") > at(r, "ema200")),
+        "yukselen": share(lambda r: r.get("chg24", 0) > 0),
+    }
+    chg = sorted(r.get("chg24", 0) for r in grp)
+    med = chg[n // 2] if n % 2 else (chg[n // 2 - 1] + chg[n // 2]) / 2
+    rsis = [at(r, "rsi") for r in grp if at(r, "rsi") is not None]
+    rsi = sum(rsis) / len(rsis) if rsis else 50
+    votes = [1 if v >= 0.6 else (-1 if v <= 0.4 else 0) for v in m.values()]
+    votes.append(1 if med > 1 else (-1 if med < -1 else 0))
+    votes.append(1 if rsi > 55 else (-1 if rsi < 45 else 0))
+    if leader_bias is not None:
+        votes.append(1 if leader_bias >= 0.5 else (-1 if leader_bias <= -0.5 else 0))
+    net = sum(votes)
+    d = 1 if net >= 3 else (-1 if net <= -3 else 0)
+    m.update({"medyan24": med, "rsi": rsi, "net": net, "oy": len(votes)})
+    return d, m
+
+
 def market_dir_line(res):
-    """Piyasa yönü: aynı türdeki (kripto / hisse) taranan sembollerin Supertrend'i AL olanların oranı.
-    %60 ve üstü Yükselişte, %40 ve altı Düşüşte, arası Nötr."""
-    b = res.get("breadth")
-    if b is None:
+    """Piyasa yönü satırı (market_direction sonucuna göre)."""
+    d = res.get("market_dir", "yok")
+    if d == "yok":
         return None
-    word = "🟢 Yükselişte" if b >= 0.6 else ("🔴 Düşüşte" if b <= 0.4 else "⚪ Nötr")
-    return icon_row("Piyasa yönü", word)
+    return icon_row("Piyasa yönü", {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Nötr"}[d])
 
 
 def leader_block(res):
@@ -1372,14 +1407,16 @@ def main():
             results.append(r)
     print(f"Analiz edilen: {len(results)}")
 
-    # Piyasa yönü: türe göre Supertrend'i AL olan sembollerin oranı
+    # Piyasa yönü: türe göre (kripto / hisse) tüm taranan sembollerin detaylı analizi
     for typ in {r["meta"]["type"] for r in results}:
         grp = [r for r in results if r["meta"]["type"] == typ]
-        up = sum(1 for r in grp if r["f"]["st_dir"][r["i"]] == 1)
-        share = up / len(grp) if grp else None
+        d, m = market_direction(grp, leaders.get(typ, {}).get("bias"))
         for r in grp:
-            r["breadth"] = share
-        print(f"Piyasa yönü {typ}: %{share*100:.0f} Supertrend AL ({up}/{len(grp)})")
+            r["market_dir"] = d
+        print(f"Piyasa yönü {typ}: {({1: 'Yükselişte', -1: 'Düşüşte', 0: 'Nötr'}).get(d)} · net {m.get('net')}/{m.get('oy')} · "
+              f"1s ST %{m['st_1s']*100:.0f} · 4s ST %{m['st_4s']*100:.0f} · EMA50 üstü %{m['ema50']*100:.0f} · "
+              f"EMA200 üstü %{m['ema200']*100:.0f} · 24s yükselen %{m['yukselen']*100:.0f} · "
+              f"medyan {m['medyan24']:+.1f}% · RSI {m['rsi']:.0f} ({len(grp)} sembol)")
 
     # Önizleme: Supertrend AL ve SAT örnekleri (kripto) + bir hisse; o anki verilerle, kayıt tutulmaz
     if os.environ.get("PREVIEW") == "1":
