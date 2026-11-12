@@ -992,19 +992,20 @@ def trend_alignment_line(res, direction):
 
 
 def own_tf_alignment_line(res, direction, cfg):
-    """Sinyalin kendi zaman dilimindeki trend sinyalle uyumlu mu? İkon işlem yönüne göre."""
+    """Sinyalin kendi zaman dilimindeki trend sinyalle uyumlu mu?
+    İkon, trend tablosundaki o zaman diliminin ikonuyla aynı (Yükseliş 🟢, Düşüş 🔴, Nötr ⚪)."""
     tf_key = cfg.get("timeframe", "1h")
     t = (res.get("tf") or {}).get(tf_key)
     if t is None:
         return None
     name = TF_NAMES.get(tf_key, tf_key)
     s = 1 if direction == "long" else -1
-    icon = "🟢" if s == 1 else "🔴"
+    icon = {1: "🟢", -1: "🔴", 0: "⚪"}[t]
     if t == s:
         return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"{icon} <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
-    return f"{icon} Sinyalin kendi zaman diliminde ({name}) trend nötr"
+    return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
 
 
 def technical_rating_line(votes):
