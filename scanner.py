@@ -935,9 +935,25 @@ def divergence_lines(res):
 def leader_line(res):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) – aynı hesap ve format."""
     lb_ = res["leader_bias"]
-    # kripto: BTC, hisse: QQQ yönüne göre; mesajda "Piyasa yönü" olarak yazılır
-    word = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Nötr"}[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)]
+    return icon_row(f"{res['leader_name']} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
+
+
+def market_dir_line(res):
+    """Piyasa yönü: aynı türdeki (kripto / hisse) taranan sembollerin Supertrend'i AL olanların oranı.
+    %60 ve üstü Yükselişte, %40 ve altı Düşüşte, arası Nötr."""
+    b = res.get("breadth")
+    if b is None:
+        return None
+    word = "🟢 Yükselişte" if b >= 0.6 else ("🔴 Düşüşte" if b <= 0.4 else "⚪ Nötr")
     return icon_row("Piyasa yönü", word)
+
+
+def leader_block(res):
+    """Piyasa yönü satırı en üstte, altında BTC/QQQ yönü."""
+    out = [market_dir_line(res)]
+    if res.get("leader_name") and res["leader_name"] != "4s trend":
+        out.append(leader_line(res))
+    return [x for x in out if x]
 
 
 def market_lines(res, cfg, now_utc):
@@ -1083,8 +1099,9 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
     trend_line = tf_table_html(res)
-    if res["leader_name"] != "4s trend":
-        trend_line += "\n\n" + SEP + "\n" + leader_line(res)
+    lb = leader_block(res)
+    if lb:
+        trend_line += "\n\n" + SEP + "\n" + "\n".join(lb)
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -1168,8 +1185,9 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", SEP, trend]
-    if res.get("leader_name") and res["leader_name"] != "4s trend":
-        lines += ["", SEP, leader_line(res)]
+    lb = leader_block(res)
+    if lb:
+        lines += ["", SEP] + lb
     lines += market_lines(res, cfg, now_utc)
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
@@ -1353,6 +1371,15 @@ def main():
             r["cfg_pd"] = cfg["pump_dump"]
             results.append(r)
     print(f"Analiz edilen: {len(results)}")
+
+    # Piyasa yönü: türe göre Supertrend'i AL olan sembollerin oranı
+    for typ in {r["meta"]["type"] for r in results}:
+        grp = [r for r in results if r["meta"]["type"] == typ]
+        up = sum(1 for r in grp if r["f"]["st_dir"][r["i"]] == 1)
+        share = up / len(grp) if grp else None
+        for r in grp:
+            r["breadth"] = share
+        print(f"Piyasa yönü {typ}: %{share*100:.0f} Supertrend AL ({up}/{len(grp)})")
 
     # Önizleme: Supertrend AL ve SAT örnekleri (kripto) + bir hisse; o anki verilerle, kayıt tutulmaz
     if os.environ.get("PREVIEW") == "1":
