@@ -357,7 +357,8 @@ def test_econ_bulletin():
     rel = [{"dt": now - timedelta(minutes=30), "tr": "İlk İşsizlik Başvuruları", "title": "Initial Jobless Claims",
             "country": "US", "importance": 0, "actual": 200, "forecast": 195, "previous": 191, "unit": "", "scale": "K"}]
     m = report.bulletin_message(now, rel, [], {"💵 Ekonomi & Finans": []}, {})
-    assert "SAATLİK PİYASA BÜLTENİ" in m and "Gerçekleşen: <b>200K</b>" in m and "ekonomi için olumsuz" in m
+    assert "SAATLİK PİYASA BÜLTENİ" in m and "Gerçekleşen <b>200K</b>" in m and "ekonomi için olumsuz" in m
+    assert "<blockquote>" in m and "\n\n" not in m.split("<blockquote>")[1].split("</blockquote>")[0]
     assert report.bulletin_message(now, [], [], {"💵 Ekonomi & Finans": []}, {}) is None
 
 
@@ -366,7 +367,7 @@ def test_markets_block():
     assert report.tr_num(52680.84) == "52.680,84"
     out = "\n".join(report.markets_block({"^DJI": {"price": 52680.84, "chg": 0.13, "open": True},
                                            "XU100.IS": {"price": 11811.19, "chg": -0.5, "open": False}}))
-    assert "🟢 Dow Jones: <b>52.680,84</b> · +%0,13 · <i>Açık</i>" in out
+    assert "🟢 Dow Jones  <code>52.680,84</code>  <b>+%0,13</b>  <i>Açık</i>" in out
     assert "🔴 BIST 100" in out and "-%0,50" in out and "Kapalı" in out
 
 

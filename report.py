@@ -618,42 +618,74 @@ def collect_markets(api):
     return quotes
 
 
+def pct_tr(chg):
+    if chg is None:
+        return "–"
+    return ("+" if chg > 0 else ("-" if chg < 0 else "")) + "%" + tr_num(abs(chg))
+
+
+def chg_icon(chg):
+    return "🟢" if chg and chg > 0 else ("🔴" if chg and chg < 0 else "⚪")
+
+
 def markets_block(quotes):
+    """Piyasalar: grup başlıkları + satırlar (blockquote içinde kullanılır, boş satır yok)."""
     if not quotes or not any(quotes.values()):
         return []
-    L = ["🌍 <b>PİYASALAR</b>"]
+    L = []
     for title, items in MARKET_GROUPS:
         rows = []
         for name, sym, _, cur in items:
             q = quotes.get(sym)
             if not q or q.get("price") is None:
                 continue
-            chg = q.get("chg")
-            icon = "🟢" if chg and chg > 0 else ("🔴" if chg and chg < 0 else "⚪")
             dec = 4 if sym in ("TRY=X", "EURTRY=X") else (3 if q["price"] < 10 else 2)
-            ch = "–" if chg is None else ("+" if chg > 0 else ("-" if chg < 0 else "")) + "%" + tr_num(abs(chg))
             status = "Açık" if q.get("open") else "Kapalı"
-            rows.append(f"{icon} {name}: <b>{cur}{tr_num(q['price'], dec)}</b> · {ch} · <i>{status}</i>")
+            rows.append(f"{chg_icon(q.get('chg'))} {name}  <code>{cur}{tr_num(q['price'], dec)}</code>  "
+                        f"<b>{pct_tr(q.get('chg'))}</b>  <i>{status}</i>")
         if rows:
-            L += ["", f"<b>{title}</b>"] + rows
+            L += [f"<b>{title}</b>"] + rows
     return L
+
+
+def market_summary(quotes):
+    """Kısa özet: yükselen/düşen sayısı ve öne çıkanlar."""
+    vals = [q for q in quotes.values() if q and q.get("chg") is not None]
+    if not vals:
+        return None
+    up = sum(1 for q in vals if q["chg"] > 0)
+    dn = sum(1 for q in vals if q["chg"] < 0)
+    parts = [f"🟢 {up} yükselen · 🔴 {dn} düşen"]
+    for name, sym in (("Altın", "GC=F"), ("BIST", "XU100.IS"), ("Nasdaq", "^NDX"), ("Dolar/TL", "TRY=X")):
+        q = quotes.get(sym)
+        if q and q.get("chg") is not None:
+            parts.append(f"{name} {pct_tr(q['chg'])}")
+    return " · ".join(parts)
+
+
+def quote(lines, expandable=False):
+    """Telegram alıntı kutusu (blockquote). İçinde boş satır olmamalı."""
+    body = "\n".join(x for x in lines if x != "")
+    return f"<blockquote{' expandable' if expandable else ''}>{body}</blockquote>"
 
 
 def released_block(events):
-    L = []
+    """Her açıklanan veri ayrı bir kutu."""
+    boxes = []
     for e in events:
         t = e["dt"].astimezone(TR_TZ)
-        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b> · {econ.FLAGS.get(e['country'], '')} {t:%H:%M}")
-        L.append(f"      Gerçekleşen: <b>{esc(econ.fmt_val(e, 'actual'))}</b>  │  Beklenti: {esc(econ.fmt_val(e, 'forecast'))}"
-                 f"  │  Önceki: {esc(econ.fmt_val(e, 'previous'))}")
+        L = [f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b>  {econ.FLAGS.get(e['country'], '')} {t:%H:%M}",
+             f"Gerçekleşen <b>{esc(econ.fmt_val(e, 'actual'))}</b> · Beklenti {esc(econ.fmt_val(e, 'forecast'))}"
+             f" · Önceki {esc(econ.fmt_val(e, 'previous'))}"]
         v = econ.verdict(e)
         if v:
-            L.append(f"      {v[0]} {v[1]}")
+            L.append(f"{v[0]} {v[1]}")
         imp = econ.asset_impact(e)
         if imp:
-            L.append(f"      💡 <i>{esc(imp['reason'])}</i>")
-            L.append("      " + "  ·  ".join(f"{ic} {t}" for ic, t in imp["items"]))
-    return L
+            L.append(f"💡 <i>{esc(imp['reason'])}</i>")
+            L.append("  ".join(f"{ic} {t_}" for ic, t_ in imp["items"]))
+        boxes.append(quote(L))
+    return boxes
 
 
 def upcoming_block(events):
@@ -665,57 +697,59 @@ def upcoming_block(events):
             extra.append(f"Bkl {econ.fmt_val(e, 'forecast')}")
         if e.get("previous") is not None:
             extra.append(f"Önc {econ.fmt_val(e, 'previous')}")
-        tail = f"\n      <i>{esc(' · '.join(extra))}</i>" if extra else ""
-        L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{t:%H:%M}</b> {econ.FLAGS.get(e['country'], '')} {esc(e['tr'])}{tail}")
+        tail = f"  <i>{esc(' · '.join(extra))}</i>" if extra else ""
+        L.append(f"{IMP_ICON.get(e['importance'], '•')} <code>{t:%H:%M}</code> {econ.FLAGS.get(e['country'], '')} "
+                 f"{esc(e['tr'])}{tail}")
     return L
 
 
 def news_block(items, per_cat):
     L = []
     for it in items[:per_cat]:
-        mark = "🔥" if it.get("imp", 0) >= 5 else "▪️"
+        mark = "🔥" if it.get("imp", 0) >= 5 else "▫️"
         t = it["dt"].astimezone(TR_TZ).strftime("%H:%M") if it.get("dt") else ""
-        L.append(f"{mark} <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a>")
-        L.append(f"      <i>{esc(it['source'])}{' · ' + t if t else ''}</i>")
+        L.append(f"{mark} <a href=\"{html.escape(it['link'])}\">{esc(it['title'])}</a>"
+                 f"  <i>{esc(it['source'])}{' · ' + t if t else ''}</i>")
     return L
 
 
 def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
-    sections = []
+    blocks = []
     mk = markets_block(markets) if markets else []
     if mk:
-        sections.append(mk)
+        summ = market_summary(markets)
+        head = "🌍 <b>PİYASALAR</b>" + (f"\n<i>{summ}</i>" if summ else "")
+        blocks.append(head + "\n" + quote(mk, expandable=True))
     if released:
-        sections.append(["📊 <b>AÇIKLANAN VERİLER</b> <i>(son 1 saat)</i>", ""] + released_block(released))
+        blocks.append("📊 <b>AÇIKLANAN VERİLER</b>  <i>son 1 saat</i>\n" + "\n".join(released_block(released)))
     if upcoming:
         h = rcfg.get("calendar_lookahead_hours", 3)
-        sections.append([f"🗓 <b>YAKLAŞAN VERİLER</b> <i>(önümüzdeki {h} saat)</i>", ""] + upcoming_block(upcoming))
+        blocks.append(f"🗓 <b>YAKLAŞAN VERİLER</b>  <i>önümüzdeki {h} saat</i>\n" + quote(upcoming_block(upcoming)))
     for cat, items in news.items():
         if items:
-            title = tr_upper(cat.split(" ", 1)[1] if " " in cat else cat)
-            icon = cat.split(" ", 1)[0]
-            sections.append([f"{icon} <b>{title}</b>", ""] + news_block(items, rcfg.get("news_per_category", 5)))
-    if not sections:
+            icon, title = (cat.split(" ", 1) + [""])[:2] if " " in cat else ("", cat)
+            blocks.append(f"{icon} <b>{tr_upper(title)}</b>\n"
+                          + quote(news_block(items, rcfg.get("news_per_category", 5))))
+    if not blocks:
         return None
-    L = [LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE]
-    for sec in sections:
-        L += [""] + sec
-    L += ["", LINE, "🔴 yüksek önem · 🟠 orta önem · 🔥 öne çıkan haber", "<i>Yatırım tavsiyesi değildir.</i>"]
-    return "\n".join(L)
+    header = (f"📰 <b>SAATLİK PİYASA BÜLTENİ</b>\n"
+              f"<i>{tr_long_date(now_tr)} · {now_tr:%H:%M}</i>")
+    footer = "<i>🔴 yüksek · 🟠 orta önem · 🔥 öne çıkan haber · Yatırım tavsiyesi değildir.</i>"
+    return "\n\n".join([header] + blocks + [footer])
 
 
 def morning_calendar_message(now_tr, events):
-    L = [LINE, "🗓 <b>GÜNÜN EKONOMİK TAKVİMİ</b>", f"📅 {tr_long_date(now_tr)}", LINE]
+    blocks = [f"🗓 <b>GÜNÜN EKONOMİK TAKVİMİ</b>\n<i>{tr_long_date(now_tr)}</i>"]
     if not events:
-        L += ["", "Bugün önemli veri yok."]
+        blocks.append(quote(["Bugün önemli veri yok."]))
     by_c = {}
     for e in events:
         by_c.setdefault(e["country"], []).append(e)
     names = {"US": "ABD", "TR": "Türkiye", "EU": "Euro Bölgesi", "CN": "Çin"}
     for c in sorted(by_c, key=lambda x: (x != "US", x != "TR", x)):
-        L += ["", f"{econ.FLAGS.get(c, '')} <b>{names.get(c, c)}</b>", ""] + upcoming_block(by_c[c])
-    L += ["", LINE, "🔴 yüksek önem · 🟠 orta önem · Bkl = beklenti · Önc = önceki", "<i>Kaynak: TradingView ekonomik takvim</i>"]
-    return "\n".join(L)
+        blocks.append(f"{econ.FLAGS.get(c, '')} <b>{names.get(c, c)}</b>\n" + quote(upcoming_block(by_c[c])))
+    blocks.append("<i>🔴 yüksek · 🟠 orta önem · Bkl = beklenti · Önc = önceki · Kaynak: TradingView</i>")
+    return "\n\n".join(blocks)
 
 
 def collect_news(feeds, state, rcfg, now_utc):
