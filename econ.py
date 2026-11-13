@@ -260,9 +260,22 @@ CENTRAL_BANK = {"US": "Fed", "TR": "TCMB", "EU": "ECB", "DE": "ECB", "GB": "İng
 LOCAL_CCY = {"EU": "Euro", "DE": "Euro", "GB": "Sterlin", "JP": "Yen"}
 
 
+EXPECTATION_SURVEY = re.compile(r"survey.*expectation", re.IGNORECASE)
+
+
 def _surprise(e):
-    """Beklentiye göre sürprizin yönü: (hawkish, sebep metni) veya None."""
+    """Beklentiye göre sürprizin yönü: (hawkish, sebep metni, tür) veya None.
+    Anket beklentileri (ör. TCMB anketi yıl sonu TÜFE beklentisi) için beklenti olmadığından
+    bir önceki ankete göre değişime bakılır."""
     a, f, title = e.get("actual"), e.get("forecast"), e.get("title", "")
+    if EXPECTATION_SURVEY.search(title) and isinstance(a, (int, float)) and isinstance(e.get("previous"), (int, float)):
+        p = e["previous"]
+        if a == p or "usd" in title.lower():
+            return None
+        up = a > p
+        what = "Faiz beklentisi" if RATE_DECISION.search(title) or "rate" in title.lower() else "Enflasyon beklentisi"
+        kind = "rate" if what == "Faiz beklentisi" else "inflation"
+        return up, f"{what} önceki ankete göre " + ("yükseldi" if up else "düştü"), kind
     if not isinstance(a, (int, float)) or not isinstance(f, (int, float)) or a == f:
         return None
     higher = a > f
@@ -289,6 +302,15 @@ def asset_impact(e):
     Çin : (büyüme verileri) kripto, petrol/emtia
     Döner: {"hawkish": bool, "reason": str, "items": [(ikon, metin), ...]} veya None."""
     c = e.get("country")
+    if c == "TR" and re.search(r"current account", e.get("title", ""), re.IGNORECASE):
+        a, f = e.get("actual"), e.get("forecast")
+        if isinstance(a, (int, float)) and isinstance(f, (int, float)) and a != f:
+            good = a > f
+            return {"hawkish": False,
+                    "reason": "Cari denge beklentiden " + ("iyi" if good else "kötü") + " → döviz ihtiyacı "
+                              + ("azalır" if good else "artar"),
+                    "items": [_item(good, "TL")]}
+        return None
     sp = _surprise(e)
     if not sp:
         return None

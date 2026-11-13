@@ -391,6 +391,11 @@ def test_asset_impact():
     cn = econ.asset_impact(dict(us("GDP Growth Rate YoY", 5.4, 5.0), country="CN"))
     assert cn["items"][0] == ("🟢", "Kripto için olumlu")
     assert econ.asset_impact(dict(us("Inflation Rate YoY", 1, 0.5), country="CN")) is None
+    sv = econ.asset_impact({"country": "TR", "title": "CBRT Survey Year-End CPI Expectation",
+                            "actual": 30.04, "forecast": None, "previous": 29.63})
+    assert sv["items"] == [("🔴", "Faiz indirimi (TCMB) için olumsuz"), ("🔴", "TL için olumsuz")]
+    ca = econ.asset_impact({"country": "TR", "title": "Current Account", "actual": 2.72, "forecast": 2.4})
+    assert ca["items"] == [("🟢", "TL için olumlu")]
     import report
     msg = report.release_alert_message([dict(us("Inflation Rate YoY", 3.4, 3.1), id="x", tr="TÜFE (Yıllık)",
         importance=1, previous=3.0, unit="%", scale="", dt=__import__("datetime").datetime(2026, 11, 13, 13, 30,
