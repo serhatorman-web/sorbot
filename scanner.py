@@ -1068,7 +1068,7 @@ def own_tf_alignment_line(res, direction, cfg):
         against = [names[k] for k in higher if (res.get("tf") or {}).get(k) == -s]
         if against:
             return (f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu ama üst zaman dilimleriyle "
-                    f"({', '.join(against)}) uyumlu değil</b>")
+                    f"({', '.join(against)}) uyumsuz</b>")
         return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
