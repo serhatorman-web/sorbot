@@ -99,8 +99,8 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
    ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü),
    Bollinger (orta bandın üstü/altı), Ichimoku (bulutun üstü/altı, içindeyse nötr), CMF (20; 0 üstü para girişi),
    EWO (SMA5 − SMA35; 0 üstü/altı), WaveTrend (LazyBear 10/21; WT1 > WT2 AL), DynaRange (EMA10(ohlc4) − EMA18(ohlc4); 0 üstü AL), Supertrend (10/3 yönü), BTC/QQQ yönü.
-3. **Teknik görünüm** (TradingView teknik özet mantığı): net = AL% − SAT%; ≥+50 🟢🟢 GÜÇLÜ AL, +30…+50 🟢 AL,
-   −30…+30 ⚪ NÖTR, −50…−30 🔴 SAT, ≤−50 🔴🔴 GÜÇLÜ SAT (nötr gösterge yokken AL %65+ = AL, %75+ = GÜÇLÜ AL).
+3. **Teknik görünüm** (sadece AL % ve SAT %, nötrler toplama dahil): AL %75+ 🟢🟢 GÜÇLÜ AL, AL %65–74 🟢 AL,
+   ikisi de %65 altı ⚪ NÖTR, SAT %65–74 🔴 SAT, SAT %75+ 🔴🔴 GÜÇLÜ SAT (22 indikatörde: 17+ / 15–16 / 8–14).
    **Güven skoru** = sinyalle (TrendFlex) aynı yöndeki indikatörlerin yüzdesi.
    **Trend uyumu:** trend tablosundaki 15dk/1s/4s/1g'nin hepsi sinyal yönündeyse "Bu işlem trend ile uyumlu",
    hepsi ters yöndeyse "Uyarı: Bu işlem trend ile uyumlu değil"; karışıksa satır yok. Ayrıca sinyalin kendi
