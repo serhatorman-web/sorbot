@@ -314,6 +314,8 @@ def test_technical_rating():
     assert r(8, 12) == "NÖTR" and r(7, 13) == "SAT" and r(6, 14) == "SAT"
     assert r(5, 15) == "GÜÇLÜ SAT"
     assert r(10, 5, 5) == "NÖTR" and r(11, 5, 4) == "AL"   # net +25 / +30
+    assert r(14, 0, 6) == "AL" and r(15, 0, 5) == "GÜÇLÜ AL"   # GÜÇLÜ sadece AL %75 ve üzeri
+    assert r(0, 15, 5) == "GÜÇLÜ SAT" and r(0, 14, 6) == "SAT"
 
 
 def test_trend_alignment():
