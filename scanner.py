@@ -841,19 +841,21 @@ def icon_row(label, value):
     value '🟢 Yükseliş' gibi ikonlu metin olmalı."""
     icon, word = value.split(" ", 1)
     return f"{icon} {label} · {word}"
-TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"))
+TF_ROWS = (("15m", "15dk"), ("1h", "1 saat"), ("4h", "4 saat"), ("1d", "1 gün"), ("1w", "1 hafta"))
 
 
 def tf_trend(candles):
     """Bir zaman dilimindeki trend: +1 yükseliş, -1 düşüş, 0 nötr, None veri yetersiz.
     4 oy: fiyat/EMA50, EMA20/EMA50, Supertrend yönü, MACD histogramı.
-    En az 3 oy aynı yöndeyse ve karşı yönde en fazla 1 oy varsa trend o yöndedir."""
-    if len(candles) < 60:
+    En az 3 oy aynı yöndeyse ve karşı yönde en fazla 1 oy varsa trend o yöndedir.
+    Geçmişi kısa olanlarda (ör. yeni listelenen sembolde haftalık, 35–59 mum) EMA10/EMA20 kullanılır."""
+    if len(candles) < 35:
         return None
     c = [x["c"] for x in candles]
     h = [x["h"] for x in candles]
     l = [x["l"] for x in candles]
-    e20, e50 = ta.ema(c, 20), ta.ema(c, 50)
+    fast, slow = (20, 50) if len(candles) >= 60 else (10, 20)
+    e20, e50 = ta.ema(c, fast), ta.ema(c, slow)
     st, _ = ta.supertrend(h, l, c, 10, 3.0)
     _, _, hist = ta.macd(c)
     sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)

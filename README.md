@@ -103,7 +103,7 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 3. **Teknik görünüm** (sadece AL % ve SAT %, nötrler toplama dahil): AL %75+ 🟢🟢 GÜÇLÜ AL, AL %65–74 🟢 AL,
    ikisi de %65 altı ⚪ NÖTR, SAT %65–74 🔴 SAT, SAT %75+ 🔴🔴 GÜÇLÜ SAT (22 indikatörde: 17+ / 15–16 / 8–14).
    **Güven skoru** = sinyalle (TrendFlex) aynı yöndeki indikatörlerin yüzdesi.
-   **Trend uyumu:** trend tablosundaki 15dk/1s/4s/1g'nin hepsi sinyal yönündeyse "Bu işlem trend ile uyumlu",
+   **Trend uyumu:** trend tablosundaki 15dk/1s/4s/1g/1h(afta)'nin hepsi sinyal yönündeyse "Bu işlem trend ile uyumlu",
    hepsi ters yöndeyse "Uyarı: Bu işlem trend ile uyumlu değil"; karışıksa satır yok. Ayrıca sinyalin kendi
    zaman dilimindeki trend: uyumlu / uyumlu değil / nötr (ikon trend tablosundaki gibi: 🟢 yükseliş, 🔴 düşüş, ⚪ nötr).
    "Bu işlem trend ile uyumlu" satırında ikon işlem yönündedir (LONG 🟢, SHORT 🔴); tüm "Uyarı: … uyumlu değil" satırları 🔴. **%90 ve üzeri** gönderilir (`signal_supertrend.min_score`).
