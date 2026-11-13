@@ -130,11 +130,17 @@ TITLES = {
     "mba mortgage refinance index": "MBA Konut Kredisi Yeniden Finansman Endeksi",
     "tcmb interest rate decision": "TCMB Faiz Kararı",
     "one week repo rate": "TCMB Politika Faizi (1 Hafta Repo)",
+    "cbrt survey year-end cpi expectation": "TCMB Piyasa Katılımcıları Anketi: Yıl Sonu TÜFE Beklentisi",
+    "cbrt survey 12-month cpi expectation": "TCMB Piyasa Katılımcıları Anketi: 12 Ay Sonrası TÜFE Beklentisi",
+    "cbrt survey 24-month cpi expectation": "TCMB Piyasa Katılımcıları Anketi: 24 Ay Sonrası TÜFE Beklentisi",
+    "cbrt survey year-end policy rate expectation": "TCMB Piyasa Katılımcıları Anketi: Yıl Sonu Politika Faizi Beklentisi",
+    "cbrt survey year-end usd/try expectation": "TCMB Piyasa Katılımcıları Anketi: Yıl Sonu Dolar/TL Beklentisi",
+    "cbrt interest rate decision": "TCMB Faiz Kararı",
 }
 
 # Bilinmeyen adlar için kelime çevirisi
 WORDS = [
-    (r"\bMoM\b", "(Aylık)"), (r"\bYoY\b", "(Yıllık)"), (r"\bQoQ\b", "(Çeyreklik)"),
+    (r"\bCBRT\b", "TCMB"), (r"\bMoM\b", "(Aylık)"), (r"\bYoY\b", "(Yıllık)"), (r"\bQoQ\b", "(Çeyreklik)"),
     (r"\bPrel\b", "(Öncü)"), (r"\bFinal\b", "(Nihai)"), (r"\bAdv\b", "(Öncü)"),
     (r"\b(\d+)-Year Note Auction\b", r"\1 Yıllık Tahvil İhalesi"),
     (r"\b(\d+)-Year Bond Auction\b", r"\1 Yıllık Tahvil İhalesi"),

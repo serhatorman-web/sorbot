@@ -8,4 +8,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/diag_tr.py
+      - name: Kaçan Türkiye verilerini gönder
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPORT_MODE: releases
+          RELEASE_WINDOW_MIN: "180"
+        run: python3 report.py

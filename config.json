@@ -234,12 +234,12 @@
     "etf_alert_fund_musd": 20,
     "calendar_min_importance_by_country": {
       "US": 0,
-      "TR": 0,
+      "TR": -1,
       "default": 1
     },
     "release_alerts": true,
     "release_alert_window_min": 60,
-    "_calendar_aciklama": "Takvim ülkeleri: ABD, Türkiye, Euro Bölgesi, Almanya, İngiltere, Japonya, Çin. Önem: ABD ve Türkiye orta ve yüksek (0), diğerleri sadece yüksek (1). release_alerts: açıklanan veri dakikası içinde Telegram'a gelir."
+    "_calendar_aciklama": "Takvim ülkeleri: ABD, Türkiye, Euro Bölgesi, Almanya, İngiltere, Japonya, Çin. Önem: ABD orta ve yüksek (0), Türkiye hepsi (-1; TradingView TCMB anketini ve cari dengeyi düşük önemli gösteriyor), diğerleri sadece yüksek (1). release_alerts: açıklanan veri dakikası içinde Telegram'a gelir."
   },
   "pump_radar": {
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",

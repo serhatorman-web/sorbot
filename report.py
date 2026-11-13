@@ -806,10 +806,11 @@ def run_release_alerts(cfg, rcfg, notifier, state):
         print(f"  [uyarı] takvim alınamadı: {e}")
         return
     alerted = set(state.get("alerted_events", []))
-    window = timedelta(minutes=rcfg.get("release_alert_window_min", 60))
+    window = timedelta(minutes=int(os.environ.get("RELEASE_WINDOW_MIN") or rcfg.get("release_alert_window_min", 60)))
     new = [e for e in events if e["actual"] is not None and now_utc - window <= e["dt"] <= now_utc
            and e["importance"] >= min_importance(rcfg, e["country"]) and e["id"] not in alerted
-           and (e["forecast"] is not None or e["importance"] >= 1)]   # beklentisi olmayan önemsiz veriler gelmez
+           and (e["forecast"] is not None or e["importance"] >= 1 or e["country"] == "TR")]
+    # beklentisi olmayan önemsiz veriler gelmez (Türkiye verileri hepsi gelir)
     if not new:
         return
     text = sc.plain_font(release_alert_message(new))
