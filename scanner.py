@@ -971,17 +971,18 @@ def leader_block(res):
 
 
 def market_lines(res, cfg, now_utc):
-    """ABD borsası açık/kapalı (hisseler) ve likidite yüksek/düşük satırları."""
+    """ABD borsası açık/kapalı (tüm sinyallerde) ve likidite yüksek/düşük satırları."""
     meta = res["meta"]
     out = []
-    ms = us_market_status(now_utc) if meta["type"] == "EQUITY" else None
+    ms = us_market_status(now_utc)
     if ms:
         out.append(icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
                                             "weekend": "🔴 Kapalı (hafta sonu)"}[ms]))
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
     qv = res.get("qv24")
     if qv is not None:
-        high = qv >= lq.get(meta["type"], lq.get("COIN", 50_000_000)) and ms in (None, "open")
+        # hisselerde borsa kapalıyken likidite her zaman düşük
+        high = qv >= lq.get(meta["type"], lq.get("COIN", 50_000_000)) and (meta["type"] != "EQUITY" or ms == "open")
         out.append(icon_row("Likidite", "🟢 Yüksek" if high else "🔴 Düşük"))
     return out
 
