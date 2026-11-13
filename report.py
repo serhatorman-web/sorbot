@@ -808,7 +808,8 @@ def run_release_alerts(cfg, rcfg, notifier, state):
     alerted = set(state.get("alerted_events", []))
     window = timedelta(minutes=rcfg.get("release_alert_window_min", 60))
     new = [e for e in events if e["actual"] is not None and now_utc - window <= e["dt"] <= now_utc
-           and e["importance"] >= min_importance(rcfg, e["country"]) and e["id"] not in alerted]
+           and e["importance"] >= min_importance(rcfg, e["country"]) and e["id"] not in alerted
+           and (e["forecast"] is not None or e["importance"] >= 1)]   # beklentisi olmayan önemsiz veriler gelmez
     if not new:
         return
     text = sc.plain_font(release_alert_message(new))
