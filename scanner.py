@@ -1120,7 +1120,7 @@ def build_message(res, direction, cfg, now_utc):
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             score_line += "\n\n" + extra_line
-    lines = banner_lines(meta, cfg) + [
+    lines = banner_lines(meta, cfg) + [SEP,
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         "",
         score_line,
@@ -1188,7 +1188,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
     else:
         head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
-    lines = banner_lines(meta, cfg) + [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
+    lines = banner_lines(meta, cfg) + [SEP, f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
              f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
     if res.get("votes"):
