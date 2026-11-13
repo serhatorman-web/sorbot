@@ -17,6 +17,10 @@ on:
         description: "Önizleme: örnek sinyal + bülten gönder (kayıt tutulmaz)"
         type: boolean
         default: false
+      preview_types:
+        description: "Önizleme türleri: boş = hepsi + bülten, COMMODITY = sadece değerli metal ve emtia"
+        type: string
+        default: ""
 
 # En az yetki: repoyu sadece okuyabilir
 permissions:
@@ -49,10 +53,11 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
           TEST_TELEGRAM: ${{ inputs.test_telegram && '1' || '' }}
           PREVIEW: ${{ inputs.preview && '1' || '' }}
+          PREVIEW_TYPES: ${{ inputs.preview_types }}
         run: python3 scanner.py
 
       # Saatlik piyasa raporu + haberler (+ sabah ekonomik takvimi)
-      - name: Piyasa raporu
+        if: always() && !inputs.test_telegram && inputs.preview_types == ''
         if: always() && !inputs.test_telegram
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}

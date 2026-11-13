@@ -1399,7 +1399,15 @@ def main():
             return max(pool, key=lambda r: r[key]["score"]) if pool else None
         coins = [r for r in results if r["meta"]["type"] == "COIN"]
         eqs = [r for r in results if r["meta"]["type"] == "EQUITY"]
-        picks_pv = [best(coins, 1), best(coins, -1), best(eqs, 1) or best(eqs, -1)]
+        coms = [r for r in results if r["meta"]["type"] == "COMMODITY"]
+        metals = [r for r in coms if r["meta"]["symbol"] in PRECIOUS_METALS]
+        others = [r for r in coms if r["meta"]["symbol"] not in PRECIOUS_METALS]
+        only = os.environ.get("PREVIEW_TYPES", "").strip().upper()
+        if only == "COMMODITY":
+            picks_pv = [best(metals, 1) or best(metals, -1), best(others, 1) or best(others, -1)]
+        else:
+            picks_pv = [best(coins, 1), best(coins, -1), best(eqs, 1) or best(eqs, -1),
+                        best(metals, 1) or best(metals, -1), best(others, 1) or best(others, -1)]
         n = 0
         for r in picks_pv:
             if not r:
