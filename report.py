@@ -644,7 +644,8 @@ def markets_block(quotes):
             rows.append(f"{chg_icon(q.get('chg'))} {name}: <b>{cur}{tr_num(q['price'], dec)}</b> · "
                         f"{pct_tr(q.get('chg'))} · <i>{status}</i>")
         if rows:
-            L += ["", f"<b>{title}</b>"] + rows
+            # gruplar arasında yatay çizgi (ilk grup başlığın hemen altında)
+            L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + rows
     return L
 
 
