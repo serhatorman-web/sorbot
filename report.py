@@ -730,7 +730,9 @@ def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
         return None
     header = "\n".join([LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE])
     footer = "\n".join([LINE, "🔴 yüksek önem · 🟠 orta önem · 🔥 öne çıkan haber", "<i>Yatırım tavsiyesi değildir.</i>"])
-    return "\n\n".join([header] + blocks + [footer])
+    # başlıklar (bölümler) arasında yatay çizgi – sinyal mesajlarındaki çizginin aynısı
+    body = ("\n\n" + sc.SEP + "\n").join(blocks)
+    return "\n\n".join([header, body, footer])
 
 
 def morning_calendar_message(now_tr, events):
