@@ -21,7 +21,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 QUARTER = 900
-ENABLE_5M = True    # 5 dakikalık tarama – sadece BTC ve ETH (config tf_profiles.5m.symbols_only)
+ENABLE_5M = False   # 5 dakikalık tarama kapalı (testlerde zayıf sonuç; açmak için True, sadece BTC/ETH)
 STEP = 300 if ENABLE_5M else QUARTER
 OFFSET = int(os.environ.get("SORBOT_OFFSET_SEC", "60"))           # mum kapanışından sonra bekleme
 LOOP_MINUTES = int(os.environ.get("SORBOT_LOOP_MINUTES", "340"))  # GitHub iş sınırı 360 dk
@@ -65,7 +65,7 @@ FAIL_ALERT = 3        # üst üste bu kadar hata -> Telegram uyarısı
 FAIL_RESTART = 6      # üst üste bu kadar hata -> döngü temiz bir makinede yeniden başlar
 GAP_ALERT_MIN = 30    # taramalar arasında bundan uzun boşluk -> kesinti bildirimi
 KIND_NAMES = {"5m": "5dk taraması (BTC/ETH)", "15m": "15dk taraması", "1h": "1 saatlik tarama",
-              "4h": "4 saatlik tarama (BTC/ETH)", "bülten": "Saatlik bülten"}
+              "4h": "4 saatlik tarama", "bülten": "Saatlik bülten"}
 
 
 def load_health():
@@ -183,7 +183,7 @@ def daily_status():
     if h.get("status_day") == day_key or now_tr.hour != 9:
         return
     yday = (now_tr - timedelta(days=1)).strftime("%Y-%m-%d")
-    names = {"5m": "5dk (BTC/ETH)", "15m": "15dk", "1h": "1 saat", "4h": "4 saat (BTC/ETH)", "bülten": "Bülten"}
+    names = {"5m": "5dk (BTC/ETH)", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "bülten": "Bülten"}
     tot = {}
     for d in (yday, day_key):
         for k, v in h.get("days", {}).get(d, {}).items():
@@ -275,7 +275,7 @@ def main():
             scan("1h")
             hour = datetime.fromtimestamp(boundary, timezone.utc).hour
             if hour % 4 == 0:
-                scan("4h")      # 4 saatlik – sadece BTC ve ETH
+                scan("4h")      # 4 saatlik – tüm semboller
             report()
             daily_status()
         if ENABLE_5M:

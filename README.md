@@ -7,8 +7,8 @@ sinyallerini Telegram'a gönderir.
 - ❌ İşlem açmaz, borsa hesabına bağlanmaz, API anahtarı gerekmez.
 - ⏱️ Zamanlama (`loop.yml` + `runner.py`): GitHub'ın zamanlayıcısı çok geciktiği için taramalar tek bir uzun çalıştırmada,
   mum kapanışından 1 dk sonra yapılır: 15dk taraması :01/:16/:31/:46'da, 1s taraması saat başında (:01).
-  BTC ve ETH için ayrıca 5dk (her 5 dakikada) ve 4s (00/04/08/12/16/20 UTC kapanışları) taraması; mesajın üstünde
-  renkli bant (BTC 🟧, ETH 🟦). Ayarlar `tf_profiles.5m` / `tf_profiles.4h` (`symbols_only`).
+  4s taraması tüm semboller için (00/04/08/12/16/20 UTC kapanışları = 03:01, 07:01 … TSİ). BTC ve ETH sinyallerinde
+  renkli bant (BTC 🟧, ETH 🟦). 5dk taraması (sadece BTC/ETH) kapalı: runner.py `ENABLE_5M`.
   Döngü ~6 saatte bir kendini yeniden başlatır; durursa yedek zamanlayıcı 20 dk içinde tekrar başlatır.
   `config.json` değişiklikleri en geç 15 dk içinde geçerli olur. Repo public olduğu için Actions dakikaları sınırsız.
 - 🔁 Commit koruması (`keepalive.yml`): ayda bir otomatik commit, böylece GitHub 60 gün kuralıyla zamanlanmış görevleri durdurmaz.

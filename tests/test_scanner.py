@@ -273,7 +273,7 @@ def test_btc_eth_profiles():
     cfg = scanner.load_json(scanner.CONFIG_PATH, None)
     for tf, ms in (("5m", 300_000), ("4h", 14_400_000)):
         c = scanner.apply_tf_profile(cfg, tf)
-        assert c["symbols_only"] == ["BTCUSDT", "ETHUSDT"] and scanner.tf_ms(c) == ms
+        assert c.get("symbols_only") == (["BTCUSDT", "ETHUSDT"] if tf == "5m" else None) and scanner.tf_ms(c) == ms
         t0 = 1_790_000_000_000 // 86_400_000 * 86_400_000
         cs = [{"t": t0 + k * ms, "o": 100 + k, "h": 101 + k, "l": 99 + k, "c": 100.5 + k, "v": 1.0} for k in range(400)]
         f = scanner.compute_features(cs, c)

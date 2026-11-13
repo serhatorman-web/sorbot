@@ -2,7 +2,7 @@
   "_aciklama": "Tüm ayarlar burada. Değiştirip commit etmeniz yeterli, bir sonraki taramada geçerli olur.",
   "timeframe": "1h",
   "tf_profiles": {
-    "_aciklama": "SORBOT_TF ile seçilen zaman dilimi ayarları (ana ayarların üzerine yazılır). 5m ve 4h sadece BTC ve ETH (symbols_only). Üst zaman dilimi = 4 x ana.",
+    "_aciklama": "SORBOT_TF ile seçilen zaman dilimi ayarları (ana ayarların üzerine yazılır). 4h tüm semboller; 5m sadece BTC/ETH (şu an kapalı, runner.py ENABLE_5M). Üst zaman dilimi = 4 x ana.",
     "15m": {
       "timeframe": "15m",
       "state_file": "state_15m.json",
@@ -36,10 +36,6 @@
     "4h": {
       "timeframe": "4h",
       "state_file": "state_4h.json",
-      "symbols_only": [
-        "BTCUSDT",
-        "ETHUSDT"
-      ],
       "signal_supertrend": {
         "cooldown_hours": 4
       },
