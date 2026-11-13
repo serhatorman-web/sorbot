@@ -53,7 +53,10 @@ Her saat başı (1s taramasından hemen sonra) Telegram'a tek, düzenli bir **�
 - **🌍 Piyasalar:** borsalar (Dow, S&P 500, Nasdaq 100, BIST 100, Nikkei, DAX, FTSE, CAC, Hang Seng, Şanghay, KOSPI),
   metaller/emtia (spot altın, gram altın, gümüş, platin, paladyum, Brent, WTI, doğalgaz, bakır) ve döviz (DXY, USD/TRY, EUR/TRY);
   günlük değişim 🟢 yükseliş / 🔴 düşüş, piyasa Açık/Kapalı. Spot metal fiyatları Binance emtia endeksinden, diğerleri Yahoo Finance'ten.
-- **📊 Açıklanan veriler (son 1 saat):** ABD ve Türkiye'nin orta/yüksek önemli verileri – gerçekleşen, beklenti,
+- **📢 Anlık veri bildirimi:** bot her dakika takvimi kontrol eder; veri açıklandığı anda (1–2 dk içinde) ayrı mesaj gelir:
+  gerçekleşen/beklenti/önceki, yorum ve etki (ABD: kripto, altın, faiz indirimi, dolar · Türkiye: TCMB faiz indirimi, TL ·
+  Euro Bölgesi/Almanya/İngiltere/Japonya: yerel MB faiz indirimi, yerel para, dolar · Çin: kripto, petrol ve emtia).
+- **📊 Açıklanan veriler (son 1 saat):** ABD ve Türkiye'nin orta/yüksek, Euro Bölgesi, Almanya, İngiltere, Japonya ve Çin'in yüksek önemli verileri – gerçekleşen, beklenti,
   önceki ve 🟢/🔴 beklentiye göre ekonomi açısından yorum (TradingView ekonomik takvim, Türkçe veri adları).
   ABD verilerinde ayrıca 💡 sebep ve **kripto / altın / faiz indirimi** için 🟢 olumlu / 🔴 olumsuz etki:
   yüksek enflasyon veya güçlü ekonomi → Fed şahin → olumsuz; düşük enflasyon, zayıf ekonomi, yüksek işsizlik → olumlu.
