@@ -362,6 +362,11 @@ def test_own_tf_alignment():
     assert o({"tf": {"15m": -1}}, "long", c15).startswith("🔴 <b>Uyarı")
     assert o({"tf": {"15m": 1}}, "short", c15).startswith("🔴 <b>Uyarı")
     assert o({}, "long", {"timeframe": "1h"}) is None
+    up = o({"tf": {"15m": 1, "1h": -1, "4h": -1, "1d": 1}}, "long", c15)
+    assert up == ("🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle (15dk) uyumlu ama üst zaman dilimleriyle "
+                  "(1 saat, 4 saat) uyumlu değil</b>")
+    assert o({"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1}}, "long", c15).startswith("🟢 Sinyal kendi")
+    assert "1 gün" in o({"tf": {"1h": -1, "4h": -1, "1d": 1}}, "short", {"timeframe": "1h"})
 
 
 def test_econ_bulletin():

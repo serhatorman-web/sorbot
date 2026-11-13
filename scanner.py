@@ -1059,6 +1059,14 @@ def own_tf_alignment_line(res, direction, cfg):
     s = 1 if direction == "long" else -1
     icon = {1: "🟢", -1: "🔴", 0: "⚪"}[t]
     if t == s:
+        # kendi zaman dilimi uyumlu; daha üst zaman dilimlerinden ters olan var mı?
+        rows = [k for k, _ in res.get("tf_rows", TF_ROWS)]
+        names = dict(res.get("tf_rows", TF_ROWS))
+        higher = rows[rows.index(tf_key) + 1:] if tf_key in rows else []
+        against = [names[k] for k in higher if (res.get("tf") or {}).get(k) == -s]
+        if against:
+            return (f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu ama üst zaman dilimleriyle "
+                    f"({', '.join(against)}) uyumlu değil</b>")
         return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
