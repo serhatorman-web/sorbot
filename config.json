@@ -36,7 +36,8 @@
     "_aciklama": "COIN = kripto, EQUITY = ABD hisseleri. İsterseniz COMMODITY (altın, petrol), HK_EQUITY, KR_EQUITY, FX de eklenebilir.",
     "include_types": [
       "COIN",
-      "EQUITY"
+      "EQUITY",
+      "COMMODITY"
     ],
     "exclude_symbols": [
       "USDCUSDT",
@@ -110,7 +111,8 @@
       "COIN": 5000000,
       "EQUITY": 1000000,
       "default": 2000000,
-      "EQUITY_closed": 100000
+      "EQUITY_closed": 100000,
+      "COMMODITY": 1000000
     },
     "_equity_closed_aciklama": "ABD borsası kapalıyken ve hafta sonu hisseler için 24s hacim eşiği (EQUITY_closed). Böylece listedeki hisseler 7/24 taranır, Supertrend sinyalleri gelir."
   },
@@ -135,7 +137,8 @@
     "_aciklama": "Mesajdaki likidite: 24s işlem hacmi bu değerin üstündeyse Yüksek, altındaysa Düşük. Hisselerde ABD borsası kapalıyken her zaman Düşük.",
     "high_volume_usd": {
       "COIN": 50000000,
-      "EQUITY": 5000000
+      "EQUITY": 5000000,
+      "COMMODITY": 50000000
     }
   },
   "market_leaders": {

@@ -66,6 +66,21 @@ def apply_tf_profile(cfg, tf):
             out[k] = v
     return out
 
+PRECIOUS_METALS = {"XAUUSDT": "Altın", "XAGUSDT": "Gümüş", "XPTUSDT": "Platin", "XPDUSDT": "Paladyum"}
+COMMODITY_NAMES = {**PRECIOUS_METALS, "CLUSDT": "WTI Petrol", "BZUSDT": "Brent Petrol",
+                   "NATGASUSDT": "Doğal Gaz", "COPPERUSDT": "Bakır"}
+
+
+def type_label(meta):
+    """Mesaj başlığındaki tür: Kripto / Hisse / Değerli Metal (Altın) / Emtia (Brent Petrol)."""
+    sym, typ = meta["symbol"], meta["type"]
+    if typ == "COMMODITY":
+        kind = "Değerli Metal" if sym in PRECIOUS_METALS else "Emtia"
+        name = COMMODITY_NAMES.get(sym)
+        return f"{kind} ({name})" if name else kind
+    return TYPE_LABEL.get(typ, typ)
+
+
 TYPE_LABEL = {"COIN": "Kripto", "EQUITY": "Hisse", "COMMODITY": "Emtia",
               "HK_EQUITY": "HK Hisse", "KR_EQUITY": "KR Hisse", "FX": "Döviz"}
 
@@ -1082,7 +1097,7 @@ def build_message(res, direction, cfg, now_utc):
         if extra_line:
             score_line += "\n\n" + extra_line
     lines = [
-        f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
+        f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         "",
         score_line,
         "",
@@ -1149,7 +1164,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
     else:
         head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
-    lines = [f"{head} · <b>{meta['symbol']}</b> · {TYPE_LABEL.get(meta['type'], meta['type'])} · {cfg['timeframe']}",
+    lines = [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
              f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
     if res.get("votes"):

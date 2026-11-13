@@ -115,6 +115,8 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 **BTC'den ayrışan coinler:** BTC güçlü ters yöndeyken bile, son 24 saatte BTC'den en az %5 ayrışan, dönüş mumunda hacmi
 ≥1.5x olan ve kendi 4s trendi ters olmayan semboller için sinyal gelir (mesajda "🚀 BTC'den ayrışıyor" notu, `decoupling`).
 
+**Emtia ve değerli metaller (`COMMODITY`):** XAU, XAG, XPT, XPD, WTI (CL), Brent (BZ), doğal gaz, bakır; başlıkta "Değerli Metal (Altın)" / "Emtia (Brent Petrol)". Piyasa lideri yok (kendi 4s trendi).
+
 **Pump/Dump radarı (kripto + hisse, `pump_radar.types`):** Supertrend'den bağımsız ayrı mesajlar:
 - 🚀/💥 **PUMP/DUMP BAŞLIYOR:** Bollinger sıkışmasından hacim patlamasıyla 20 mumluk direnç/destek kırılımı (giriş/TP/stop ile).
   Zaten %10 (3s) / %25 (24s) hareket etmiş coinler "geç kalınmış" sayılıp elenir.
