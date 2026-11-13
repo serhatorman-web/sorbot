@@ -1036,7 +1036,7 @@ def technical_rating(votes):
 
 def trend_alignment_line(res, direction):
     """Trend tablosundaki zaman dilimlerinin (15dk/1s/4s/1g) hepsi sinyalle aynı yöndeyse 'uyumlu',
-    hepsi ters yöndeyse 'uyumlu değil' uyarısı; karışıksa boş. İkon işlem yönüne göre (LONG 🟢, SHORT 🔴)."""
+    hepsi ters yöndeyse 'uyumsuz' uyarısı; karışıksa boş. İkon işlem yönüne göre (LONG 🟢, SHORT 🔴)."""
     tf = res.get("tf") or {}
     dirs = [tf.get(k) for k, _ in res.get("tf_rows", TF_ROWS) if tf.get(k) is not None]
     if len(dirs) < 3:
@@ -1046,7 +1046,7 @@ def trend_alignment_line(res, direction):
     if all(d == s for d in dirs):
         return f"{icon} <b>Bu işlem trend ile uyumlu</b>"
     if all(d == -s for d in dirs):
-        return "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+        return "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
     return None
 
 
@@ -1071,7 +1071,7 @@ def own_tf_alignment_line(res, direction, cfg):
                     f"({', '.join(against)}) uyumsuz</b>")
         return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
-        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu değil</b>"
+        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumsuz</b>"
     return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
 
 

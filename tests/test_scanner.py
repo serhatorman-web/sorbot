@@ -344,10 +344,10 @@ def test_technical_rating():
 def test_trend_alignment():
     t = lambda a, b, c, d: {"tf": {"15m": a, "1h": b, "4h": c, "1d": d}}
     al = scanner.trend_alignment_line
-    assert al(t(-1, -1, -1, -1), "long") == "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+    assert al(t(-1, -1, -1, -1), "long") == "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
     assert al(t(1, 1, 1, 1), "long") == "🟢 <b>Bu işlem trend ile uyumlu</b>"
     assert al(t(-1, -1, -1, -1), "short") == "🔴 <b>Bu işlem trend ile uyumlu</b>"
-    assert al(t(1, 1, 1, 1), "short") == "🔴 <b>Uyarı: Bu işlem trend ile uyumlu değil</b>"
+    assert al(t(1, 1, 1, 1), "short") == "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
     assert al(t(1, -1, -1, -1), "long") is None
     assert al(t(-1, -1, -1, None), "long") is not None
     assert al({}, "long") is None
