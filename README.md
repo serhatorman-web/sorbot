@@ -92,9 +92,10 @@ Her taramadan sonra Telegram'a:
 **🗓 Günün Ekonomik Takvimi** – her sabah 09:00'dan sonraki ilk taramada (ForexFactory; USD, EUR, CNY, GBP, JPY,
 orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "gerçekleşen" değeri vermez.
 
-## Aktif strateji: TrendFlex_Algo + indikatör teyidi (`"strategy": "supertrend"`, `"signal_trigger": "trendflex"`)
+## Aktif strateji: Supertrend (10, 3) + indikatör teyidi (`"strategy": "supertrend"`, `"signal_trigger": "supertrend"`)
 
-1. Her saat (ve 15 dakikada), kapanan mumda **TrendFlex_Algo _BUY / SELL etiketi çıktı mı** diye bakılır: kapanış, kapanış fiyatı üzerinden hesaplanan Supertrend'i (hassasiyet 4, ATR 11) yukarı keser ve SMA13'ün üstündeyse AL; aşağı keser ve SMA13'ün altındaysa SAT. Etiket yoksa sinyal yoktur. (Eski Supertrend 10/3 dönüşü için `"signal_trigger": "supertrend"`.)
+1. Kapanan mumda **Supertrend (10, 3) AL'a veya SAT'a döndü mü** diye bakılır (trendi erken yakalar); TrendFlex_Algo
+   indikatör listesinde oy verir. `"signal_trigger": "trendflex"` yapılırsa tetik TrendFlex _BUY / SELL etiketi olur: kapanış, kapanış fiyatı üzerinden hesaplanan Supertrend'i (hassasiyet 4, ATR 11) yukarı keser ve SMA13'ün üstündeyse AL; aşağı keser ve SMA13'ün altındaysa SAT. Etiket yoksa sinyal yoktur. (Eski Supertrend 10/3 dönüşü için `"signal_trigger": "supertrend"`.)
 2. Dönüş varsa diğer indikatörlerin AL/SAT durumu oylanır:
    RSI (50 üstü/altı), StochRSI (K/D), MACD (sinyal çizgisi), Momentum, fiyatın EMA20/50/200 ve MA50/200'e göre konumu,
    ADX (+DI/−DI), OBV (ortalamasına göre), CCI (0), VWAP, Hacim (ortalama üstü hacimde mumun yönü),
