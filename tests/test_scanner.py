@@ -381,7 +381,21 @@ def test_asset_impact():
     assert econ.asset_impact(us("Initial Jobless Claims", 180, 195))["hawkish"]
     assert econ.asset_impact(us("Fed Interest Rate Decision", 4.5, 4.25))["hawkish"]
     assert econ.asset_impact(us("EIA Crude Oil Stocks Change", 3, -1)) is None
-    assert econ.asset_impact(dict(us("Inflation Rate YoY", 3.4, 3.1), country="TR")) is None
+    assert i["items"][3] == ("🟢", "Dolar için olumlu")              # ABD enflasyonu yüksek → dolar güçlenir
+    tr = econ.asset_impact(dict(us("Inflation Rate YoY", 3.4, 3.1), country="TR"))
+    assert tr["items"] == [("🔴", "Faiz indirimi (TCMB) için olumsuz"), ("🔴", "TL için olumsuz")]
+    tr = econ.asset_impact(dict(us("Interest Rate Decision", 40, 38), country="TR"))
+    assert tr["items"][1] == ("🟢", "TL için olumlu")                 # faiz beklentiden yüksek → TL olumlu
+    eu = econ.asset_impact(dict(us("Inflation Rate YoY", 2.6, 2.2), country="EU"))
+    assert ("🟢", "Euro için olumlu") in eu["items"] and ("🔴", "Dolar için olumsuz") in eu["items"]
+    cn = econ.asset_impact(dict(us("GDP Growth Rate YoY", 5.4, 5.0), country="CN"))
+    assert cn["items"][0] == ("🟢", "Kripto için olumlu")
+    assert econ.asset_impact(dict(us("Inflation Rate YoY", 1, 0.5), country="CN")) is None
+    import report
+    msg = report.release_alert_message([dict(us("Inflation Rate YoY", 3.4, 3.1), id="x", tr="TÜFE (Yıllık)",
+        importance=1, previous=3.0, unit="%", scale="", dt=__import__("datetime").datetime(2026, 11, 13, 13, 30,
+        tzinfo=__import__("datetime").timezone.utc))])
+    assert "VERİ AÇIKLANDI" in msg and "Dolar için olumlu" in msg and "16:30" in msg
     assert econ.asset_impact(us("Retail Sales MoM", 0.3, 0.3)) is None
 
 

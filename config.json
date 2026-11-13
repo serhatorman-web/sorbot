@@ -200,7 +200,12 @@
     },
     "calendar_countries": [
       "US",
-      "TR"
+      "TR",
+      "EU",
+      "DE",
+      "GB",
+      "JP",
+      "CN"
     ],
     "calendar_min_importance": 0,
     "market_hourly": true,
@@ -226,7 +231,15 @@
     "etf_alerts": true,
     "etf_alert_btc_musd": 100,
     "etf_alert_eth_musd": 50,
-    "etf_alert_fund_musd": 20
+    "etf_alert_fund_musd": 20,
+    "calendar_min_importance_by_country": {
+      "US": 0,
+      "TR": 0,
+      "default": 1
+    },
+    "release_alerts": true,
+    "release_alert_window_min": 60,
+    "_calendar_aciklama": "Takvim ülkeleri: ABD, Türkiye, Euro Bölgesi, Almanya, İngiltere, Japonya, Çin. Önem: ABD ve Türkiye orta ve yüksek (0), diğerleri sadece yüksek (1). release_alerts: açıklanan veri dakikası içinde Telegram'a gelir."
   },
   "pump_radar": {
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",

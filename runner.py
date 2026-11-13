@@ -78,6 +78,15 @@ def report():
         log("bülten zaman aşımına uğradı")
 
 
+def release_check():
+    """Açıklanan ekonomik verileri anında Telegram'a gönderir (report.py, REPORT_MODE=releases)."""
+    env = dict(os.environ, REPORT_MODE="releases")
+    try:
+        subprocess.run([sys.executable, "report.py"], cwd=BASE, env=env, timeout=50)
+    except subprocess.TimeoutExpired:
+        log("anlık veri kontrolü zaman aşımına uğradı")
+
+
 def bulletin_due():
     """Son bülten 55 dakikadan eskiyse (veya hiç yoksa) True."""
     try:
@@ -101,6 +110,13 @@ def main():
     cur = (int(now) // STEP) * STEP + OFFSET
     nxt = now if cur <= now < cur + 120 else (int(now) // STEP + 1) * STEP + OFFSET
     while nxt <= deadline:
+        # Taramalar arasında her dakika açıklanan verileri kontrol et (dakikanın 20. saniyesinde)
+        while True:
+            nm = (int(time.time()) // 60 + 1) * 60 + 20
+            if nm >= nxt - 5:
+                break
+            time.sleep(max(0, nm - time.time()))
+            release_check()
         wait = nxt - time.time()
         if wait > 0:
             time.sleep(wait)
@@ -114,6 +130,7 @@ def main():
             report()
         if ENABLE_5M:
             scan("5m")          # 5 dakikalık tarama (şu an kapalı)
+        release_check()
         nxt = (int(time.time()) // STEP + 1) * STEP + OFFSET
     log("Süre doldu, döngü bitiyor (workflow yeniden başlatacak)")
 

@@ -784,6 +784,44 @@ def collect_news(feeds, state, rcfg, now_utc):
     return new_by_cat, seen_now, sum(len(v) for v in feed_items.values())
 
 
+def min_importance(rcfg, country):
+    """Ülkeye göre en düşük önem: config report.calendar_min_importance_by_country (yoksa genel değer)."""
+    by = rcfg.get("calendar_min_importance_by_country") or {}
+    return by.get(country, by.get("default", rcfg.get("calendar_min_importance", 0)))
+
+
+def release_alert_message(events):
+    """Açıklanan veri(ler) için anlık mesaj – bültendeki 'Açıklanan veriler' formatıyla."""
+    head = "📢 <b>VERİ AÇIKLANDI</b>"
+    return "\n".join([head, ""] + released_block(events) + ["", "Yatırım tavsiyesi değildir."])
+
+
+def run_release_alerts(cfg, rcfg, notifier, state):
+    """Her dakika çağrılır: yeni açıklanan verileri (gerçekleşen değeri gelmiş) hemen Telegram'a gönderir."""
+    now_utc = datetime.now(timezone.utc)
+    countries = tuple(rcfg.get("calendar_countries", ["US", "TR"]))
+    try:
+        events = econ.fetch_events(now_utc - timedelta(hours=2), now_utc + timedelta(minutes=5), countries)
+    except Exception as e:  # noqa: BLE001
+        print(f"  [uyarı] takvim alınamadı: {e}")
+        return
+    alerted = set(state.get("alerted_events", []))
+    window = timedelta(minutes=rcfg.get("release_alert_window_min", 60))
+    new = [e for e in events if e["actual"] is not None and now_utc - window <= e["dt"] <= now_utc
+           and e["importance"] >= min_importance(rcfg, e["country"]) and e["id"] not in alerted]
+    if not new:
+        return
+    text = sc.plain_font(release_alert_message(new))
+    if os.environ.get("PREVIEW") == "1":
+        text = "🧪 <b>TEST · ÖNİZLEME</b>\n\n" + text
+    ok = True
+    for part in split_message(text):
+        ok = notifier.send(part) and ok
+    if ok:
+        state["alerted_events"] = (list(alerted) + [e["id"] for e in new])[-500:]
+    print(f"Anlık veri: {len(new)} veri gönderildi: " + ", ".join(f"{e['country']} {e['title']}" for e in new))
+
+
 def run_bulletin(cfg, rcfg, notifier, state):
     now_utc = datetime.now(timezone.utc)
     now_tr = now_utc.astimezone(TR_TZ)
@@ -808,14 +846,15 @@ def run_bulletin(cfg, rcfg, notifier, state):
     released, upcoming = [], []
     if events is not None:
         released = [e for e in events if e["actual"] is not None and last < e["dt"] <= now_utc
-                    and e["importance"] >= min_imp and e["id"] not in sent_ids]
+                    and e["importance"] >= min_importance(rcfg, e["country"]) and e["id"] not in sent_ids]
         horizon = now_utc + timedelta(hours=rcfg.get("calendar_lookahead_hours", 3))
-        upcoming = [e for e in events if now_utc < e["dt"] <= horizon and e["importance"] >= min_imp]
+        upcoming = [e for e in events if now_utc < e["dt"] <= horizon and e["importance"] >= min_importance(rcfg, e["country"])]
 
     messages = []
     day_key = now_tr.strftime("%Y-%m-%d")
     if events is not None and now_tr.hour >= rcfg.get("calendar_daily_hour", 9) and state.get("calendar_day") != day_key:
-        todays = [e for e in events if e["dt"].astimezone(TR_TZ).date() == now_tr.date() and e["importance"] >= min_imp]
+        todays = [e for e in events if e["dt"].astimezone(TR_TZ).date() == now_tr.date()
+                  and e["importance"] >= min_importance(rcfg, e["country"])]
         messages.append(("calendar", morning_calendar_message(now_tr, todays)))
     b = bulletin_message(now_tr, released, upcoming, news, rcfg, markets)
     if b:
@@ -855,6 +894,11 @@ def main():
     notifier = sc.Notifier()
     state = sc.load_json(STATE_PATH, {"seen": {}, "calendar_day": ""})
     state.setdefault("seen", {})
+    if os.environ.get("REPORT_MODE") == "releases":
+        run_release_alerts(cfg, rcfg, notifier, state)
+        if not notifier.dry:
+            sc.save_json(STATE_PATH, state)
+        return 0
     if rcfg.get("mode") == "bulletin":
         if os.environ.get("PREVIEW") == "1":
             # Önizleme: kayıt kullanılmaz/yazılmaz; son 3 saatin verileri, haberleri ve günün takvimi gelir

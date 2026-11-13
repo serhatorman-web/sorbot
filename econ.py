@@ -250,33 +250,66 @@ INFLATION = re.compile(r"inflation|cpi|ppi|pce|price index|prices|earnings|wage|
 LABOR_WEAK = re.compile(r"unemploy|jobless|claims|job cuts", re.IGNORECASE)
 
 
-def asset_impact(e):
-    """ABD verisinin beklentiye göre sürprizini kripto, altın ve faiz indirimi açısından yorumlar.
-    Döner: {"hawkish": bool, "reason": str, "items": [(ikon, metin), ...]} veya None."""
-    if e.get("country") != "US":
-        return None
+CENTRAL_BANK = {"US": "Fed", "TR": "TCMB", "EU": "ECB", "DE": "ECB", "GB": "İngiltere MB", "JP": "Japonya MB"}
+LOCAL_CCY = {"EU": "Euro", "DE": "Euro", "GB": "Sterlin", "JP": "Yen"}
+
+
+def _surprise(e):
+    """Beklentiye göre sürprizin yönü: (hawkish, sebep metni) veya None."""
     a, f, title = e.get("actual"), e.get("forecast"), e.get("title", "")
     if not isinstance(a, (int, float)) or not isinstance(f, (int, float)) or a == f:
         return None
     higher = a > f
     if RATE_DECISION.search(title):
-        hawkish = higher
-        reason = "Fed faizi beklentiden " + ("yüksek" if higher else "düşük")
-    elif NO_ANALYSIS.search(title):
+        return higher, "Faiz kararı beklentiden " + ("yüksek" if higher else "düşük"), "rate"
+    if NO_ANALYSIS.search(title):
         return None
-    elif INFLATION.search(title):
-        hawkish = higher
-        reason = "Enflasyon beklentiden " + ("yüksek" if higher else "düşük")
-    elif LABOR_WEAK.search(title):
-        hawkish = not higher
-        reason = "İşgücü piyasası beklentiden " + ("zayıf" if higher else "güçlü")
+    if INFLATION.search(title):
+        return higher, "Enflasyon beklentiden " + ("yüksek" if higher else "düşük"), "inflation"
+    if LABOR_WEAK.search(title):
+        return (not higher), "İşgücü piyasası beklentiden " + ("zayıf" if higher else "güçlü"), "growth"
+    return higher, "Ekonomi beklentiden " + ("güçlü" if higher else "zayıf"), "growth"
+
+
+def _item(good, text):
+    return ("🟢", f"{text} için olumlu") if good else ("🔴", f"{text} için olumsuz")
+
+
+def asset_impact(e):
+    """Verinin beklentiye göre sürprizini piyasalar açısından yorumlar.
+    ABD : kripto, altın, Fed faiz indirimi, dolar
+    TR  : TCMB faiz indirimi, TL
+    Euro Bölgesi / Almanya / İngiltere / Japonya : yerel merkez bankası faiz indirimi, yerel para, dolar
+    Çin : (büyüme verileri) kripto, petrol/emtia
+    Döner: {"hawkish": bool, "reason": str, "items": [(ikon, metin), ...]} veya None."""
+    c = e.get("country")
+    sp = _surprise(e)
+    if not sp:
+        return None
+    hawkish, reason, kind = sp
+    cb = CENTRAL_BANK.get(c)
+    if c == "US":
+        if kind == "rate":
+            reason = "Fed faizi beklentiden " + ("yüksek" if hawkish else "düşük") + \
+                     " → para politikası " + ("beklenenden sıkı" if hawkish else "beklenenden gevşek")
+        else:
+            reason += " → Fed'in faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
+        items = [_item(not hawkish, "Kripto"), _item(not hawkish, "Altın"),
+                 _item(not hawkish, "Faiz indirimi"), _item(hawkish, "Dolar")]
+    elif c == "TR":
+        reason += " → TCMB'nin faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
+        # faiz yüksek / büyüme güçlü → TL olumlu; enflasyon yüksek → TL olumsuz
+        tl_good = (not hawkish) if kind == "inflation" else hawkish
+        items = [_item(not hawkish, "Faiz indirimi (TCMB)"), _item(tl_good, "TL")]
+    elif c in LOCAL_CCY:
+        reason += f" → {cb}'nin faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
+        items = [_item(not hawkish, f"Faiz indirimi ({cb})"), _item(hawkish, LOCAL_CCY[c]), _item(not hawkish, "Dolar")]
+    elif c == "CN":
+        if kind != "growth":
+            return None
+        strong = hawkish
+        reason += " → küresel risk iştahı ve emtia talebi " + ("artar" if strong else "azalır")
+        items = [_item(strong, "Kripto"), _item(strong, "Petrol ve emtia")]
     else:
-        hawkish = higher
-        reason = "Ekonomi beklentiden " + ("güçlü" if higher else "zayıf")
-    if RATE_DECISION.search(title):
-        reason += " → para politikası " + ("beklenenden sıkı" if hawkish else "beklenenden gevşek")
-    else:
-        reason += " → Fed'in faiz indirme ihtimali " + ("azalır" if hawkish else "artar")
-    icon, word = ("🔴", "olumsuz") if hawkish else ("🟢", "olumlu")
-    return {"hawkish": hawkish, "reason": reason,
-            "items": [(icon, f"Kripto için {word}"), (icon, f"Altın için {word}"), (icon, f"Faiz indirimi için {word}")]}
+        return None
+    return {"hawkish": hawkish, "reason": reason, "items": items}
