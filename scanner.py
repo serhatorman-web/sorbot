@@ -71,6 +71,19 @@ COMMODITY_NAMES = {**PRECIOUS_METALS, "CLUSDT": "WTI Petrol", "BZUSDT": "Brent P
                    "NATGASUSDT": "Doğal Gaz", "COPPERUSDT": "Bakır"}
 
 
+# BTC ve ETH sinyalleri renkli bantla ayrışır (Telegram'da arka plan rengi değiştirilemiyor)
+BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("🟦", "Ξ <b>ETHEREUM SİNYALİ</b>")}
+TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
+
+
+def banner_lines(meta, cfg):
+    b = BANNERS.get(meta["symbol"])
+    if not b:
+        return []
+    bar = b[0] * 10
+    return [bar, f"{b[1]} · {TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}", bar, ""]
+
+
 def type_label(meta):
     """Mesaj başlığındaki tür: Kripto / Hisse / Değerli Metal (Altın) / Emtia (Brent Petrol)."""
     sym, typ = meta["symbol"], meta["type"]
@@ -863,7 +876,7 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
     candles = {base_tf: [{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
-    for tf in dict.fromkeys([x for x, _ in TF_ROWS] + list(DIV_TFS)):
+    for tf in dict.fromkeys([base_tf] + [x for x, _ in TF_ROWS] + list(DIV_TFS)):
         if tf in candles:
             continue
         try:
@@ -871,7 +884,9 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
             candles[tf] = parse_klines(raw, now_ms)
         except Exception:  # noqa: BLE001
             candles[tf] = []
-    res["tf"] = {tf: tf_trend(candles.get(tf, [])) for tf, _ in TF_ROWS}
+    rows = TF_ROWS if any(k == base_tf for k, _ in TF_ROWS) else ((base_tf, TF_NAMES.get(base_tf, base_tf)),) + TF_ROWS
+    res["tf_rows"] = rows
+    res["tf"] = {tf: tf_trend(candles.get(tf, [])) for tf, _ in rows}
     pos, neg = [], []
     for tf in DIV_TFS:
         cs = candles.get(tf, [])
@@ -992,7 +1007,7 @@ def tf_table_html(res):
     tf = res.get("tf")
     if not tf:
         return ""
-    rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in TF_ROWS]
+    rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in res.get("tf_rows", TF_ROWS)]
     return "\n".join(["📊 <b>TREND TABLOSU</b>", ""] + rows)
 
 
@@ -1021,7 +1036,7 @@ def trend_alignment_line(res, direction):
     """Trend tablosundaki zaman dilimlerinin (15dk/1s/4s/1g) hepsi sinyalle aynı yöndeyse 'uyumlu',
     hepsi ters yöndeyse 'uyumlu değil' uyarısı; karışıksa boş. İkon işlem yönüne göre (LONG 🟢, SHORT 🔴)."""
     tf = res.get("tf") or {}
-    dirs = [tf.get(k) for k, _ in TF_ROWS if tf.get(k) is not None]
+    dirs = [tf.get(k) for k, _ in res.get("tf_rows", TF_ROWS) if tf.get(k) is not None]
     if len(dirs) < 3:
         return None
     s = 1 if direction == "long" else -1
@@ -1095,7 +1110,7 @@ def build_message(res, direction, cfg, now_utc):
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             score_line += "\n\n" + extra_line
-    lines = [
+    lines = banner_lines(meta, cfg) + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         "",
         score_line,
@@ -1163,7 +1178,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
     else:
         head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
-    lines = [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
+    lines = banner_lines(meta, cfg) + [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
              f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
     if res.get("votes"):
@@ -1323,6 +1338,8 @@ def main():
 
     try:
         universe, all_meta, tickers, funding = build_universe(api, cfg)
+        if cfg.get("symbols_only"):          # ör. 5dk ve 4s: sadece BTC ve ETH
+            universe = [m for m in universe if m["symbol"] in cfg["symbols_only"]]
     except Exception as e:  # noqa: BLE001
         print(f"HATA: Binance'e erişilemedi: {e}", file=sys.stderr)
         last = state["alerts"].get("binance_down", 0)

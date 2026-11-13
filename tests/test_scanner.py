@@ -269,6 +269,31 @@ def test_15m_profile():
             os.remove(p15)
 
 
+def test_btc_eth_profiles():
+    cfg = scanner.load_json(scanner.CONFIG_PATH, None)
+    for tf, ms in (("5m", 300_000), ("4h", 14_400_000)):
+        c = scanner.apply_tf_profile(cfg, tf)
+        assert c["symbols_only"] == ["BTCUSDT", "ETHUSDT"] and scanner.tf_ms(c) == ms
+        t0 = 1_790_000_000_000 // 86_400_000 * 86_400_000
+        cs = [{"t": t0 + k * ms, "o": 100 + k, "h": 101 + k, "l": 99 + k, "c": 100.5 + k, "v": 1.0} for k in range(400)]
+        f = scanner.compute_features(cs, c)
+        assert f["h4_st"][-1] == 1
+        os.environ["SORBOT_TF"] = tf
+        os.environ["DRY_RUN"] = "1"
+        scanner.Binance = FakeAPI
+        try:
+            assert scanner.main() == 0
+        finally:
+            del os.environ["SORBOT_TF"]
+            pth = os.path.join(scanner.BASE_DIR, "state", c["state_file"])
+            if os.path.exists(pth):
+                os.remove(pth)
+    b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "5m"})
+    assert b[0] == "🟧" * 10 and "BITCOIN SİNYALİ" in b[1] and "5dk" in b[1]
+    assert scanner.banner_lines({"symbol": "ETHUSDT"}, {"timeframe": "4h"})[0] == "🟦" * 10
+    assert scanner.banner_lines({"symbol": "SOLUSDT"}, {"timeframe": "1h"}) == []
+
+
 def test_rsi_divergence():
     c, p = [], 100.0
     for k in range(40): p -= 0.8; c.append(p)

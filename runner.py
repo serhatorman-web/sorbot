@@ -19,7 +19,7 @@ import time
 from datetime import datetime, timezone
 
 QUARTER = 900
-ENABLE_5M = False   # 5 dakikalık sinyaller kullanıcı isteğiyle kapalı
+ENABLE_5M = True    # 5 dakikalık tarama – sadece BTC ve ETH (config tf_profiles.5m.symbols_only)
 STEP = 300 if ENABLE_5M else QUARTER
 OFFSET = int(os.environ.get("SORBOT_OFFSET_SEC", "60"))           # mum kapanışından sonra bekleme
 LOOP_MINUTES = int(os.environ.get("SORBOT_LOOP_MINUTES", "340"))  # GitHub iş sınırı 360 dk
@@ -56,7 +56,7 @@ def git_pull():
 
 def scan(tf):
     env = dict(os.environ)
-    if tf in ("5m", "15m"):
+    if tf in ("5m", "15m", "4h"):
         env["SORBOT_TF"] = tf
     else:
         env.pop("SORBOT_TF", None)
@@ -127,9 +127,12 @@ def main():
             scan("15m")
         if minute == 0:
             scan("1h")
+            hour = datetime.fromtimestamp(boundary, timezone.utc).hour
+            if hour % 4 == 0:
+                scan("4h")      # 4 saatlik – sadece BTC ve ETH
             report()
         if ENABLE_5M:
-            scan("5m")          # 5 dakikalık tarama (şu an kapalı)
+            scan("5m")          # 5 dakikalık tarama – sadece BTC ve ETH
         release_check()
         nxt = (int(time.time()) // STEP + 1) * STEP + OFFSET
     log("Süre doldu, döngü bitiyor (workflow yeniden başlatacak)")
