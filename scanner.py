@@ -988,10 +988,14 @@ def volume_profile_lines(res, cfg):
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     out = [f"📊 <b>Hacim profili</b> · {span}"]
-    for name in ("VAH", "POC", "VAL"):
-        ev = evs.get(name)
-        if not ev:
-            continue
+    # sadece fiyatın şu an bulunduğu (en yakın) seviye yazılır
+    f, i = res.get("f"), res.get("i")
+    price = f["c"][i] if f else None
+    names = [n for n in ("VAH", "POC", "VAL") if n in evs]
+    if price is not None:
+        names = [min(names, key=lambda n: abs(evs[n]["level"] - price))]
+    for name in names:
+        ev = evs[name]
         head = f"{name} - fiyat {fmt_price(ev['level'], prec)} seviyesine ulaştı."
         if ev["state"] in ("up", "down"):
             icon = "🟢" if ev["state"] == "up" else "🔴"

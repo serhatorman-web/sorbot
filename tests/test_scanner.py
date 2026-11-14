@@ -508,6 +508,9 @@ def test_volume_profile_retest():
     assert lines[1] == "🔴 VAH - fiyat " + scanner.fmt_price(71350.0, 1) + " seviyesine ulaştı. Retest yapıldı, düşüş bekleniyor."
     assert lines[2].endswith("Retest yapıldı, yükseliş bekleniyor.") and lines[3].startswith("⚪ VAL")
     assert scanner.volume_profile_lines({"meta": {}}, {}) == []
+    res["f"] = {"c": [69600.0]}; res["i"] = 0          # fiyat POC yakınında → sadece POC
+    lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
+    assert len(lines) == 2 and "POC" in lines[1]
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
