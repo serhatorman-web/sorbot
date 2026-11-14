@@ -5,7 +5,7 @@ permissions:
 jobs:
   diag:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/vpcal3.py
+      - run: python3 tools/vpval.py

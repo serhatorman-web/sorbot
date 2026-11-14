@@ -203,7 +203,8 @@ def resample_4h(candles, base_ms=HOUR_MS):
         if len(g) != 4:
             continue
         out.append({"t": g[0]["t"], "o": g[0]["o"], "h": max(x["h"] for x in g),
-                    "l": min(x["l"] for x in g), "c": g[-1]["c"], "v": sum(x["v"] for x in g)})
+                    "l": min(x["l"] for x in g), "c": g[-1]["c"], "v": sum(x["v"] for x in g),
+                    "bv": sum(x.get("bv", 0.0) for x in g)})
     return out
 
 
@@ -216,7 +217,7 @@ def compute_features(candles, cfg):
     c = [c_["c"] for c_ in candles]
     v = [c_["v"] for c_ in candles]
 
-    f = {"t": t, "o": o, "h": h, "l": l, "c": c, "v": v}
+    f = {"t": t, "o": o, "h": h, "l": l, "c": c, "v": v, "bv": [c_.get("bv", c_["v"]) for c_ in candles]}
     f["rsi"] = ta.rsi(c, p["rsi"])
     f["srsi_k"], f["srsi_d"] = ta.stoch_rsi(c, *p["stoch_rsi"])
     f["macd"], f["macd_sig"], f["macd_hist"] = ta.macd(c, *p["macd"])
@@ -578,7 +579,8 @@ def required_ready(f, i=None):
 # --------------------------------------------------------------------------- #
 def parse_klines(raw, now_ms):
     return [{"t": int(k[0]), "o": float(k[1]), "h": float(k[2]), "l": float(k[3]),
-             "c": float(k[4]), "v": float(k[7])}           # v = USDT cinsinden hacim
+             "c": float(k[4]), "v": float(k[7]),            # v = USDT cinsinden hacim
+             "bv": float(k[5])}                                # bv = adet (coin/hisse) cinsinden hacim (TradingView ile aynı)
             for k in raw if int(k[6]) < now_ms]
 
 
@@ -923,14 +925,20 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
 
 
 def compute_volume_profile(res, cfg):
-    """Sinyal zaman diliminin son N mumundan hacim profili (VAH / POC / VAL)."""
+    """Sinyal zaman diliminden hacim profili (VAH / POC / VAL) – Teometric Demand Model V3 ile aynı pencere:
+    son `anchor_lookback` (300) mumdaki en yüksek tepe ve en düşük dipten hangisi daha eskiyse oradan bugüne
+    (yani son büyük salınımın tamamı). Hacim adet cinsinden (TradingView gibi).
+    window = "fixed" seçilirse eski davranış: son `lookback_bars` mum."""
     vp = cfg.get("volume_profile", {})
     if not vp.get("enabled", True):
         return
     f, i = res["f"], res["i"]
-    n = vp.get("lookback_bars", {}).get(cfg.get("timeframe", "1h"), 96)
-    a = max(0, i - n + 1)
-    out = ta.volume_profile(f["h"][a:i + 1], f["l"][a:i + 1], f["v"][a:i + 1],
+    if vp.get("window", "swing") == "swing":
+        a = ta.swing_anchor(f["h"][:i + 1], f["l"][:i + 1], vp.get("anchor_lookback", 300))
+    else:
+        a = max(0, i - vp.get("lookback_bars", {}).get(cfg.get("timeframe", "1h"), 150) + 1)
+    vol = f.get("bv") or f["v"]
+    out = ta.volume_profile(f["h"][a:i + 1], f["l"][a:i + 1], vol[a:i + 1],
                             vp.get("rows", 24), vp.get("value_area", 0.70))
     res["vp"] = out
     res["vp_ev"] = {}

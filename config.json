@@ -145,14 +145,16 @@
     "enabled": true
   },
   "volume_profile": {
-    "_aciklama": "Hacim profili: sinyal zaman diliminin son 150 mumu, 24 satır, %70 değer alanı; VAH/POC/VAL satır orta noktası. Kullanıcının TradingView'deki Teometric Demand Model V3 ayarlarıyla aynı (VP 150, Row 24, % 70).",
+    "window": "swing",
+    "anchor_lookback": 300,
+    "_aciklama": "Hacim profili (Teometric Demand Model V3 ile aynı): son 300 mumdaki en yüksek tepe / en düşük dipten hangisi daha eskiyse oradan son muma kadar, 24 satır, %70 değer alanı, adet cinsinden hacim; VAH/POC/VAL satır orta noktası. window=fixed seçilirse son lookback_bars mum kullanılır.",
     "enabled": true,
     "rows": 24,
     "value_area": 0.7,
     "lookback_bars": {
       "15m": 150,
       "1h": 150,
-      "4h": 250,
+      "4h": 150,
       "5m": 150
     },
     "retest_window": 10

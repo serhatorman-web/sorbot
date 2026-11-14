@@ -362,6 +362,16 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
     return check(lows, True), check(highs, False)
 
 
+def swing_anchor(high, low, lookback=300):
+    """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
+    Hacim profili bu mumdan son muma kadar hesaplanır."""
+    n = len(high)
+    s = max(0, n - lookback)
+    ih = max(range(s, n), key=lambda k: high[k])
+    il = min(range(s, n), key=lambda k: low[k])
+    return min(ih, il)
+
+
 def volume_profile(high, low, volume, rows=24, value_area=0.70):
     """Hacim profili (TradingView Volume Profile mantığı).
     Her mumun hacmi, mumun düşük–yüksek aralığına düşen satırlara orantılı dağıtılır.
