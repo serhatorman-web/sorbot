@@ -697,7 +697,7 @@ def test_early_criteria():
     c = [100.0 + (k % 5) * 0.2 for k in range(n)]
     f = {"o": list(c), "h": [x + 0.5 for x in c], "l": [x - 0.5 for x in c], "c": c, "v": [10.0] * n, "bv": [10.0] * n,
          "atr": [1.0] * n, "ema200": [110.0] * n, "h4_st": [1] * n}
-    f["l"][140] = 90.0; f["o"][140] = 95.0; f["c"][140] = 94.0      # dip mumu: uzun alt iğne, 100 mumun dibi süpürüldü
+    f["l"][140] = 90.0; f["o"][140] = 95.0; f["c"][140] = 94.0; f["h"][140] = 96.0      # dip mumu: uzun alt iğne, 100 mumun dibi süpürüldü
     ev = {"ext_i": 140, "cap": 139, "ext": 90.0}
     btc = {"c": [1, 2, 3, 4, 5.0], "st_dir": [1, 1, 1, 1, 1]}
     cr = scanner.early_criteria(f, n - 1, 1, ev, btc)
