@@ -1806,16 +1806,6 @@ def main():
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
                 print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']}) "
                       f"kalite {r.get('grade', '-')}")
-                if not notifier.dry:
-                    try:      # sinyal karnesi için kayıt
-                        import perf
-                        entry, sl, tps, _ = levels(r, d, cfg)
-                        grade, checks = quality_grade(r, d, cfg)
-                        tf_ms = perf.TF_MS.get(cfg["timeframe"], HOUR_MS)
-                        perf.record_signal(r["meta"]["symbol"], r["meta"]["type"], cfg["timeframe"], d,
-                                           r["f"]["t"][r["i"]] + tf_ms, entry, sl, tps, grade, checks)
-                    except Exception as e:  # noqa: BLE001
-                        print(f"  Karne kaydı hatası: {e}", file=sys.stderr)
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
 
@@ -1871,15 +1861,6 @@ def main():
                     state["signals"][key + "_ext"] = ext_t
                     print(f"  → Erken dönüş gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']}) "
                           f"kalite {r.get('grade', '-')}")
-                    if not notifier.dry:
-                        try:
-                            import perf
-                            entry, sl, tps, _ = levels(r, d, cfg)
-                            perf.record_signal(r["meta"]["symbol"], r["meta"]["type"], cfg["timeframe"], d,
-                                               f_["t"][i_] + perf.TF_MS.get(cfg["timeframe"], HOUR_MS),
-                                               entry, sl, tps, "-", ev["criteria"], kind="early")
-                        except Exception as e:  # noqa: BLE001
-                            print(f"  Karne kaydı hatası: {e}", file=sys.stderr)
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)
             r.pop("early", None)
