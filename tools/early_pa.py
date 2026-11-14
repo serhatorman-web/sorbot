@@ -93,6 +93,37 @@ def features(f, i, s, ev, btc):
     # Üst zaman dilimi (4x) trendi sinyal yönünde / ters değil
     F["htf_with"] = f["h4_st"][i] == s
     F["htf_not_against"] = f["h4_st"][i] != -s
+    # ---- PRICE ACTION ----
+    o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
+    body = lambda k: abs(c_[k] - o_[k]); rngk = lambda k: h_[k] - l_[k]
+    up = lambda k: (c_[k] - o_[k]) * s > 0
+    F["pa_engulf"] = any(up(k) and not up(k - 1) and body(k) >= body(k - 1) and
+                         ((c_[k] >= o_[k - 1] and o_[k] <= c_[k - 1]) if s == 1 else (c_[k] <= o_[k - 1] and o_[k] >= c_[k - 1]))
+                         for k in (i, i - 1) if k - 1 >= 0)
+    def hammer(k):
+        r = rngk(k)
+        if r <= 0: return False
+        wick = (min(o_[k], c_[k]) - l_[k]) if s == 1 else (h_[k] - max(o_[k], c_[k]))
+        pos = (c_[k] - l_[k]) / r if s == 1 else (h_[k] - c_[k]) / r
+        return wick >= 2 * max(body(k), 1e-12) and pos >= 2 / 3
+    F["pa_hammer"] = any(hammer(k) for k in (j, j + 1) if k <= i)
+    def star(k):
+        if k - 2 < 0: return False
+        a2 = f["atr"][k] or a
+        return (not up(k - 2) and body(k - 2) >= 0.5 * a2 and body(k - 1) <= 0.3 * a2 and up(k) and body(k) >= 0.5 * a2
+                and ((c_[k] > (o_[k - 2] + c_[k - 2]) / 2) if s == 1 else (c_[k] < (o_[k - 2] + c_[k - 2]) / 2)))
+    F["pa_star"] = any(star(k) for k in range(j + 1, i + 1))
+    F["pa_higher_low"] = any(((l_[k] > ext and l_[k] <= ext + aj) if s == 1 else (h_[k] < ext and h_[k] >= ext - aj))
+                             for k in range(j + 2, i))
+    piv = None
+    for k in range(j - 2, max(2, cap - 40), -1):
+        if s == 1 and h_[k] == max(h_[k - 2:k + 3]): piv = h_[k]; break
+        if s == -1 and l_[k] == min(l_[k - 2:k + 3]): piv = l_[k]; break
+    F["pa_choch"] = piv is not None and ((c_[i] > piv) if s == 1 else (c_[i] < piv))
+    F["pa_inside_break"] = (i >= 2 and h_[i - 1] <= h_[i - 2] and l_[i - 1] >= l_[i - 2] and
+                            ((c_[i] > h_[i - 1]) if s == 1 else (c_[i] < l_[i - 1])))
+    r = rngk(i)
+    F["pa_strong_close"] = r > 0 and body(i) >= 0.6 * r and (((c_[i] - l_[i]) / r >= 0.75) if s == 1 else ((h_[i] - c_[i]) / r >= 0.75))
     # Büyük resim: EMA200 tarafı
     if f["ema200"][i]: F["ema200_side"] = (f["c"][i] - f["ema200"][i]) * s > 0
     return F
@@ -129,13 +160,22 @@ for tf in ("15m", "1h", "4h"):
                 o = outcome(f, i, s_, f["c"][i], ev["ext"] - s_ * 0.2 * a, tf)
                 if o is None: continue
                 rows.append((o, features(f, i, s_, ev, btc if sym != "BTCUSDT" else None), f["t"][i]))
-        CH = {("15m","long"): ["btc_not_against","sweep"], ("15m","short"): ["htf_with","ema200_side"],
-              ("1h","long"): ["btc_mom","sweep"], ("1h","short"): ["wick","htf_with"],
-              ("4h","long"): ["btc_st","htf_with"], ("4h","short"): ["vp_level","htf_with"]}[(tf, d)]
-        rows.sort(key=lambda x: x[2])
-        half = rows[len(rows)//2][2] if rows else 0
-        print(f"\n--- {tf} {d.upper()} · filtre: {' & '.join(CH)} ---")
-        for nm, part in (("tüm dönem", rows), ("1. yarı", [x for x in rows if x[2] < half]), ("2. yarı", [x for x in rows if x[2] >= half])):
-            print(line(f"  {nm} filtresiz", [o for o, F, _ in part]) + "  |  " +
-                  line("filtreli", [o for o, F, _ in part if all(F.get(k) is True for k in CH)]).strip())
+        REQ = cfg0["early_reversal"]["rules"][tf][d]["require"]
+        rows.sort(key=lambda x: x[2]); half = rows[len(rows)//2][2] if rows else 0
+        base = [x for x in rows if all(x[1].get(k) is True for k in REQ)]
+        print(f"\n--- {tf} {d.upper()} · zorunlu: {' & '.join(REQ)} ---")
+        def show(nm, sel):
+            h1 = [o for o, F, t in sel if t < half]; h2 = [o for o, F, t in sel if t >= half]
+            ph = lambda xs: f"{pf([r for r, _ in xs]):.2f}" if xs else "–"
+            print(line(nm, [o for o, _, _ in sel]) + f" · yarılar {ph(h1)}/{ph(h2)}")
+        show("TÜMÜ (filtresiz)", rows)
+        show("Zorunlu teyitlerle (şimdiki)", base)
+        PA = ["pa_engulf", "pa_hammer", "pa_star", "pa_higher_low", "pa_choch", "pa_inside_break", "pa_strong_close"]
+        print("  -- tek başına (filtresiz sinyallerde) --")
+        for k in PA:
+            show(f"  {k} ✓", [x for x in rows if x[1].get(k) is True])
+        print("  -- zorunlu teyitlere ek olarak --")
+        for k in PA:
+            show(f"  + {k}", [x for x in base if x[1].get(k) is True])
+        show("  + en az bir dönüş formasyonu", [x for x in base if any(x[1].get(k) is True for k in ("pa_engulf", "pa_hammer", "pa_star", "pa_choch"))])
         sys.stdout.flush()
