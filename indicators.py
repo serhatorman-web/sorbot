@@ -344,8 +344,9 @@ def volume_profile(high, low, volume, rows=24, value_area=0.70):
         else:
             a -= 1
             acc += dn
-    vah = lo + (b + 1) * step
-    val = lo + a * step
+    # VAH / POC / VAL satırların orta noktası (Teometric Demand Model / TradingView etiketleriyle aynı)
+    vah = lo + (b + 0.5) * step
+    val = lo + (a + 0.5) * step
     poc_price = lo + (poc + 0.5) * step
     return vah, poc_price, val
 

@@ -142,15 +142,15 @@
     "spike_ratio": 3.0
   },
   "volume_profile": {
-    "_aciklama": "Sinyal zaman diliminin son N mumundan hacim profili (VAH/POC/VAL; 24 satır, %70 değer alanı). Fiyat son retest_window mumda bir seviyeye ulaştıysa mesajda yazılır: ulaştı + retest + beklenen yön.",
+    "_aciklama": "Hacim profili: sinyal zaman diliminin son 150 mumu, 24 satır, %70 değer alanı; VAH/POC/VAL satır orta noktası. Kullanıcının TradingView'deki Teometric Demand Model V3 ayarlarıyla aynı (VP 150, Row 24, % 70).",
     "enabled": true,
     "rows": 24,
     "value_area": 0.7,
     "lookback_bars": {
-      "15m": 96,
-      "1h": 96,
-      "4h": 90,
-      "5m": 96
+      "15m": 150,
+      "1h": 150,
+      "4h": 150,
+      "5m": 150
     },
     "retest_window": 10
   },

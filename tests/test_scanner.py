@@ -313,7 +313,7 @@ def test_volume_profile():
     l = [100] * 50 + [108] * 5 + [94] * 5
     v = [100] * 50 + [5] * 5 + [5] * 5
     vah, poc, val = ta.volume_profile(h, l, v)
-    assert 100 <= poc <= 102 and val <= 100.01 and vah >= 101.99 and val < poc < vah
+    assert 100 <= poc <= 102 and 99.9 <= val <= 100.5 and 101.5 <= vah <= 102.1 and val < poc < vah   # satır orta noktaları
 
 
 def test_volume_lines():
