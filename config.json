@@ -60,8 +60,17 @@
       "USDCUSDT",
       "BTCDOMUSDT"
     ],
-    "_equity_aciklama": "Hisselerde sadece bu büyük şirketler taranır (piyasa değeri ~100 milyar $ ve üzeri). Boş liste = tüm hisseler. Ayrıca min_quote_volume_24h.EQUITY hacim filtresi uygulanır.",
-    "equity_whitelist": [
+    "_equity_aciklama": "Boş liste = Binance'teki tüm hisse kontratları taranır. Eski büyük şirket listesi equity_whitelist_eski'de duruyor (geri almak için equity_whitelist'e kopyalanır).",
+    "equity_whitelist": [],
+    "min_quote_volume_24h": {
+      "COIN": 0,
+      "EQUITY": 0,
+      "EQUITY_closed": 0,
+      "COMMODITY": 0,
+      "default": 0
+    },
+    "_equity_closed_aciklama": "Hacim eşikleri 0: Binance vadelideki bütün kripto, hisse, değerli metal ve emtia kontratları 7/24 taranır. Düşük hacimliler mesajda 'Likidite · Düşük' olarak işaretlenir.",
+    "equity_whitelist_eski": [
       "NVDA",
       "MSFT",
       "AAPL",
@@ -123,15 +132,7 @@
       "PFE",
       "CEG",
       "BX"
-    ],
-    "min_quote_volume_24h": {
-      "COIN": 5000000,
-      "EQUITY": 1000000,
-      "default": 2000000,
-      "EQUITY_closed": 100000,
-      "COMMODITY": 1000000
-    },
-    "_equity_closed_aciklama": "ABD borsası kapalıyken ve hafta sonu hisseler için 24s hacim eşiği (EQUITY_closed). Böylece listedeki hisseler 7/24 taranır, Supertrend sinyalleri gelir."
+    ]
   },
   "volume_info": {
     "_aciklama": "Mesajdaki hacim bölümü. high_ratio: sinyal mumu hacmi / 20 mum ortalaması bu değer ve üstüyse Yüksek. big_move_atr: gövdesi bu kadar ATR'yi geçen mum 'büyük yükseliş/düşüş'. spike_ratio: hacim patlaması eşiği.",
