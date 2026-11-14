@@ -1165,6 +1165,57 @@ def early_criteria(f, i, s, ev, btc_f=None):
     if rng > 0:
         out["wick"] = ((min(f["o"][j], f["c"][j]) - f["l"][j]) if s == 1
                        else (f["h"][j] - max(f["o"][j], f["c"][j]))) >= 0.5 * rng
+    out.update(price_action(f, i, s, j, ext, aj))
+    return out
+
+
+def price_action(f, i, s, j, ext, aj):
+    """Erken dönüşte price action formasyonları (LONG için; SHORT'ta tersi). j: dip/tepe mumu, ext: dip/tepe fiyatı.
+    pa_engulf: tetik ya da önceki mum, kendinden önceki ters mumun gövdesini yutuyor
+    pa_hammer: dip (tepe) mumunda ya da sonrakinde iğne ≥ 2 × gövde ve kapanış mumun uç üçte birinde (çekiç / pin bar)
+    pa_star: sabah (akşam) yıldızı · pa_higher_low: dipten ≥2 mum sonra dibe 1 ATR yaklaşıp daha yukarıda döndü
+    pa_choch: karakter değişimi – dipten önceki son alçalan tepe (pivot 2/2, en fazla 60 mum geri) kapanışla kırıldı
+    pa_inside_break: önceki mum iç mum ve tetik onu kırdı · pa_strong_close: tetik mumu tepesine yakın, gövdesi büyük"""
+    o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
+    body = lambda k: abs(c_[k] - o_[k])
+    up = lambda k: (c_[k] - o_[k]) * s > 0
+    out = {}
+    out["pa_engulf"] = any(up(k) and not up(k - 1) and body(k) >= body(k - 1) and
+                           ((c_[k] >= o_[k - 1] and o_[k] <= c_[k - 1]) if s == 1
+                            else (c_[k] <= o_[k - 1] and o_[k] >= c_[k - 1]))
+                           for k in (i, i - 1) if k >= 1)
+
+    def hammer(k):
+        r = h_[k] - l_[k]
+        if r <= 0:
+            return False
+        wick = (min(o_[k], c_[k]) - l_[k]) if s == 1 else (h_[k] - max(o_[k], c_[k]))
+        pos = (c_[k] - l_[k]) / r if s == 1 else (h_[k] - c_[k]) / r
+        return wick >= 2 * max(body(k), 1e-12) and pos >= 2 / 3
+    out["pa_hammer"] = any(hammer(k) for k in (j, j + 1) if k <= i)
+
+    def star(k):
+        a2 = f["atr"][k] or aj
+        return (k >= 2 and not up(k - 2) and body(k - 2) >= 0.5 * a2 and body(k - 1) <= 0.3 * a2 and up(k)
+                and body(k) >= 0.5 * a2
+                and ((c_[k] > (o_[k - 2] + c_[k - 2]) / 2) if s == 1 else (c_[k] < (o_[k - 2] + c_[k - 2]) / 2)))
+    out["pa_star"] = any(star(k) for k in range(j + 1, i + 1))
+    out["pa_higher_low"] = any(((l_[k] > ext and l_[k] <= ext + aj) if s == 1 else (h_[k] < ext and h_[k] >= ext - aj))
+                               for k in range(j + 2, i))
+    piv = None
+    for k in range(j - 2, max(1, j - 60), -1):          # dipten geriye: son pivot tepe (LONG) / dip (SHORT)
+        if s == 1 and h_[k] == max(h_[k - 2:k + 3]):
+            piv = h_[k]
+            break
+        if s == -1 and l_[k] == min(l_[k - 2:k + 3]):
+            piv = l_[k]
+            break
+    out["pa_choch"] = piv is not None and ((c_[i] > piv) if s == 1 else (c_[i] < piv))
+    out["pa_inside_break"] = (i >= 2 and h_[i - 1] <= h_[i - 2] and l_[i - 1] >= l_[i - 2]
+                              and ((c_[i] > h_[i - 1]) if s == 1 else (c_[i] < l_[i - 1])))
+    r = h_[i] - l_[i]
+    out["pa_strong_close"] = r > 0 and body(i) >= 0.6 * r and up(i) and (
+        ((c_[i] - l_[i]) / r >= 0.75) if s == 1 else ((h_[i] - c_[i]) / r >= 0.75))
     return out
 
 
@@ -1177,7 +1228,14 @@ def early_criteria_names(direction, tf):
             "htf_with": f"{HTF_NAME.get(tf, 'Üst zaman dilimi')} Supertrend {'AL' if up else 'SAT'}",
             "ema200_side": f"Fiyat EMA200'ün {'üstünde' if up else 'altında'}",
             "vp_level": f"{'Dip' if up else 'Tepe'} hacim profili seviyesinde (VAH/POC/VAL)",
-            "wick": f"{'Dip' if up else 'Tepe'} mumunda uzun iğne"}
+            "wick": f"{'Dip' if up else 'Tepe'} mumunda uzun iğne",
+            "pa_engulf": f"Yutan {'boğa' if up else 'ayı'} mumu",
+            "pa_hammer": "Çekiç / pin bar (dipte uzun alt iğne)" if up else "Ters çekiç / pin bar (tepede uzun üst iğne)",
+            "pa_star": "Sabah yıldızı" if up else "Akşam yıldızı",
+            "pa_higher_low": "Yükselen dip (dip tekrar test edildi, tuttu)" if up else "Alçalan tepe (tepe tekrar test edildi, tuttu)",
+            "pa_choch": f"Karakter değişimi (son {'alçalan tepe' if up else 'yükselen dip'} kırıldı)",
+            "pa_inside_break": f"İç mum {'yukarı' if up else 'aşağı'} kırıldı",
+            "pa_strong_close": f"Güçlü kapanış (mum {'tepesine' if up else 'dibine'} yakın)"}
 
 
 QUALITY_BADGE = {"A": "🅰️", "B": "🅱️", "C": "Ⓒ"}
@@ -1448,9 +1506,13 @@ def build_message(res, direction, cfg, now_utc):
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 Tetik: ⚡ {move}"]
         names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
-        ok = [names[k] for k in names if (early.get("criteria") or {}).get(k)]
+        crit = early.get("criteria") or {}
+        ok = [names[k] for k in names if crit.get(k) and not k.startswith("pa_")]
+        pa = [names[k] for k in names if crit.get(k) and k.startswith("pa_")]
         if ok:
             lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
+        if pa:
+            lines += ["", "🕯️ <b>Price action:</b>"] + [f"• {x}" for x in pa]
         lines += ["", f"📌 {trigger_name(cfg)}: {st_txt}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"

@@ -681,6 +681,7 @@ def test_early_criteria():
     cr = scanner.early_criteria(f, n - 1, 1, ev, btc)
     assert cr["btc_mom"] and cr["btc_st"] and cr["btc_not_against"] and cr["sweep"] and cr["htf_with"], cr
     assert cr["ema200_side"] is False and cr["wick"] is True, cr
+    assert {"pa_engulf", "pa_hammer", "pa_star", "pa_higher_low", "pa_choch", "pa_inside_break", "pa_strong_close"} <= set(cr), cr
     names = scanner.early_criteria_names("long", "1h")
     assert names["htf_with"] == "4 saat Supertrend AL" and names["sweep"].startswith("Son 100 mumun dibi")
 

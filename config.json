@@ -153,8 +153,8 @@
     "max_risk_atr": 3.0,
     "rules": {
       "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_not_against", "sweep"]},
-              "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["htf_with", "ema200_side"]}},
-      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_mom", "sweep"]},
+              "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["htf_with", "ema200_side", "pa_hammer"]}},
+      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_mom", "sweep", "pa_strong_close"]},
              "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["wick", "htf_with"]}},
       "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["btc_st", "htf_with"]},
              "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["vp_level", "htf_with"]}}
