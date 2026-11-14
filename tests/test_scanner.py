@@ -559,6 +559,35 @@ def test_volume_profile_retest():
     assert len(two) == 2 and "VAL" in two[1]
     assert scanner.volume_profile_lines({"meta": {}}, {}) == []
 
+def test_ichimoku_band_retest():
+    line = [100.0] * 60
+    c = [95 + (k % 3) * 0.3 for k in range(50)] + [101, 103, 100.6, 104, 106, 107, 108, 109, 110, 111]
+    h = [x + 0.8 for x in c]; l = [x - 0.8 for x in c]
+    assert ta.band_retest(h, l, c, line, line)["state"] == "confirmed"          # kır, dokun, devam
+    assert ta.band_retest(h[:53], l[:53], c[:53], line[:53], line[:53])["state"] == "touch"
+    assert ta.band_retest(h[:51], l[:51], c[:51], line[:51], line[:51])["state"] == "none"
+    c4 = [105 + (k % 3) * 0.3 for k in range(55)] + [101.0, 103, 106]
+    h4 = [x + 0.8 for x in c4]; l4 = [x - 0.8 for x in c4]; ln = [100.0] * len(c4)
+    ev = ta.band_retest(h4, l4, c4, ln, ln)
+    assert ev["kind"] == "hold" and ev["dir"] == "up" and ev["state"] == "confirmed", ev   # destekten döndü
+    assert ta.band_retest(h4, l4, c4, [110.0] * len(c4), [100.0] * len(c4))["kind"] == "inside"
+    # mesaj bölümü
+    n = 120
+    c = [100 + k * 0.3 for k in range(n)]
+    f = {"h": [x + 0.5 for x in c], "l": [x - 0.5 for x in c], "c": c,
+         "ichi_tenkan": [x - 1 for x in c], "ichi_kijun": [x - 3 for x in c],
+         "ichi_top": [x - 6 for x in c], "ichi_bot": [x - 8 for x in c]}
+    res = {"f": f, "i": n - 1, "meta": {"precision": 2}}
+    cfg = {"timeframe": "1h", "indicators": {"ichimoku": [9, 26, 52, 26]}}
+    out = scanner.ichimoku_lines(res, "long", cfg)
+    assert out[0] == "☁️ <b>Ichimoku</b> · 1 saat", out
+    assert out[1].startswith("🟢 Bulut ") and "fiyat üstünde (destek)" in out[1], out
+    assert out[4] == "🟢 Tenkan Kijun'un üstünde · ileri bulut yeşil", out
+    assert out[5] == "✅ Ichimoku sinyalle uyumlu (4/4)", out
+    assert scanner.ichimoku_lines(res, "short", cfg)[5] == "⚠️ Ichimoku sinyalle uyumsuz (0/4)"
+    assert scanner.ichimoku_lines(res, "long", dict(cfg, ichimoku_info={"enabled": False})) == []
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

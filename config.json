@@ -141,6 +141,9 @@
     "big_move_lookback": 3,
     "spike_ratio": 3.0
   },
+  "ichimoku_info": {
+    "enabled": true
+  },
   "volume_profile": {
     "_aciklama": "Hacim profili: sinyal zaman diliminin son 150 mumu, 24 satır, %70 değer alanı; VAH/POC/VAL satır orta noktası. Kullanıcının TradingView'deki Teometric Demand Model V3 ayarlarıyla aynı (VP 150, Row 24, % 70).",
     "enabled": true,
