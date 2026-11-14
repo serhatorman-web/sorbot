@@ -1022,6 +1022,80 @@ def volume_profile_lines(res, cfg):
     return out
 
 
+def ichimoku_lines(res, direction, cfg):
+    """Ichimoku (sinyal zaman dilimi): Bulut, Kijun ve Tenkan için kırılım / retest durumu, Tenkan-Kijun ve ileri bulut,
+    sinyal yönüyle uyum (4 koşul) ve retest teyitleri."""
+    if not cfg.get("ichimoku_info", {}).get("enabled", True):
+        return []
+    f, i = res["f"], res["i"]
+    ten, kij, top, bot = f.get("ichi_tenkan"), f.get("ichi_kijun"), f.get("ichi_top"), f.get("ichi_bot")
+    if not ten or None in (ten[i], kij[i], top[i], bot[i]):
+        return []
+    prec = res["meta"].get("precision")
+    p = fmt_price
+    h, l, c = f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1]
+    nb = (cfg.get("indicators", {}).get("ichimoku") or [9, 26, 52, 26])[2]
+    if i + 1 < nb:
+        return []
+    sb_now = (max(f["h"][i - nb + 1:i + 1]) + min(f["l"][i - nb + 1:i + 1])) / 2
+    sa_now = (ten[i] + kij[i]) / 2
+    sig = 1 if direction == "long" else -1
+    span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    out = [f"☁️ <b>Ichimoku</b> · {span}"]
+    confirmed = {1: [], -1: []}
+    items = (("Bulut", f"Bulut {p(bot[i], prec)} – {p(top[i], prec)}", top[:i + 1], bot[:i + 1]),
+             ("Kijun", f"Kijun {p(kij[i], prec)}", kij[:i + 1], kij[:i + 1]),
+             ("Tenkan", f"Tenkan {p(ten[i], prec)}", ten[:i + 1], ten[:i + 1]))
+    for name, label, up, lo in items:
+        ev = ta.band_retest(h, l, c, up, lo)
+        if not ev:
+            continue
+        if ev["kind"] == "inside":
+            out.append(f"⚪ {label}: fiyat bulutun içinde, kararsız")
+            continue
+        s_ = 1 if ev["dir"] == "up" else -1
+        icon = "🟢" if s_ == 1 else "🔴"
+        move = "yükseliş" if s_ == 1 else "düşüş"
+        where = "üstünde" if s_ == 1 else "altında"
+        sr = "destek" if s_ == 1 else "direnç"
+        if ev["kind"] == "break":
+            yon = "yukarı" if s_ == 1 else "aşağı"
+            tail = {"none": "⏳ Retest yapılmadı, bekle",
+                    "touch": f"🔄 Retest yapılıyor, {move} teyidi bekleniyor",
+                    "confirmed": f"✅ Retest yapıldı, {move} teyit edildi",
+                    "away": f"{'⬆️' if s_ == 1 else '⬇️'} Retest yapılmadan {move} devam etti (geç giriş riski)"}[ev["state"]]
+            out.append(f"{icon} {label}: {yon} kırıldı · {tail}")
+        elif ev["kind"] == "hold":
+            if ev["state"] == "confirmed":
+                out.append(f"{icon} {label}: fiyat {where} · ✅ {sr.capitalize()}ten döndü (retest), {move} teyit edildi")
+            else:
+                out.append(f"{icon} {label}: fiyat {where} · 🔄 {sr.capitalize()} test ediliyor, tepki bekleniyor")
+        else:
+            out.append(f"{icon} {label}: fiyat {where} ({sr})")
+        if ev["state"] == "confirmed":
+            confirmed[s_].append(name)
+    tk = 1 if ten[i] > kij[i] else (-1 if ten[i] < kij[i] else 0)
+    fut = 1 if sa_now > sb_now else (-1 if sa_now < sb_now else 0)
+    tk_txt = {1: "Tenkan Kijun'un üstünde", -1: "Tenkan Kijun'un altında", 0: "Tenkan = Kijun"}[tk]
+    fut_txt = {1: "ileri bulut yeşil", -1: "ileri bulut kırmızı", 0: "ileri bulut nötr"}[fut]
+    tk_icon = "🟢" if tk + fut > 0 else ("🔴" if tk + fut < 0 else "⚪")
+    out.append(f"{tk_icon} {tk_txt} · {fut_txt}")
+    cloud = 1 if c[-1] > top[i] else (-1 if c[-1] < bot[i] else 0)
+    vs_kij = 1 if c[-1] > kij[i] else (-1 if c[-1] < kij[i] else 0)
+    n_ok = sum(1 for v in (cloud, tk, vs_kij, fut) if v == sig)
+    if n_ok >= 3:
+        out.append(f"✅ Ichimoku sinyalle uyumlu ({n_ok}/4)")
+    elif n_ok == 2:
+        out.append(f"⚪ Ichimoku kararsız ({n_ok}/4)")
+    else:
+        out.append(f"⚠️ Ichimoku sinyalle uyumsuz ({n_ok}/4)")
+    if confirmed[sig]:
+        out.append("✅ Retest teyidi: " + ", ".join(confirmed[sig]))
+    if confirmed[-sig]:
+        out.append("⚠️ Ters yönde retest teyidi: " + ", ".join(confirmed[-sig]))
+    return out
+
+
 def trendline_lines(res):
     """Trend çizgisi kırılımları: veri varsa yazılır, yoksa bölüm çıkmaz."""
     out = []
@@ -1236,7 +1310,7 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
-        for block in (trendline_lines(res), volume_profile_lines(res, cfg),
+        for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                       divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
@@ -1293,7 +1367,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
-    for block in (trendline_lines(res), volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
+    for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
+                  divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
     trend = tf_table_html(res)

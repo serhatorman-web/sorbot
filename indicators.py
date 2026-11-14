@@ -271,6 +271,57 @@ def ichimoku(high, low, tenkan_n=9, kijun_n=26, senkou_b_n=52, shift=26):
     return tenkan, kijun, top, bottom
 
 
+def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_atr=0.25, atr_len=14, away_atr=2.5):
+    """Hareketli bir çizgi (Tenkan / Kijun: upper == lower) ya da bant (Ichimoku bulutu: üst / alt) için kırılım ve retest.
+    Fiyatın tarafı: kapanış üstün üstünde → yukarı, altın altında → aşağı, arada → içeride.
+    1) KIRILIM ("break"): fiyat son `break_window` mum içinde bu tarafa geçti (en son geçiş esas alınır).
+       state: "none" retest yok · "touch" fiyat geri gelip çizgiye/banda iğneyle dokundu ve kırılım tarafında kapandı ·
+              "confirmed" sonra dokunan mumun tepesi (yukarı) / dibi (aşağı) kapanışla geçildi ·
+              "away" retest gelmeden fiyat away_atr x ATR'den fazla uzaklaştı.
+    2) TEPKİ ("hold"): yakın zamanda kırılım yok; son `window` mumda fiyat çizgiye geri çekilip dokundu ve aynı tarafta kaldı
+       (destek / direnç testi). state: "touch" / "confirmed".
+    3) "trend": fiyat uzun süredir aynı tarafta, yakın zamanda dokunuş yok.   4) "inside": fiyat bulutun içinde.
+    Döner: None | {"kind": ..., "dir": "up"|"down", "state": str, "bars_ago": int}"""
+    n = len(close)
+    a = atr(high, low, close, atr_len)
+
+    def side(k):
+        if upper[k] is None or lower[k] is None:
+            return None
+        return 1 if close[k] > upper[k] else (-1 if close[k] < lower[k] else 0)
+
+    last = n - 1
+    s = side(last)
+    if s is None or a[last] is None:
+        return None
+    if s == 0:
+        return {"kind": "inside", "dir": None, "state": None, "bars_ago": 0}
+    d = "up" if s == 1 else "down"
+    edge = lambda k: upper[k] if s == 1 else lower[k]          # fiyatın bulunduğu taraftaki kenar
+    hits = lambda k: (low[k] <= edge(k) + (a[k] or 0) * tol_atr) if s == 1 else (high[k] >= edge(k) - (a[k] or 0) * tol_atr)
+    beyond = lambda k, t: close[k] > high[t] if s == 1 else close[k] < low[t]
+    brk = last
+    while brk - 1 >= 0 and side(brk - 1) == s:
+        brk -= 1
+    if brk > 0 and side(brk - 1) is not None and last - brk <= break_window:
+        state, touch = "none", None
+        for k in range(brk + 1, n):
+            if touch is None:
+                if hits(k):
+                    touch, state = k, "touch"
+            elif beyond(k, touch):
+                state = "confirmed"
+                break
+        if state == "none" and abs(close[last] - edge(last)) > away_atr * a[last]:
+            state = "away"
+        return {"kind": "break", "dir": d, "state": state, "bars_ago": last - brk}
+    touch = next((k for k in range(last, max(brk, last - window), -1) if hits(k)), None)
+    if touch is None:
+        return {"kind": "trend", "dir": d, "state": None, "bars_ago": 0}
+    state = "confirmed" if any(beyond(k, touch) for k in range(touch + 1, n)) else "touch"
+    return {"kind": "hold", "dir": d, "state": state, "bars_ago": last - touch}
+
+
 def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, range_max=60, recent=10):
     """TradingView RSI uyumsuzluk mantığı (normal uyumsuzluk):
       pozitif: RSI pivot dibi bir öncekinden YÜKSEK, fiyat dibi bir öncekinden DÜŞÜK
