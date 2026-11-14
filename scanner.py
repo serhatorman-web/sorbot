@@ -1350,6 +1350,15 @@ class Notifier:
 # --------------------------------------------------------------------------- #
 # Ana akış
 # --------------------------------------------------------------------------- #
+def tick_decimals(sym_info):
+    """Fiyatın ondalık sayısı: PRICE_FILTER tickSize'a göre (ör. 0.0001 → 4); yoksa pricePrecision."""
+    for flt in sym_info.get("filters", []):
+        if flt.get("filterType") == "PRICE_FILTER" and flt.get("tickSize"):
+            t = flt["tickSize"].rstrip("0")
+            return len(t.split(".")[1]) if "." in t and t.split(".")[1] else 0
+    return sym_info.get("pricePrecision")
+
+
 def build_universe(api, cfg):
     info = api.get("/fapi/v1/exchangeInfo")
     ucfg = cfg["universe"]
@@ -1372,7 +1381,7 @@ def build_universe(api, cfg):
         if s.get("contractType") not in ("PERPETUAL", "TRADIFI_PERPETUAL"):
             continue
         typ = s.get("underlyingType")
-        meta = {"symbol": s["symbol"], "type": typ, "precision": s.get("pricePrecision")}
+        meta = {"symbol": s["symbol"], "type": typ, "precision": tick_decimals(s)}
         all_meta[s["symbol"]] = meta
         if typ not in include or s["symbol"] in exclude:
             continue
