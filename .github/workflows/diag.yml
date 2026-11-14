@@ -8,4 +8,4 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/vpcal2.py
+      - run: python3 tools/vpcal3.py

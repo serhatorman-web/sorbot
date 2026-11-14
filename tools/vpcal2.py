@@ -43,30 +43,35 @@ def va2(vol, va=0.7):          # TradingView: iki satır birden karşılaştır�
         else: a = max(0, a - 2); acc += dn
     return b, poc, a
 
-res = {}
-for sym, tgt in TARGET.items():
-    raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": "4h", "endTime": SHOT, "limit": 400})
-    bars = [(int(k[0]), float(k[2]), float(k[3]), float(k[7]), float(k[5])) for k in raw]
-    m1 = m1_range(sym, bars[-330][0], SHOT)
-    for n in range(140, 330):
-        for incl in (0, 1):
-            w = bars[-n:] if incl else bars[-n - 1:-1]
-            s = w[0][0]; e = w[-1][0] + H4
-            mm = [x for x in m1 if s <= x[0] < e]
-            hi = max(x[1] for x in (mm if incl else w)); lo = min(x[2] for x in (mm if incl else w))
-            for dist in ("mum", "1dk"):
-                for vk, vi in (("usdt", 3), ("adet", 4)):
-                    items = [(x[1], x[2], x[vi]) for x in (w if dist == "mum" else mm)]
-                    step, vol = profile(hi, lo, items)
-                    for vname, f in (("va1", va1), ("va2", va2)):
-                        b, p, a = f(vol)
-                        vals = [lo + (r + 0.5) * step for r in (b, p, a)]
-                        ok = sum(1 for x, t in zip(vals, tgt) if abs(x - t) / t < 0.0008)
-                        res.setdefault((n, incl, dist, vk, vname), {})[sym] = (ok, [round(x, 4) for x in vals])
-for sym in TARGET:
-    rows = [(v[sym][0], k) for k, v in res.items() if sym in v]
-    top = max(r[0] for r in rows)
-    ks = sorted(k for o, k in rows if o == top)
-    print(sym, "en iyi", top, "/3:", len(ks), "kombinasyon")
-    for k in ks[:12]:
-        print("   n=%d oluşan_dahil=%d dağılım=%s hacim=%s %s" % k, res[k][sym][1])
+def main():
+    res = {}
+    for sym, tgt in TARGET.items():
+        raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": "4h", "endTime": SHOT, "limit": 400})
+        bars = [(int(k[0]), float(k[2]), float(k[3]), float(k[7]), float(k[5])) for k in raw]
+        m1 = m1_range(sym, bars[-330][0], SHOT)
+        for n in range(140, 330):
+            for incl in (0, 1):
+                w = bars[-n:] if incl else bars[-n - 1:-1]
+                s = w[0][0]; e = w[-1][0] + H4
+                mm = [x for x in m1 if s <= x[0] < e]
+                hi = max(x[1] for x in (mm if incl else w)); lo = min(x[2] for x in (mm if incl else w))
+                for dist in ("mum", "1dk"):
+                    for vk, vi in (("usdt", 3), ("adet", 4)):
+                        items = [(x[1], x[2], x[vi]) for x in (w if dist == "mum" else mm)]
+                        step, vol = profile(hi, lo, items)
+                        for vname, f in (("va1", va1), ("va2", va2)):
+                            b, p, a = f(vol)
+                            vals = [lo + (r + 0.5) * step for r in (b, p, a)]
+                            ok = sum(1 for x, t in zip(vals, tgt) if abs(x - t) / t < 0.0008)
+                            res.setdefault((n, incl, dist, vk, vname), {})[sym] = (ok, [round(x, 4) for x in vals])
+    for sym in TARGET:
+        rows = [(v[sym][0], k) for k, v in res.items() if sym in v]
+        top = max(r[0] for r in rows)
+        ks = sorted(k for o, k in rows if o == top)
+        print(sym, "en iyi", top, "/3:", len(ks), "kombinasyon")
+        for k in ks[:12]:
+            print("   n=%d oluşan_dahil=%d dağılım=%s hacim=%s %s" % k, res[k][sym][1])
+
+
+if __name__ == "__main__":
+    main()
