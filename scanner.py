@@ -1165,6 +1165,8 @@ def early_criteria(f, i, s, ev, btc_f=None):
     if rng > 0:
         out["wick"] = ((min(f["o"][j], f["c"][j]) - f["l"][j]) if s == 1
                        else (f["h"][j] - max(f["o"][j], f["c"][j]))) >= 0.5 * rng
+    obs = ta.order_blocks(f["o"], f["h"], f["l"], f["c"], f["atr"], s, cap)
+    out["ob_zone"] = any(lo - 0.25 * aj <= ext <= hi + 0.25 * aj for lo, hi, _ in obs)
     out.update(price_action(f, i, s, j, ext, aj))
     return out
 
@@ -1229,6 +1231,7 @@ def early_criteria_names(direction, tf):
             "ema200_side": f"Fiyat EMA200'ün {'üstünde' if up else 'altında'}",
             "vp_level": f"{'Dip' if up else 'Tepe'} hacim profili seviyesinde (VAH/POC/VAL)",
             "wick": f"{'Dip' if up else 'Tepe'} mumunda uzun iğne",
+            "ob_zone": f"{'Dip boğa' if up else 'Tepe ayı'} order block bölgesinde",
             "pa_engulf": f"Yutan {'boğa' if up else 'ayı'} mumu",
             "pa_hammer": "Çekiç / pin bar (dipte uzun alt iğne)" if up else "Ters çekiç / pin bar (tepede uzun üst iğne)",
             "pa_star": "Sabah yıldızı" if up else "Akşam yıldızı",
@@ -1507,8 +1510,9 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", SEP, f"📌 Tetik: ⚡ {move}"]
         names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
         crit = early.get("criteria") or {}
-        ok = [names[k] for k in names if crit.get(k) and not k.startswith("pa_")]
-        pa = [names[k] for k in names if crit.get(k) and k.startswith("pa_")]
+        is_pa = lambda k: k.startswith("pa_") or k == "ob_zone"
+        ok = [names[k] for k in names if crit.get(k) and not is_pa(k)]
+        pa = [names[k] for k in names if crit.get(k) and is_pa(k)]
         if ok:
             lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
         if pa:

@@ -404,6 +404,33 @@ def early_reversal(open_, high, low, close, volume, atr_, vol_ma, rsi_, s, windo
             "move_pct": (ext - ref) / ref * 100}
 
 
+def order_blocks(open_, high, low, close, atr_, s, end, lookback=300, disp_atr=2.0, bos_lookback=10):
+    """Tüketilmemiş order block'lar (end indeksine kadar; end dahil değil).
+    s=1 boğa OB: son kırmızı mum; sonraki 3 mumdan birinin kapanışı o mumun kapanışından ≥ disp_atr × ATR yukarıda
+        ve önceki bos_lookback mumun tepesinin üstünde (yapı kırılımı). Bölge: mumun dibi–tepesi.
+        Sonradan bir kapanış bölgenin dibinin altına inerse tüketilmiş sayılır.
+    s=-1 ayı OB: tersi. Döner: [(alt, üst, indeks)]"""
+    start = max(bos_lookback, end - lookback)
+    obs = []
+    for k in range(start, end - 3):
+        a = atr_[k]
+        if not a or (close[k] - open_[k]) * s >= 0:
+            continue
+        nxt = close[k + 1:k + 4]
+        ref = max(high[k - bos_lookback:k]) if s == 1 else min(low[k - bos_lookback:k])
+        if s == 1:
+            ok = max(nxt) - close[k] >= disp_atr * a and max(nxt) > ref
+        else:
+            ok = close[k] - min(nxt) >= disp_atr * a and min(nxt) < ref
+        if not ok:
+            continue
+        lo, hi = low[k], high[k]
+        if any((close[m] < lo) if s == 1 else (close[m] > hi) for m in range(k + 4, end)):
+            continue                                       # tüketildi
+        obs.append((lo, hi, k))
+    return obs
+
+
 def swing_anchor(high, low, lookback=300):
     """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
     Hacim profili bu mumdan son muma kadar hesaplanır."""

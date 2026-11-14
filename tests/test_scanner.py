@@ -681,9 +681,21 @@ def test_early_criteria():
     cr = scanner.early_criteria(f, n - 1, 1, ev, btc)
     assert cr["btc_mom"] and cr["btc_st"] and cr["btc_not_against"] and cr["sweep"] and cr["htf_with"], cr
     assert cr["ema200_side"] is False and cr["wick"] is True, cr
-    assert {"pa_engulf", "pa_hammer", "pa_star", "pa_higher_low", "pa_choch", "pa_inside_break", "pa_strong_close"} <= set(cr), cr
+    assert "ob_zone" in cr and {"pa_engulf", "pa_hammer", "pa_star", "pa_higher_low", "pa_choch", "pa_inside_break", "pa_strong_close"} <= set(cr), cr
     names = scanner.early_criteria_names("long", "1h")
     assert names["htf_with"] == "4 saat Supertrend AL" and names["sweep"].startswith("Son 100 mumun dibi")
+
+
+def test_order_blocks():
+    n = 40
+    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; atr = [1.0] * n
+    o[20], c[20], h[20], l[20] = 100.0, 99.0, 100.2, 98.8          # son kırmızı mum
+    c[21], h[21], l[21] = 102.5, 102.7, 99.0                         # sert yükseliş (+3.5 ATR), önceki tepeleri kırdı
+    for k in range(22, n): o[k], c[k], h[k], l[k] = 102.0, 102.0, 102.5, 101.5
+    obs = ta.order_blocks(o, h, l, c, atr, 1, n)
+    assert obs == [(98.8, 100.2, 20)], obs
+    c2 = list(c); c2[30] = 98.0                                      # bölgenin altında kapanış → tüketildi
+    assert ta.order_blocks(o, h, l, c2, atr, 1, n) == []
 
 
 if __name__ == "__main__":
