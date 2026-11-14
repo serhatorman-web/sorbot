@@ -150,6 +150,7 @@
     "enabled": true,
     "window": 8,
     "max_per_scan": 10,
+    "max_risk_atr": 3.0,
     "rules": {
       "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},
       "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},

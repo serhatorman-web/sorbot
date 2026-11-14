@@ -1791,6 +1791,9 @@ def main():
                                    rule.get("rsi_th", 30))
             if not ev:
                 continue
+            # Dip/tepe girişten çok uzaksa (ör. +%26 iğne) stop anlamsız uzar → sinyal yok
+            if abs(f_["c"][i_] - ev["ext"]) + 0.2 * f_["atr"][i_] > ecfg.get("max_risk_atr", 3.0) * f_["atr"][i_]:
+                continue
             key = f"{r['meta']['symbol']}|early_{d}"
             ext_t = f_["t"][ev["ext_i"]]
             if state["signals"].get(key + "_ext") == ext_t:
