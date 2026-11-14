@@ -933,13 +933,15 @@ def compute_volume_profile(res, cfg):
     if not vp.get("enabled", True):
         return
     f, i = res["f"], res["i"]
-    if vp.get("window", "swing") == "swing":
-        a = ta.swing_anchor(f["h"][:i + 1], f["l"][:i + 1], vp.get("anchor_lookback", 300))
-    else:
-        a = max(0, i - vp.get("lookback_bars", {}).get(cfg.get("timeframe", "1h"), 150) + 1)
     vol = f.get("bv") or f["v"]
-    out = ta.volume_profile(f["h"][a:i + 1], f["l"][a:i + 1], vol[a:i + 1],
-                            vp.get("rows", 24), vp.get("value_area", 0.70))
+    # Hiç işlem olmayan mumlar TradingView grafiğinde yoktur (ör. hafta sonu hisseler); mum sayımında atlanır.
+    idx = [k for k in range(i + 1) if vol[k] > 0] or list(range(i + 1))
+    hh, ll, vv = [f["h"][k] for k in idx], [f["l"][k] for k in idx], [vol[k] for k in idx]
+    if vp.get("window", "swing") == "swing":
+        a = ta.swing_anchor(hh, ll, vp.get("anchor_lookback", 300))
+    else:
+        a = max(0, len(idx) - vp.get("lookback_bars", {}).get(cfg.get("timeframe", "1h"), 150))
+    out = ta.volume_profile(hh[a:], ll[a:], vv[a:], vp.get("rows", 24), vp.get("value_area", 0.70))
     res["vp"] = out
     res["vp_ev"] = {}
     if out:
