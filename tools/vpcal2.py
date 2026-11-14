@@ -63,6 +63,10 @@ for sym, tgt in TARGET.items():
                         vals = [lo + (r + 0.5) * step for r in (b, p, a)]
                         ok = sum(1 for x, t in zip(vals, tgt) if abs(x - t) / t < 0.0008)
                         res.setdefault((n, incl, dist, vk, vname), {})[sym] = (ok, [round(x, 4) for x in vals])
-best = sorted(res.items(), key=lambda kv: -sum(v[0] for v in kv[1].values()))[:15]
-for k, v in best:
-    print(sum(x[0] for x in v.values()), "/12", "n=%d oluşan_dahil=%d dağılım=%s hacim=%s %s" % k, {s: x for s, x in v.items()})
+for sym in TARGET:
+    rows = [(v[sym][0], k) for k, v in res.items() if sym in v]
+    top = max(r[0] for r in rows)
+    ks = sorted(k for o, k in rows if o == top)
+    print(sym, "en iyi", top, "/3:", len(ks), "kombinasyon")
+    for k in ks[:12]:
+        print("   n=%d oluşan_dahil=%d dağılım=%s hacim=%s %s" % k, res[k][sym][1])
