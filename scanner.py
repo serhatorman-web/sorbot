@@ -1496,9 +1496,10 @@ def build_universe(api, cfg):
             continue
         qv = tickers.get(s["symbol"], {}).get("qv", 0)
         need = min_qv.get(typ, min_qv["default"])
-        # Borsa kapalıyken / hafta sonu hisse hacmi düşer; listedeki hisseler düşmesin diye
-        # daha düşük eşik kullanılır (Binance hisse kontratları 7/24 işlem görür).
         if typ == "EQUITY" and us_market_status(datetime.now(timezone.utc)) != "open":
+            # ABD borsası kapalıyken / hafta sonu hisse vadelilerinde mumlar boş ve dar → sahte sinyal.
+            if not ucfg.get("scan_equity_when_closed", True):
+                continue
             need = min_qv.get("EQUITY_closed", need)
         if qv < need:
             continue

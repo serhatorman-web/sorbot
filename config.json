@@ -62,14 +62,15 @@
     ],
     "_equity_aciklama": "Boş liste = Binance'teki tüm hisse kontratları taranır. Eski büyük şirket listesi equity_whitelist_eski'de duruyor (geri almak için equity_whitelist'e kopyalanır).",
     "equity_whitelist": [],
+    "scan_equity_when_closed": false,
     "min_quote_volume_24h": {
-      "COIN": 1000000,
-      "EQUITY": 1000000,
+      "COIN": 5000000,
+      "EQUITY": 5000000,
       "EQUITY_closed": 100000,
       "COMMODITY": 1000000,
       "default": 1000000
     },
-    "_equity_closed_aciklama": "24s hacim eşikleri: kripto, hisse ve emtia en az 1 milyon $. ABD borsası kapalıyken ve hafta sonu hisselerde hacim düştüğü için eşik 100 bin $ (EQUITY_closed), böylece hisseler 7/24 taranır.",
+    "_equity_closed_aciklama": "24s hacim eşikleri: kripto ve hisse en az 5 milyon $, emtia en az 1 milyon $. scan_equity_when_closed=false: ABD borsası kapalıyken ve hafta sonu hisseler taranmaz (boş/dar mumlar sahte sinyal üretir). true yapılırsa kapalıyken EQUITY_closed eşiği kullanılır.",
     "equity_whitelist_eski": [
       "NVDA",
       "MSFT",
