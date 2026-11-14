@@ -230,6 +230,15 @@ def release_check():
         log("anlık veri kontrolü zaman aşımına uğradı")
 
 
+def perf_jobs():
+    """Sinyal karnesi: açık sinyallerin sonucunu güncelle; pazar 21:00 TSİ'den sonra haftalık özet."""
+    for cmd in ("update", "weekly"):
+        try:
+            subprocess.run([sys.executable, "perf.py", cmd], cwd=BASE, env=dict(os.environ), timeout=180)
+        except subprocess.TimeoutExpired:
+            log(f"karne ({cmd}) zaman aşımına uğradı")
+
+
 def bulletin_due():
     """Son bülten 55 dakikadan eskiyse (veya hiç yoksa) True."""
     try:
@@ -278,6 +287,7 @@ def main():
                 scan("4h")      # 4 saatlik – tüm semboller
             report()
             daily_status()
+            perf_jobs()
         if ENABLE_5M:
             scan("5m")          # 5 dakikalık tarama – sadece BTC ve ETH
         release_check()

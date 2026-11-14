@@ -1114,11 +1114,59 @@ def ichimoku_lines(res, direction, cfg):
         out.append(f"⚪ Ichimoku kararsız ({n_ok}/4)")
     else:
         out.append(f"⚠️ Ichimoku sinyalle uyumsuz ({n_ok}/4)")
+    res["_ichi"] = {"n_ok": n_ok, "confirmed": list(confirmed[sig]), "against": list(confirmed[-sig])}
     if confirmed[sig]:
         out.append("✅ Retest teyidi: " + ", ".join(confirmed[sig]))
     if confirmed[-sig]:
         out.append("⚠️ Ters yönde retest teyidi: " + ", ".join(confirmed[-sig]))
     return out
+
+
+QUALITY_BADGE = {"A": "🅰️", "B": "🅱️", "C": "Ⓒ"}
+QUALITY_CHECKS = (("htf", "Üst zaman dilimleri uyumlu"), ("ichi", "Ichimoku ≥3/4 uyumlu"),
+                  ("retest", "Retest teyidi var"), ("leader", "BTC/QQQ yönü aynı"))
+
+
+def quality_grade(res, direction, cfg):
+    """Sinyal kalite notu (A / B / C) ve koşulların sonucu.
+    Koşullar: üst zaman dilimleri ters değil (kendi zaman dilimi de uyumlu) · Ichimoku en az 3/4 uyumlu ·
+    sinyal yönünde en az bir ✅ retest teyidi (trend çizgisi, Ichimoku, hacim profili) · BTC/QQQ yönü aynı.
+    Uygulanamayan koşul (ör. emtiada lider yok, verisi olmayan) sayılmaz.
+    A: uygulanan koşulların hepsi (en az 3) · B: en az 2 · C: diğerleri.
+    Döner: (not, {koşul: True/False/None})"""
+    s = 1 if direction == "long" else -1
+    checks = {}
+    tf = res.get("tf") or {}
+    key = cfg.get("timeframe", "1h")
+    if tf.get(key) is None:
+        checks["htf"] = None
+    else:
+        rows = [k for k, _ in res.get("tf_rows", TF_ROWS)]
+        higher = rows[rows.index(key) + 1:] if key in rows else []
+        checks["htf"] = tf.get(key) == s and not any(tf.get(k) == -s for k in higher)
+    if "_ichi" not in res:
+        ichimoku_lines(res, direction, cfg)
+    ichi = res.get("_ichi")
+    checks["ichi"] = None if ichi is None else ichi["n_ok"] >= 3
+    rt = False
+    for ev in res.get("tline") or []:
+        if ev["retest"] == "confirmed" and (1 if ev["type"] == "falling" else -1) == s:
+            rt = True
+    if ichi and ichi["confirmed"]:
+        rt = True
+    for ev in (res.get("vp_ev") or {}).values():
+        if ev.get("state") == "confirmed" and (1 if ev.get("dir") == "up" else -1) == s:
+            rt = True
+    checks["retest"] = rt
+    if res.get("leader_name") and res["leader_name"] != "4s trend":
+        lb_ = res["leader_bias"]
+        checks["leader"] = (1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)) == s
+    else:
+        checks["leader"] = None
+    used = [v for v in checks.values() if v is not None]
+    ok = sum(1 for v in used if v)
+    grade = "A" if ok == len(used) and len(used) >= 3 else ("B" if ok >= 2 else "C")
+    return grade, checks
 
 
 def trendline_lines(res):
@@ -1300,8 +1348,10 @@ def build_message(res, direction, cfg, now_utc):
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             score_line += "\n\n" + extra_line
+    grade, _ = quality_grade(res, direction, cfg)
+    res["grade"] = grade
     lines = banner_lines(meta, cfg) + [
-        f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
+        f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']} · {QUALITY_BADGE[grade]}",
         SEP,
         score_line,
         "",
@@ -1680,7 +1730,18 @@ def main():
             if notifier.send(msg):
                 sent += 1
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
-                print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
+                print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']}) "
+                      f"kalite {r.get('grade', '-')}")
+                if not notifier.dry:
+                    try:      # sinyal karnesi için kayıt
+                        import perf
+                        entry, sl, tps, _ = levels(r, d, cfg)
+                        grade, checks = quality_grade(r, d, cfg)
+                        tf_ms = perf.TF_MS.get(cfg["timeframe"], HOUR_MS)
+                        perf.record_signal(r["meta"]["symbol"], r["meta"]["type"], cfg["timeframe"], d,
+                                           r["f"]["t"][r["i"]] + tf_ms, entry, sl, tps, grade, checks)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  Karne kaydı hatası: {e}", file=sys.stderr)
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
 

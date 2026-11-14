@@ -632,6 +632,45 @@ def test_swing_anchor():
     assert ta.swing_anchor([50] + h, [1] + l, 7) == 2
 
 
+def test_quality_grade():
+    base = {"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1, "1w": -1}, "tf_rows": scanner.TF_ROWS,
+            "tline": [{"type": "falling", "retest": "confirmed", "tf": "1h"}], "vp_ev": {},
+            "_ichi": {"n_ok": 4, "confirmed": [], "against": []},
+            "leader_name": "BTC", "leader_bias": 0.8}
+    cfg = {"timeframe": "1h"}
+    g, ch = scanner.quality_grade(dict(base), "long", cfg)
+    assert ch == {"htf": False, "ichi": True, "retest": True, "leader": True} and g == "B", (g, ch)   # 1 hafta ters
+    g, ch = scanner.quality_grade(dict(base, tf={"15m": 1, "1h": 1, "4h": 1, "1d": 0, "1w": 1}), "long", cfg)
+    assert g == "A", (g, ch)
+    g, ch = scanner.quality_grade(dict(base, tf={"1h": -1}, tline=[], leader_bias=-0.9), "long", cfg)
+    assert g == "C" and ch["htf"] is False and ch["retest"] is False and ch["leader"] is False, (g, ch)
+    # lider yok (emtia): 3 koşulun hepsi → A
+    g, ch = scanner.quality_grade(dict(base, tf={"1h": 1}, leader_name="4s trend"), "long", cfg)
+    assert ch["leader"] is None and g == "A", (g, ch)
+
+
+def test_perf_evaluate():
+    import perf
+    sig = {"dir": "long", "entry": 100.0, "sl": 98.0, "tps": [102.0, 104.0, 106.0], "tf": "1h"}
+    assert perf.evaluate(sig, [{"h": 101, "l": 99}, {"h": 101, "l": 97.5}]) == ("stop", 0)
+    assert perf.evaluate(sig, [{"h": 102.5, "l": 99}, {"h": 101, "l": 99.9}]) == ("tp1", 1)   # TP1 sonra girişe döndü
+    assert perf.evaluate(sig, [{"h": 102.5, "l": 99}, {"h": 104.2, "l": 101}]) == ("open", 2)
+    assert perf.evaluate(sig, [{"h": 106.5, "l": 99}]) == ("tp3", 3)
+    assert perf.evaluate(sig, [{"h": 102.5, "l": 97}]) == ("stop", 0)        # aynı mumda ikisi → temkinli stop
+    assert perf.evaluate(sig, [{"h": 101, "l": 99}] * 72) == ("timeout", 0)
+    short = dict(sig, dir="short", sl=102.0, tps=[98.0, 96.0, 94.0])
+    assert perf.evaluate(short, [{"h": 101, "l": 97.9}, {"h": 100.1, "l": 99}]) == ("tp1", 1)
+    now = 1_800_000_000
+    d = {"signals": [dict(sig, id="a", symbol="X", type="COIN", t=(now - 3600) * 1000, status="tp1", best=1,
+                          grade="A", checks={"htf": True, "ichi": True, "retest": False, "leader": True}),
+                     dict(sig, id="b", symbol="Y", type="COIN", t=(now - 3600) * 1000, status="stop", best=0,
+                          grade="C", checks={"htf": False, "ichi": False, "retest": False, "leader": True})]}
+    msg = perf.weekly_message(d, now)
+    assert "Toplam</b>: 2 sinyal · TP1 %50 · Stop %50" in msg, msg
+    assert "🅰️ A: 1 sinyal · TP1 %100" in msg and "Ⓒ C: 1 sinyal · TP1 %0 · Stop %100" in msg, msg
+    assert "Üst zaman dilimi uyumlu: ✅ %100 (1) · ❌ %0 (1)" in msg, msg
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
