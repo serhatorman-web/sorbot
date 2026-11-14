@@ -698,6 +698,22 @@ def test_order_blocks():
     assert ta.order_blocks(o, h, l, c2, atr, 1, n) == []
 
 
+def test_order_block_lines():
+    n = 40
+    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n
+    o[20], c[20], h[20], l[20] = 100.0, 99.0, 100.2, 98.8
+    c[21], h[21], l[21] = 102.5, 102.7, 99.0
+    for k in range(22, n): o[k], c[k], h[k], l[k] = 102.0, 102.0, 102.5, 101.5
+    f = {"o": o, "h": h, "l": l, "c": c, "atr": [1.0] * n}
+    res = {"f": f, "i": n - 1, "meta": {"precision": 2}}
+    out = scanner.order_block_lines(res, {"timeframe": "1h"})
+    assert out[0] == "🧱 <b>Order block</b> · 1 saat", out
+    assert out[1] == "🟢 Boğa OB 98.80 – 100.20 · fiyatın %1.8 altında (destek)", out
+    c[n - 1] = 100.1; l[n - 1] = 99.9
+    out = scanner.order_block_lines(res, {"timeframe": "1h"})
+    assert out[1].endswith("fiyat bölgede, destek test ediliyor"), out
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

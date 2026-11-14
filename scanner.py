@@ -998,6 +998,51 @@ VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı"
              ("VAL", "down"): "düşüşün devamı", ("VAL", "up"): "yükseliş"}
 
 
+def order_block_lines(res, cfg):
+    """Order block (sinyal zaman dilimi): fiyatın altındaki en yakın tüketilmemiş boğa OB (destek) ve
+    üstündeki en yakın ayı OB (direnç). Fiyat bölgedeyse 'test ediliyor', son 5 mumda bölgeye dokunup
+    0.5 ATR uzaklaştıysa 'tepki geldi'. Uzaktaki (max_atr × ATR'den fazla) bölgeler yazılmaz."""
+    oc = cfg.get("order_blocks", {})
+    if not oc.get("enabled", True):
+        return []
+    f, i = res["f"], res["i"]
+    a = f["atr"][i]
+    if not a:
+        return []
+    price = f["c"][i]
+    prec = res["meta"].get("precision")
+    span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    out = []
+    for s in (1, -1):
+        obs = ta.order_blocks(f["o"], f["h"], f["l"], f["c"], f["atr"], s, i + 1,
+                              oc.get("lookback", 300), oc.get("disp_atr", 2.0))
+        if s == 1:
+            cand = [ob for ob in obs if ob[0] <= price]
+            ob = max(cand, key=lambda x: x[1]) if cand else None
+        else:
+            cand = [ob for ob in obs if ob[1] >= price]
+            ob = min(cand, key=lambda x: x[0]) if cand else None
+        if not ob:
+            continue
+        lo, hi, _ = ob
+        dist = (price - hi) if s == 1 else (lo - price)
+        if dist > oc.get("max_atr", 6) * a:
+            continue
+        zone = f"{fmt_price(lo, prec)} – {fmt_price(hi, prec)}"
+        name = "🟢 Boğa OB" if s == 1 else "🔴 Ayı OB"
+        role = "destek" if s == 1 else "direnç"
+        touched = any((f["l"][k] <= hi) if s == 1 else (f["h"][k] >= lo) for k in range(max(0, i - 4), i + 1))
+        if dist <= 0:
+            st = f"fiyat bölgede, {role} test ediliyor"
+        elif touched and dist >= 0.5 * a:
+            st = f"✅ bölgeden tepki geldi ({role} çalıştı)"
+        else:
+            pct_ = dist / price * 100
+            st = f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role})"
+        out.append(f"{name} {zone} · {st}")
+    return ([f"🧱 <b>Order block</b> · {span}"] + out) if out else []
+
+
 def volume_profile_lines(res, cfg):
     """Hacim profili (VAH / POC / VAL): sadece fiyatın şu an bulunduğu seviye yazılır.
     Kırılım: ⏳ retest yok · 🔄 retest yapılıyor · ✅ retest yapıldı.  Tepki: ⚪ bekleniyor · 🟢/🔴 retest yapıldı."""
@@ -1526,7 +1571,7 @@ def build_message(res, direction, cfg, now_utc):
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
         for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
-                      divergence_lines(res), volume_lines(res, cfg)):
+                      order_block_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
     lines += ["", SEP, trend_line] + market_lines(res, cfg, now_utc)
@@ -1583,7 +1628,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
     for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
-                  divergence_lines(res), volume_lines(res, cfg)):
+                  order_block_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
     trend = tf_table_html(res)

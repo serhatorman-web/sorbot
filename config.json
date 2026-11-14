@@ -160,6 +160,13 @@
              "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["vp_level", "htf_with"]}}
     }
   },
+  "order_blocks": {
+    "_aciklama": "Sinyallerde Order block bölümü: fiyatın altındaki en yakın tüketilmemiş boğa OB (destek) ve üstündeki en yakın ayı OB (direnç). OB: en az disp_atr ATR'lik yapı kıran hareketten önceki son ters mum; kapanışla geçilince tüketilir. max_atr ATR'den uzaktakiler yazılmaz.",
+    "enabled": true,
+    "lookback": 300,
+    "disp_atr": 2.0,
+    "max_atr": 6
+  },
   "volume_profile": {
     "window": "swing",
     "anchor_lookback": 300,
