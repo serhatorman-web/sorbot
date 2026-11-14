@@ -714,6 +714,19 @@ def test_order_block_lines():
     assert out[1].endswith("fiyat bölgede, destek test ediliyor"), out
 
 
+def test_signal_price_action():
+    n = 40
+    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n
+    h[30] = 102.0                                        # pivot tepe
+    o[38], c[38], h[38], l[38] = 101.0, 100.0, 101.1, 99.9   # kırmızı
+    o[39], c[39], h[39], l[39] = 99.9, 102.6, 102.7, 99.8    # yutan, güçlü kapanış, tepeyi kırdı
+    f = {"o": o, "h": h, "l": l, "c": c, "atr": [1.0] * n}
+    pa = scanner.signal_price_action(f, n - 1, 1)
+    assert pa["pa_engulf"] and pa["pa_strong_close"] and pa["pa_bos"], pa
+    out = scanner.price_action_lines({"f": f, "i": n - 1}, "long", {"timeframe": "1h"})
+    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and "✅ Yapı kırılımı (son tepe kapanışla geçildi)" in out, out
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

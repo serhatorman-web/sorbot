@@ -1266,6 +1266,55 @@ def price_action(f, i, s, j, ext, aj):
     return out
 
 
+def signal_price_action(f, i, s):
+    """Supertrend sinyallerinde sinyal mumu ve son mumlardaki price action (LONG için; SHORT'ta tersi).
+    pa_engulf (sinyal ya da önceki mum) · pa_hammer pin bar/çekiç (sinyal ya da önceki mum) · pa_star yıldız ·
+    pa_inside_break · pa_strong_close · pa_bos: son pivot tepe (2/2, 30 mum) kapanışla geçildi ·
+    pa_structure: son iki pivot dip yükseliyor (SHORT: son iki pivot tepe alçalıyor)"""
+    o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
+    a = f["atr"][i] or (h_[i] - l_[i]) or 1e-12
+    out = {k: v for k, v in price_action(f, i, s, max(0, i - 1), l_[i] if s == 1 else h_[i], a).items()
+           if k in ("pa_engulf", "pa_inside_break", "pa_strong_close")}
+    body = lambda k: abs(c_[k] - o_[k])
+    up = lambda k: (c_[k] - o_[k]) * s > 0
+
+    def pin(k):
+        r = h_[k] - l_[k]
+        if r <= 0:
+            return False
+        wick = (min(o_[k], c_[k]) - l_[k]) if s == 1 else (h_[k] - max(o_[k], c_[k]))
+        pos = (c_[k] - l_[k]) / r if s == 1 else (h_[k] - c_[k]) / r
+        return wick >= 2 * max(body(k), 1e-12) and pos >= 2 / 3
+    out["pa_hammer"] = any(pin(k) for k in (i, i - 1) if k >= 0)
+    out["pa_star"] = any(k >= 2 and not up(k - 2) and body(k - 2) >= 0.5 * a and body(k - 1) <= 0.3 * a and up(k)
+                         and body(k) >= 0.5 * a
+                         and ((c_[k] > (o_[k - 2] + c_[k - 2]) / 2) if s == 1 else (c_[k] < (o_[k - 2] + c_[k - 2]) / 2))
+                         for k in (i, i - 1))
+    piv_hi = [k for k in range(i - 2, max(1, i - 30), -1) if h_[k] == max(h_[k - 2:k + 3])]
+    piv_lo = [k for k in range(i - 2, max(1, i - 30), -1) if l_[k] == min(l_[k - 2:k + 3])]
+    ref = piv_hi if s == 1 else piv_lo
+    out["pa_bos"] = bool(ref) and ((c_[i] > h_[ref[0]]) if s == 1 else (c_[i] < l_[ref[0]]))
+    two = piv_lo[:2] if s == 1 else piv_hi[:2]
+    out["pa_structure"] = len(two) == 2 and ((l_[two[0]] > l_[two[1]]) if s == 1 else (h_[two[0]] < h_[two[1]]))
+    return out
+
+
+def price_action_lines(res, direction, cfg):
+    """Supertrend sinyallerinde 🕯️ Price action bölümü."""
+    f, i = res["f"], res["i"]
+    s = 1 if direction == "long" else -1
+    pa = signal_price_action(f, i, s)
+    names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
+    up = direction == "long"
+    names.update({"pa_hammer": "Pin bar / çekiç (uzun alt iğne)" if up else "Pin bar / ters çekiç (uzun üst iğne)",
+                  "pa_bos": f"Yapı kırılımı (son {'tepe' if up else 'dip'} kapanışla geçildi)",
+                  "pa_structure": "Yükselen dipler" if up else "Alçalan tepeler"})
+    order = ("pa_bos", "pa_structure", "pa_engulf", "pa_hammer", "pa_star", "pa_inside_break", "pa_strong_close")
+    ok = [names[k] for k in order if pa.get(k)]
+    span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    return [f"🕯️ <b>Price action</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
+
+
 def early_criteria_names(direction, tf):
     up = direction == "long"
     return {"btc_mom": f"BTC son 3 mumda {'yükselişte' if up else 'düşüşte'}",
@@ -1570,7 +1619,8 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
-        for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
+        pa_block = [] if early else price_action_lines(res, direction, cfg)
+        for block in (pa_block, trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                       order_block_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
