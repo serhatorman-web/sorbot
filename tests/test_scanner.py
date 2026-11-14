@@ -490,14 +490,22 @@ def test_trendline_break():
 
 
 def test_volume_profile_retest():
-    # seviyeye alttan gelip değen mum, ardından onun dibinin altında kapanış → düşüş
-    c = [100.0] * 40 + [101, 103, 105, 107, 109.5, 108, 106]
+    # seviyeye alttan gelip iğneyle değen mum, ardından onun dibinin altında kapanış → düşüş
+    c = [100.0] * 40 + [101, 103, 105, 107, 109.5, 108, 107]
     h = [x + 0.6 for x in c]; l = [x - 0.6 for x in c]
-    ev = ta.level_retest(h, l, c, 110.0)
+    o = [c[0]] + c[:-1]
+    ev = ta.level_retest(h, l, c, 110.0, open_=o, near_atr=5)
     assert ev and ev["state"] == "down" and ev["from"] == "below", ev
     # değdi ama henüz tepki yok
-    ev = ta.level_retest(h[:45], l[:45], c[:45], 110.0)
+    ev = ta.level_retest(h[:45], l[:45], c[:45], 110.0, open_=o[:45], near_atr=5)
     assert ev["state"] == "touch"
+    # seviyeyi kesen kırılım mumu retest sayılmaz (QQQ örneği)
+    c2 = [100.0] * 40 + [112, 104, 103, 103.5]
+    o2 = [100.0] * 40 + [112.5, 111.8, 104, 103]
+    h2 = [max(a, b) + 0.5 for a, b in zip(c2, o2)]; l2 = [min(a, b) - 0.5 for a, b in zip(c2, o2)]
+    assert ta.level_retest(h2, l2, c2, 108.0, open_=o2, near_atr=5) is None
+    # fiyat seviyeden uzaksa yazılmaz
+    assert ta.level_retest(h, l, c, 110.0, open_=o, near_atr=0.1) is None
     # uzak seviye → yok
     assert ta.level_retest(h, l, c, 150.0) is None
     res = {"meta": {"precision": 1}, "vp_ev": {

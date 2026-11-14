@@ -522,25 +522,31 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
 
 
 
-def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14):
-    """Bir fiyat seviyesine (VAH/POC/VAL) son `window` mumda ulaşıldı mı ve tepki ne oldu?
-    Ulaştı: mumun aralığı seviyeye değdi (tolerans tol_atr x ATR).
-    Teyit : sonraki bir mum, seviyeye değen mumun dibinin altında ("down") ya da tepesinin üstünde ("up") kapandı.
-    Döner: None (ulaşılmadı) | {"state": "up"|"down"|"touch", "from": "below"|"above", "bars_ago": int}"""
+def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, open_=None, near_atr=1.5):
+    """Bir fiyat seviyesine (VAH/POC/VAL) retest: son `window` mumda fiyat seviyeye geri gelip dokundu,
+    ama mum açılışı ve kapanışı seviyenin AYNI tarafında kaldı (iğne ile dokunuş – seviyeyi kesen kırılım mumu retest sayılmaz).
+    Ayrıca son fiyat seviyeye yakın olmalı (near_atr x ATR) – fiyatın şu an bulunduğu seviye.
+    Teyit: sonraki bir mum, dokunan mumun dibinin altında ("down") ya da tepesinin üstünde ("up") kapandı.
+    Döner: None | {"state": "up"|"down"|"touch", "from": "below"|"above", "bars_ago": int}"""
     n = len(close)
     if n < atr_len + window + 2:
         return None
     a = atr(high, low, close, atr_len)
+    if a[-1] is None or abs(close[-1] - level) > near_atr * a[-1]:
+        return None                                  # fiyat bu seviyede değil
+    op = open_ if open_ is not None else [close[k - 1] if k else close[k] for k in range(n)]
     touch = None
     for k in range(n - 1, n - 1 - window, -1):
         tol = (a[k] or 0) * tol_atr
-        if low[k] - tol <= level <= high[k] + tol:
-            touch = k
-            break
+        if not (low[k] - tol <= level <= high[k] + tol):
+            continue
+        if (op[k] - level) * (close[k] - level) < 0:
+            continue                                 # seviyeyi kesen mum (kırılım) – retest değil
+        touch = k
+        break
     if touch is None:
         return None
-    # dokunuştan önceki son mumların hangi tarafta olduğuna bak (seviyeye nereden gelindi)
-    side = "below" if close[max(0, touch - 1)] < level else "above"
+    side = "below" if close[touch] < level else "above"
     state = "touch"
     for k in range(touch + 1, n):
         if close[k] < low[touch]:

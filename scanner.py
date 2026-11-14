@@ -936,8 +936,9 @@ def compute_volume_profile(res, cfg):
     res["vp_ev"] = {}
     if out:
         hh, ll, cc = f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1]
+        oo = f["o"][:i + 1] if f.get("o") else None
         for name, lvl in zip(("VAH", "POC", "VAL"), out):
-            ev = ta.level_retest(hh, ll, cc, lvl, vp.get("retest_window", 10))
+            ev = ta.level_retest(hh, ll, cc, lvl, vp.get("retest_window", 10), open_=oo)
             if ev:
                 res["vp_ev"][name] = dict(ev, level=lvl)
 
