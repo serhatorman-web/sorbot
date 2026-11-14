@@ -619,6 +619,19 @@ def test_retest_requires_detach():
     assert ev and ev[0]["type"] == "rising" and ev[0]["retest"] == "none", ev
 
 
+def test_swing_anchor():
+    # düşüş: en yüksek tepe 5. mumda, en düşük dip son mumda → pencere 5. mumdan başlar
+    h = [10, 11, 12, 13, 14, 20, 15, 13, 12, 11]
+    l = [9, 10, 11, 12, 13, 18, 14, 12, 11, 8]
+    assert ta.swing_anchor(h, l, 300) == 5
+    # yükseliş: en düşük dip daha eski → oradan başlar
+    h = [10, 9, 12, 14, 16, 18, 21]
+    l = [8, 5, 10, 12, 14, 16, 19]
+    assert ta.swing_anchor(h, l, 300) == 1
+    # arama sadece son `lookback` mumda
+    assert ta.swing_anchor([50] + h, [1] + l, 7) == 2
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
