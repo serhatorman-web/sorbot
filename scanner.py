@@ -1296,6 +1296,81 @@ def signal_price_action(f, i, s):
     out["pa_bos"] = bool(ref) and ((c_[i] > h_[ref[0]]) if s == 1 else (c_[i] < l_[ref[0]]))
     two = piv_lo[:2] if s == 1 else piv_hi[:2]
     out["pa_structure"] = len(two) == 2 and ((l_[two[0]] > l_[two[1]]) if s == 1 else (h_[two[0]] < h_[two[1]]))
+    out.update(extra_price_action(f, i, s))
+    return out
+
+
+def extra_price_action(f, i, s):
+    """Ek price action unsurları (LONG için; SHORT'ta tersi). *_risk olanlar sinyale karşı.
+    pa_fvg: altta (LONG) son 30 mumda oluşmuş, doldurulmamış boğa FVG, fiyata ≤3 ATR
+    pa_fvg_risk: üstte doldurulmamış ayı FVG, fiyata ≤2 ATR
+    pa_sfp: son 5 mumda önceki 20 mumun dibi iğneyle kırılıp üstünde kapanıldı (sahte kırılım / stop avı)
+    pa_eq_target: üstte eşit tepeler (likidite hedefi, ≤4 ATR) · pa_eq_risk: altta eşit dipler (≤2 ATR)
+    pa_range_break: önceki 12 mum ≤3 ATR'lik sıkışma, sinyal mumu hacimle (≥1.5x) yukarı kırdı
+    pa_three: üç beyaz asker · pa_tweezer: cımbız dip · pa_marubozu: gölgesiz güçlü mum
+    pa_doji_risk: sinyal mumu doji (kararsızlık) · pa_discount: fiyat son salınımın alt yarısında (ucuz bölge)
+    pa_premium_risk: fiyat son salınımın üst %25'inde (pahalı bölge)"""
+    o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
+    a = f["atr"][i] or (h_[i] - l_[i]) or 1e-12
+    price = c_[i]
+    out = {}
+    fv_sup = fv_risk = False
+    for k in range(max(2, i - 30), i + 1):
+        if s == 1:
+            if l_[k] > h_[k - 2] and all(l_[m] > h_[k - 2] for m in range(k + 1, i + 1)) and price - h_[k - 2] <= 3 * a:
+                fv_sup = True
+            if h_[k] < l_[k - 2] and all(h_[m] < l_[k - 2] for m in range(k + 1, i + 1)) and h_[k] >= price and h_[k] - price <= 2 * a:
+                fv_risk = True
+        else:
+            if h_[k] < l_[k - 2] and all(h_[m] < l_[k - 2] for m in range(k + 1, i + 1)) and l_[k - 2] - price <= 3 * a:
+                fv_sup = True
+            if l_[k] > h_[k - 2] and all(l_[m] > h_[k - 2] for m in range(k + 1, i + 1)) and l_[k] <= price and price - l_[k] <= 2 * a:
+                fv_risk = True
+    out["pa_fvg"], out["pa_fvg_risk"] = fv_sup, fv_risk
+    sfp = False
+    for k in range(max(21, i - 4), i + 1):
+        ref = min(l_[k - 20:k]) if s == 1 else max(h_[k - 20:k])
+        if (l_[k] < ref and c_[k] > ref) if s == 1 else (h_[k] > ref and c_[k] < ref):
+            sfp = True
+    out["pa_sfp"] = sfp
+    ph = [k for k in range(i - 2, max(1, i - 50), -1) if h_[k] == max(h_[k - 2:k + 3])]
+    pl = [k for k in range(i - 2, max(1, i - 50), -1) if l_[k] == min(l_[k - 2:k + 3])]
+
+    def equal(ks, arr, side_ok):
+        for x in range(len(ks)):
+            for y in range(x + 1, len(ks)):
+                if abs(arr[ks[x]] - arr[ks[y]]) <= 0.15 * a and side_ok(arr[ks[x]]):
+                    return True
+        return False
+    above = lambda v: v > price and v - price <= 4 * a
+    below = lambda v: v < price and price - v <= 2 * a
+    if s == 1:
+        out["pa_eq_target"] = equal(ph, h_, above)
+        out["pa_eq_risk"] = equal(pl, l_, below)
+    else:
+        out["pa_eq_target"] = equal(pl, l_, lambda v: v < price and price - v <= 4 * a)
+        out["pa_eq_risk"] = equal(ph, h_, lambda v: v > price and v - price <= 2 * a)
+    box = range(max(0, i - 12), i)
+    vm = (f.get("vol_ma") or [None] * (i + 1))[i]
+    out["pa_range_break"] = (len(box) == 12 and max(h_[k] for k in box) - min(l_[k] for k in box) <= 3 * a
+                             and ((c_[i] > max(h_[k] for k in box)) if s == 1 else (c_[i] < min(l_[k] for k in box)))
+                             and bool(vm) and f["v"][i] >= 1.5 * vm)
+    out["pa_three"] = i >= 2 and all((c_[k] - o_[k]) * s >= 0.5 * a for k in (i - 2, i - 1, i)) and \
+        all((c_[k] - c_[k - 1]) * s > 0 for k in (i - 1, i))
+    lo10 = min(l_[max(0, i - 10):i + 1]) if s == 1 else max(h_[max(0, i - 10):i + 1])
+    out["pa_tweezer"] = i >= 2 and ((abs(l_[i - 1] - l_[i - 2]) <= 0.1 * a and min(l_[i - 1], l_[i - 2]) <= lo10 + 0.1 * a)
+                                    if s == 1 else
+                                    (abs(h_[i - 1] - h_[i - 2]) <= 0.1 * a and max(h_[i - 1], h_[i - 2]) >= lo10 - 0.1 * a)) \
+        and (c_[i] - o_[i]) * s > 0
+    r = h_[i] - l_[i]
+    out["pa_marubozu"] = r > 0 and abs(c_[i] - o_[i]) >= 0.9 * r and abs(c_[i] - o_[i]) >= a and (c_[i] - o_[i]) * s > 0
+    out["pa_doji_risk"] = r > 0 and abs(c_[i] - o_[i]) <= 0.1 * r
+    an = ta.swing_anchor(h_[:i + 1], l_[:i + 1], 300)
+    hi, lo = max(h_[an:i + 1]), min(l_[an:i + 1])
+    if hi > lo:
+        pos = (price - lo) / (hi - lo)
+        out["pa_discount"] = pos < 0.5 if s == 1 else pos > 0.5
+        out["pa_premium_risk"] = pos > 0.75 if s == 1 else pos < 0.25
     return out
 
 
