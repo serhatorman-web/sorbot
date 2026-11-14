@@ -581,7 +581,7 @@ def test_ichimoku_band_retest():
     cfg = {"timeframe": "1h", "indicators": {"ichimoku": [9, 26, 52, 26]}}
     out = scanner.ichimoku_lines(res, "long", cfg)
     assert out[0] == "☁️ <b>Ichimoku</b> · 1 saat", out
-    assert out[1].startswith("🟢 Bulut ") and "fiyat üstünde (destek)" in out[1], out
+    assert out[1].startswith("🟢 Bulut (yeşil) ") and "fiyat üstünde (destek)" in out[1], out
     assert out[4].startswith("🟢 İleri bulut (26 mum sonrası): yeşil · ") and out[4].endswith("→ yükseliş trendi bekleniyor"), out
     assert out[5] == "🟢 Tenkan Kijun'un üstünde", out
     assert out[6] == "✅ Ichimoku sinyalle uyumlu (4/4)", out
