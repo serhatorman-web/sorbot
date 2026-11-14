@@ -1000,7 +1000,15 @@ def volume_profile_lines(res, cfg):
         head = f"{name} - fiyat {fmt_price(ev['level'], prec)} seviyesine ulaştı."
         if ev["state"] in ("up", "down"):
             icon = "🟢" if ev["state"] == "up" else "🔴"
-            out.append(f"{icon} {head} Retest yapıldı, {VP_EXPECT[(name, ev['state'])]} bekleniyor.")
+            exp = VP_EXPECT[(name, ev["state"])]
+            through = (ev.get("from") == "above" and ev["state"] == "down") or \
+                      (ev.get("from") == "below" and ev["state"] == "up")
+            if through:      # seviye test edildi ama tutmadı, kırıldı
+                yon = "aşağı" if ev["state"] == "down" else "yukarı"
+                out.append(f"{icon} {name} - fiyat {fmt_price(ev['level'], prec)} seviyesini test edip {yon} kırdı. "
+                           f"{exp[0].upper() + exp[1:]} bekleniyor.")
+            else:            # seviye tuttu (destek / direnç) – retest
+                out.append(f"{icon} {head} Retest yapıldı, {exp} bekleniyor.")
         else:
             out.append(f"⚪ {head} Retest yapılıyor, tepki bekleniyor.")
     return out

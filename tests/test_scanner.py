@@ -509,13 +509,16 @@ def test_volume_profile_retest():
     # uzak seviye → yok
     assert ta.level_retest(h, l, c, 150.0) is None
     res = {"meta": {"precision": 1}, "vp_ev": {
-        "VAH": {"state": "down", "level": 71350.0}, "POC": {"state": "up", "level": 69500.0},
+        "VAH": {"state": "down", "level": 71350.0, "from": "below"}, "POC": {"state": "up", "level": 69500.0, "from": "above"},
         "VAL": {"state": "touch", "level": 65500.0}}}
     lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
     assert lines[0] == "📊 <b>Hacim profili</b> · 1 saat"
     assert lines[1] == "🔴 VAH - fiyat " + scanner.fmt_price(71350.0, 1) + " seviyesine ulaştı. Retest yapıldı, düşüş bekleniyor."
     assert lines[2].endswith("Retest yapıldı, yükseliş bekleniyor.") and lines[3].startswith("⚪ VAL")
     assert scanner.volume_profile_lines({"meta": {}}, {}) == []
+    brk = scanner.volume_profile_lines({"meta": {"precision": 4}, "vp_ev": {
+        "VAL": {"state": "down", "level": 0.9794, "from": "above"}}}, {"timeframe": "15m"})
+    assert brk[1] == "🔴 VAL - fiyat 0.9794 seviyesini test edip aşağı kırdı. Düşüşün devamı bekleniyor."
     res["f"] = {"c": [69600.0]}; res["i"] = 0          # fiyat POC yakınında → sadece POC
     lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
     assert len(lines) == 2 and "POC" in lines[1]
