@@ -1,0 +1,15 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/ex_all.py
+      - run: python3 scanner.py
+        env:
+          DRY_RUN: "1"
+          PREVIEW: "1"
