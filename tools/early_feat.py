@@ -128,29 +128,14 @@ for tf in ("15m", "1h", "4h"):
                 if abs(f["c"][i] - ev["ext"]) + 0.2 * a > ER["max_risk_atr"] * a: continue
                 o = outcome(f, i, s_, f["c"][i], ev["ext"] - s_ * 0.2 * a, tf)
                 if o is None: continue
-                rows.append((o, features(f, i, s_, ev, btc if sym != "BTCUSDT" else None)))
-        print(f"\n--- {tf} {d.upper()} ---")
-        print(line("TÜMÜ", [o for o, _ in rows]))
-        keys = sorted({k for _, F in rows for k in F})
-        good = []
-        for k in keys:
-            yes = [o for o, F in rows if F.get(k) is True]; no = [o for o, F in rows if F.get(k) is False]
-            print(line(f"  {k} ✓", yes) + "   |   " + line(f"✗", no).strip())
-            if len(yes) >= 30: good.append((pf([r for r, _ in yes]), k))
-        good.sort(reverse=True)
-        top = [k for _, k in good[:6]]
-        print("  En iyi tekli kriterler:", ", ".join(f"{k} ({p:.2f})" for p, k in good[:6]))
-        best = []
-        for m in (2, 3):
-            for combo in itertools.combinations(top, m):
-                sel = [o for o, F in rows if all(F.get(k) is True for k in combo)]
-                if len(sel) >= 25:
-                    best.append((pf([r for r, _ in sel]), combo, sel))
-        best.sort(key=lambda x: -x[0])
-        for p_, combo, sel in best[:5]:
-            print(line("  + " + " & ".join(combo), sel))
-        # puan sistemi: top kriterlerden kaç tanesi sağlanıyor
-        for kmin in (1, 2, 3, 4):
-            sel = [o for o, F in rows if sum(1 for k in top[:5] if F.get(k) is True) >= kmin]
-            print(line(f"  puan ≥{kmin} (ilk 5 kriterden)", sel))
+                rows.append((o, features(f, i, s_, ev, btc if sym != "BTCUSDT" else None), f["t"][i]))
+        CH = {("15m","long"): ["btc_not_against","sweep"], ("15m","short"): ["htf_with","ema200_side"],
+              ("1h","long"): ["btc_mom","sweep"], ("1h","short"): ["wick","htf_with"],
+              ("4h","long"): ["btc_st","htf_with"], ("4h","short"): ["vp_level","htf_with"]}[(tf, d)]
+        rows.sort(key=lambda x: x[2])
+        half = rows[len(rows)//2][2] if rows else 0
+        print(f"\n--- {tf} {d.upper()} · filtre: {' & '.join(CH)} ---")
+        for nm, part in (("tüm dönem", rows), ("1. yarı", [x for x in rows if x[2] < half]), ("2. yarı", [x for x in rows if x[2] >= half])):
+            print(line(f"  {nm} filtresiz", [o for o, F, _ in part]) + "  |  " +
+                  line("filtreli", [o for o, F, _ in part if all(F.get(k) is True for k in CH)]).strip())
         sys.stdout.flush()
