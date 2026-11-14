@@ -1078,8 +1078,16 @@ def ichimoku_lines(res, direction, cfg):
     fut = 1 if sa_now > sb_now else (-1 if sa_now < sb_now else 0)
     tk_txt = {1: "Tenkan Kijun'un üstünde", -1: "Tenkan Kijun'un altında", 0: "Tenkan = Kijun"}[tk]
     fut_txt = {1: "ileri bulut yeşil", -1: "ileri bulut kırmızı", 0: "ileri bulut nötr"}[fut]
-    tk_icon = "🟢" if tk + fut > 0 else ("🔴" if tk + fut < 0 else "⚪")
-    out.append(f"{tk_icon} {tk_txt} · {fut_txt}")
+    shift = (cfg.get("indicators", {}).get("ichimoku") or [9, 26, 52, 26])[3]
+    fut_word = {1: "yeşil", -1: "kırmızı", 0: "nötr"}[fut]
+    fut_exp = {1: "yükseliş trendi bekleniyor", -1: "düşüş trendi bekleniyor", 0: "yön belirsiz"}[fut]
+    fut_line = (f"{'🟢' if fut == 1 else ('🔴' if fut == -1 else '⚪')} İleri bulut ({shift} mum sonrası): {fut_word} · "
+                f"{p(min(sa_now, sb_now), prec)} – {p(max(sa_now, sb_now), prec)} → {fut_exp}")
+    atr_i = f.get("atr", [None] * (i + 1))[i]
+    if fut != 0 and atr_i and abs(sa_now - sb_now) < 0.25 * atr_i:
+        fut_line += " · ⚠️ bulut incelmiş, renk dönüşü yakın"
+    out.append(fut_line)
+    out.append(f"{'🟢' if tk == 1 else ('🔴' if tk == -1 else '⚪')} {tk_txt}")
     cloud = 1 if c[-1] > top[i] else (-1 if c[-1] < bot[i] else 0)
     vs_kij = 1 if c[-1] > kij[i] else (-1 if c[-1] < kij[i] else 0)
     n_ok = sum(1 for v in (cloud, tk, vs_kij, fut) if v == sig)
