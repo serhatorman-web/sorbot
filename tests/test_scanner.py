@@ -582,9 +582,14 @@ def test_ichimoku_band_retest():
     out = scanner.ichimoku_lines(res, "long", cfg)
     assert out[0] == "☁️ <b>Ichimoku</b> · 1 saat", out
     assert out[1].startswith("🟢 Bulut ") and "fiyat üstünde (destek)" in out[1], out
-    assert out[4] == "🟢 Tenkan Kijun'un üstünde · ileri bulut yeşil", out
-    assert out[5] == "✅ Ichimoku sinyalle uyumlu (4/4)", out
-    assert scanner.ichimoku_lines(res, "short", cfg)[5] == "⚠️ Ichimoku sinyalle uyumsuz (0/4)"
+    assert out[4].startswith("🟢 İleri bulut (26 mum sonrası): yeşil · ") and out[4].endswith("→ yükseliş trendi bekleniyor"), out
+    assert out[5] == "🟢 Tenkan Kijun'un üstünde", out
+    assert out[6] == "✅ Ichimoku sinyalle uyumlu (4/4)", out
+    assert scanner.ichimoku_lines(res, "short", cfg)[6] == "⚠️ Ichimoku sinyalle uyumsuz (0/4)"
+    # ileri bulut incelmiş → renk dönüşü uyarısı
+    f2 = dict(f, atr=[100.0] * n)
+    out2 = scanner.ichimoku_lines(dict(res, f=f2), "long", cfg)
+    assert out2[4].endswith(" · ⚠️ bulut incelmiş, renk dönüşü yakın"), out2
     assert scanner.ichimoku_lines(res, "long", dict(cfg, ichimoku_info={"enabled": False})) == []
 
 
