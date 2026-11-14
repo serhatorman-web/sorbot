@@ -488,6 +488,27 @@ def test_trendline_break():
                      "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor"]
     assert scanner.trendline_lines({}) == []
 
+
+def test_volume_profile_retest():
+    # seviyeye alttan gelip değen mum, ardından onun dibinin altında kapanış → düşüş
+    c = [100.0] * 40 + [101, 103, 105, 107, 109.5, 108, 106]
+    h = [x + 0.6 for x in c]; l = [x - 0.6 for x in c]
+    ev = ta.level_retest(h, l, c, 110.0)
+    assert ev and ev["state"] == "down" and ev["from"] == "below", ev
+    # değdi ama henüz tepki yok
+    ev = ta.level_retest(h[:45], l[:45], c[:45], 110.0)
+    assert ev["state"] == "touch"
+    # uzak seviye → yok
+    assert ta.level_retest(h, l, c, 150.0) is None
+    res = {"meta": {"precision": 1}, "vp_ev": {
+        "VAH": {"state": "down", "level": 71350.0}, "POC": {"state": "up", "level": 69500.0},
+        "VAL": {"state": "touch", "level": 65500.0}}}
+    lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
+    assert lines[0] == "📊 <b>Hacim profili</b> · 1 saat"
+    assert lines[1] == "🔴 VAH - fiyat " + scanner.fmt_price(71350.0, 1) + " seviyesine ulaştı. Retest yapıldı, düşüş bekleniyor."
+    assert lines[2].endswith("Retest yapıldı, yükseliş bekleniyor.") and lines[3].startswith("⚪ VAL")
+    assert scanner.volume_profile_lines({"meta": {}}, {}) == []
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

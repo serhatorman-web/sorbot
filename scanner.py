@@ -933,6 +933,13 @@ def compute_volume_profile(res, cfg):
     out = ta.volume_profile(f["h"][a:i + 1], f["l"][a:i + 1], f["v"][a:i + 1],
                             vp.get("rows", 24), vp.get("value_area", 0.70))
     res["vp"] = out
+    res["vp_ev"] = {}
+    if out:
+        hh, ll, cc = f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1]
+        for name, lvl in zip(("VAH", "POC", "VAL"), out):
+            ev = ta.level_retest(hh, ll, cc, lvl, vp.get("retest_window", 10))
+            if ev:
+                res["vp_ev"][name] = dict(ev, level=lvl)
 
 
 def volume_lines(res, cfg):
@@ -968,19 +975,30 @@ def volume_lines(res, cfg):
     return out
 
 
+VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı",
+             ("POC", "down"): "düşüş", ("POC", "up"): "yükseliş",
+             ("VAL", "down"): "düşüşün devamı", ("VAL", "up"): "yükseliş"}
+
+
 def volume_profile_lines(res, cfg):
-    vp = res.get("vp")
-    if not vp:
+    """Hacim profili seviyeleri (VAH / POC / VAL): fiyat seviyeye ulaştıysa ve tepkisi varsa yazılır."""
+    evs = res.get("vp_ev") or {}
+    if not evs:
         return []
-    vah, poc, val = vp
-    f, i = res["f"], res["i"]
-    price = f["c"][i]
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
-    return [f"📊 Hacim profili · {span}",
-            f"🔴 VAH: <code>{fmt_price(vah, prec)}</code> ({pct(vah, price):+.2f}%)",
-            f"🟡 POC: <code>{fmt_price(poc, prec)}</code> ({pct(poc, price):+.2f}%)",
-            f"🟢 VAL: <code>{fmt_price(val, prec)}</code> ({pct(val, price):+.2f}%)"]
+    out = [f"📊 <b>Hacim profili</b> · {span}"]
+    for name in ("VAH", "POC", "VAL"):
+        ev = evs.get(name)
+        if not ev:
+            continue
+        head = f"{name} - fiyat {fmt_price(ev['level'], prec)} seviyesine ulaştı."
+        if ev["state"] in ("up", "down"):
+            icon = "🟢" if ev["state"] == "up" else "🔴"
+            out.append(f"{icon} {head} Retest yapıldı, {VP_EXPECT[(name, ev['state'])]} bekleniyor.")
+        else:
+            out.append(f"⚪ {head} Retest yapılıyor, tepki bekleniyor.")
+    return out
 
 
 def trendline_lines(res):
@@ -1195,18 +1213,10 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
-        tll = trendline_lines(res)
-        if tll:
-            lines += ["", SEP] + tll
-        div = divergence_lines(res)
-        if div:
-            lines += ["", SEP] + div
-        vol = volume_lines(res, cfg)
-        if vol:
-            lines += ["", SEP] + vol
-        vpl = volume_profile_lines(res, cfg)
-        if vpl:
-            lines += ["", SEP] + vpl
+        for block in (trendline_lines(res), volume_profile_lines(res, cfg),
+                      divergence_lines(res), volume_lines(res, cfg)):
+            if block:
+                lines += ["", SEP] + block
     lines += ["", SEP, trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
@@ -1260,7 +1270,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
-    for block in (trendline_lines(res), divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
+    for block in (trendline_lines(res), volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
     trend = tf_table_html(res)

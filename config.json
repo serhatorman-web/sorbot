@@ -142,14 +142,17 @@
     "spike_ratio": 3.0
   },
   "volume_profile": {
-    "_aciklama": "Sinyal mesajındaki hacim profili (VAH/POC/VAL). Kullanıcı isteğiyle KAPALI; açmak için enabled: true. TradingView varsayılanı: 24 satır, %70 değer alanı. lookback_bars: zaman dilimine göre kaç mum.",
-    "enabled": false,
+    "_aciklama": "Sinyal zaman diliminin son N mumundan hacim profili (VAH/POC/VAL; 24 satır, %70 değer alanı). Fiyat son retest_window mumda bir seviyeye ulaştıysa mesajda yazılır: ulaştı + retest + beklenen yön.",
+    "enabled": true,
     "rows": 24,
     "value_area": 0.7,
     "lookback_bars": {
+      "15m": 96,
       "1h": 96,
-      "15m": 96
-    }
+      "4h": 90,
+      "5m": 96
+    },
+    "retest_window": 10
   },
   "liquidity": {
     "_aciklama": "Mesajdaki likidite: 24s işlem hacmi bu değerin üstündeyse Yüksek, altındaysa Düşük. Hisselerde ABD borsası kapalıyken her zaman Düşük.",

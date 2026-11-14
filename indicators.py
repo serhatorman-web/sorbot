@@ -519,3 +519,34 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
         retest = state
         out.append({"type": kind, "retest": retest, "bars_ago": last - brk})
     return out
+
+
+
+def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14):
+    """Bir fiyat seviyesine (VAH/POC/VAL) son `window` mumda ulaşıldı mı ve tepki ne oldu?
+    Ulaştı: mumun aralığı seviyeye değdi (tolerans tol_atr x ATR).
+    Teyit : sonraki bir mum, seviyeye değen mumun dibinin altında ("down") ya da tepesinin üstünde ("up") kapandı.
+    Döner: None (ulaşılmadı) | {"state": "up"|"down"|"touch", "from": "below"|"above", "bars_ago": int}"""
+    n = len(close)
+    if n < atr_len + window + 2:
+        return None
+    a = atr(high, low, close, atr_len)
+    touch = None
+    for k in range(n - 1, n - 1 - window, -1):
+        tol = (a[k] or 0) * tol_atr
+        if low[k] - tol <= level <= high[k] + tol:
+            touch = k
+            break
+    if touch is None:
+        return None
+    # dokunuştan önceki son mumların hangi tarafta olduğuna bak (seviyeye nereden gelindi)
+    side = "below" if close[max(0, touch - 1)] < level else "above"
+    state = "touch"
+    for k in range(touch + 1, n):
+        if close[k] < low[touch]:
+            state = "down"
+            break
+        if close[k] > high[touch]:
+            state = "up"
+            break
+    return {"state": state, "from": side, "bars_ago": n - 1 - touch}
