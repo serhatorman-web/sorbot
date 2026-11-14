@@ -522,37 +522,64 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
 
 
 
-def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, open_=None, near_atr=1.5):
-    """Bir fiyat seviyesine (VAH/POC/VAL) retest: son `window` mumda fiyat seviyeye geri gelip dokundu,
-    ama mum açılışı ve kapanışı seviyenin AYNI tarafında kaldı (iğne ile dokunuş – seviyeyi kesen kırılım mumu retest sayılmaz).
-    Ayrıca son fiyat seviyeye yakın olmalı (near_atr x ATR) – fiyatın şu an bulunduğu seviye.
-    Teyit: sonraki bir mum, dokunan mumun dibinin altında ("down") ya da tepesinin üstünde ("up") kapandı.
-    Döner: None | {"state": "up"|"down"|"touch", "from": "below"|"above", "bars_ago": int}"""
+def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, open_=None,
+                 near_atr=1.5, break_window=20, break_near_atr=2.5):
+    """Bir fiyat seviyesinde (VAH/POC/VAL) son durum. İki tür olay:
+    1) KIRILIM ("break"): son `break_window` mumda bir mum seviyeyi kapanışla kesti ve fiyat hâlâ o tarafta.
+       state: "none"  – fiyat kırılan seviyeye geri gelmedi (retest yok, bekle)
+              "touch" – geri geldi, dokundu ve kırılım tarafında kapandı (retest yapılıyor)
+              "confirmed" – sonra dokunan mumun dibi (aşağı kırılım) / tepesi (yukarı kırılım) kapanışla geçildi
+    2) TEPKİ ("hold"): kırılım yok; son `window` mumda fiyat seviyeye iğneyle dokundu (açılış ve kapanış aynı tarafta).
+       state: "touch" – tepki bekleniyor; "confirmed" – sonraki mum seviyeden uzaklaşan yönde, dokunan mumun
+              tepesi/dibi ötesinde kapandı.
+    Fiyat seviyeye yakın değilse (near_atr / break_near_atr x ATR) None.
+    Döner: None | {"kind": "break"|"hold", "dir": "up"|"down", "state": str, "bars_ago": int}"""
     n = len(close)
-    if n < atr_len + window + 2:
+    if n < atr_len + max(window, break_window) + 2:
         return None
     a = atr(high, low, close, atr_len)
-    if a[-1] is None or abs(close[-1] - level) > near_atr * a[-1]:
-        return None                                  # fiyat bu seviyede değil
+    if a[-1] is None:
+        return None
     op = open_ if open_ is not None else [close[k - 1] if k else close[k] for k in range(n)]
+    dist = abs(close[-1] - level)
+
+    # 1) son kırılım mumu
+    brk = None
+    for k in range(n - 1, n - 1 - break_window, -1):
+        prev = close[k - 1]
+        if (op[k] - level) * (close[k] - level) < 0 or (prev - level) * (close[k] - level) < 0:
+            brk = k
+            break
+    if brk is not None:
+        if dist > break_near_atr * a[-1]:
+            return None
+        d = "down" if close[brk] < level else "up"
+        state, touch = "none", None
+        for k in range(brk + 1, n):
+            tol = (a[k] or 0) * tol_atr
+            if touch is None:
+                if (d == "down" and high[k] >= level - tol) or (d == "up" and low[k] <= level + tol):
+                    touch, state = k, "touch"
+            elif (d == "down" and close[k] < low[touch]) or (d == "up" and close[k] > high[touch]):
+                state = "confirmed"
+                break
+        return {"kind": "break", "dir": d, "state": state, "bars_ago": n - 1 - brk}
+
+    # 2) kırılım yok – seviyeye iğneyle dokunuş ve tepki
+    if dist > near_atr * a[-1]:
+        return None
     touch = None
     for k in range(n - 1, n - 1 - window, -1):
         tol = (a[k] or 0) * tol_atr
-        if not (low[k] - tol <= level <= high[k] + tol):
-            continue
-        if (op[k] - level) * (close[k] - level) < 0:
-            continue                                 # seviyeyi kesen mum (kırılım) – retest değil
-        touch = k
-        break
+        if low[k] - tol <= level <= high[k] + tol and (op[k] - level) * (close[k] - level) >= 0:
+            touch = k
+            break
     if touch is None:
         return None
-    side = "below" if close[touch] < level else "above"
+    d = "up" if close[touch] >= level else "down"     # seviyenin üstünden dokunduysa destek → yukarı tepki beklenir
     state = "touch"
     for k in range(touch + 1, n):
-        if close[k] < low[touch]:
-            state = "down"
+        if (d == "up" and close[k] > high[touch]) or (d == "down" and close[k] < low[touch]):
+            state = "confirmed"
             break
-        if close[k] > high[touch]:
-            state = "up"
-            break
-    return {"state": state, "from": side, "bars_ago": n - 1 - touch}
+    return {"kind": "hold", "dir": d, "state": state, "bars_ago": n - 1 - touch}

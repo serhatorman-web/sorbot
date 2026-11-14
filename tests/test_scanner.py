@@ -490,38 +490,48 @@ def test_trendline_break():
 
 
 def test_volume_profile_retest():
-    # seviyeye alttan gelip iğneyle değen mum, ardından onun dibinin altında kapanış → düşüş
-    c = [100.0] * 40 + [101, 103, 105, 107, 109.5, 108, 107]
-    h = [x + 0.6 for x in c]; l = [x - 0.6 for x in c]
-    o = [c[0]] + c[:-1]
-    ev = ta.level_retest(h, l, c, 110.0, open_=o, near_atr=5)
-    assert ev and ev["state"] == "down" and ev["from"] == "below", ev
-    # değdi ama henüz tepki yok
-    ev = ta.level_retest(h[:45], l[:45], c[:45], 110.0, open_=o[:45], near_atr=5)
-    assert ev["state"] == "touch"
-    # seviyeyi kesen kırılım mumu retest sayılmaz (QQQ örneği)
-    c2 = [100.0] * 40 + [112, 104, 103, 103.5]
-    o2 = [100.0] * 40 + [112.5, 111.8, 104, 103]
-    h2 = [max(a, b) + 0.5 for a, b in zip(c2, o2)]; l2 = [min(a, b) - 0.5 for a, b in zip(c2, o2)]
-    assert ta.level_retest(h2, l2, c2, 108.0, open_=o2, near_atr=5) is None
-    # fiyat seviyeden uzaksa yazılmaz
-    assert ta.level_retest(h, l, c, 110.0, open_=o, near_atr=0.1) is None
-    # uzak seviye → yok
-    assert ta.level_retest(h, l, c, 150.0) is None
-    res = {"meta": {"precision": 1}, "vp_ev": {
-        "VAH": {"state": "down", "level": 71350.0, "from": "below"}, "POC": {"state": "up", "level": 69500.0, "from": "above"},
-        "VAL": {"state": "touch", "level": 65500.0}}}
-    lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
-    assert lines[0] == "📊 <b>Hacim profili</b> · 1 saat"
-    assert lines[1] == "🔴 VAH - fiyat " + scanner.fmt_price(71350.0, 1) + " seviyesine ulaştı. Retest yapıldı, düşüş bekleniyor."
-    assert lines[2].endswith("Retest yapıldı, yükseliş bekleniyor.") and lines[3].startswith("⚪ VAL")
+    def mk(c, o=None):
+        o = o or ([c[0]] + c[:-1])
+        h = [max(a, b) + 0.4 for a, b in zip(c, o)]; l = [min(a, b) - 0.4 for a, b in zip(c, o)]
+        return h, l, c, o
+    base = [100.0 + (k % 3) * 0.3 for k in range(40)]
+    # tepki: alttan 110'a iğneyle dokunuş, sonra dokunan mumun dibinin altında kapanış → direnç tuttu, düşüş
+    h, l, c, o = mk(base + [104, 106, 108, 109.4, 108.2, 107.5])
+    h[-3] = 110.2
+    ev = ta.level_retest(h, l, c, 110.0, open_=o, near_atr=10)
+    assert ev and ev["kind"] == "hold" and ev["dir"] == "down" and ev["state"] == "confirmed", ev
+    # kırılım: 105'i aşağı kırdı, geri gelmedi → retest yok
+    h, l, c, o = mk(base + [108, 107, 104, 103, 102.5])
+    ev = ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=10)
+    assert ev["kind"] == "break" and ev["dir"] == "down" and ev["state"] == "none", ev
+    # kırılım + geri gelip dokundu (altında kapandı) → retest yapılıyor
+    h, l, c, o = mk(base + [108, 107, 104, 103, 104.6])
+    h[-1] = 105.1
+    ev = ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=10)
+    assert ev["state"] == "touch", ev
+    # + sonra dokunan mumun dibinin altında kapanış → retest yapıldı
+    h, l, c, o = mk(base + [108, 107, 104, 103, 104.6, 102.0])
+    h[-2] = 105.1
+    ev = ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=10)
+    assert ev["state"] == "confirmed", ev
+    # fiyat seviyeden uzak → yok
+    assert ta.level_retest(h, l, c, 150.0, open_=o) is None
+    mk_res = lambda evs, p=None: {"meta": {"precision": 4}, "vp_ev": evs,
+                                  **({"f": {"c": [p]}, "i": 0} if p else {})}
+    L = lambda evs, p=None: scanner.volume_profile_lines(mk_res(evs, p), {"timeframe": "15m"})
+    assert L({"POC": {"kind": "break", "dir": "down", "state": "none", "level": 2.2481}})[1] == \
+        "⏳ POC - fiyat 2.2481 seviyesini aşağı kırdı. Retest yapılmadı, bekle."
+    assert L({"POC": {"kind": "break", "dir": "down", "state": "touch", "level": 2.2481}})[1] == \
+        "🔄 POC - fiyat 2.2481 seviyesini aşağı kırdı. Kırılım sonrası retest yapılıyor, düşüş teyidi bekleniyor."
+    assert L({"VAH": {"kind": "break", "dir": "up", "state": "confirmed", "level": 71350.0}})[1] == \
+        "✅ VAH - fiyat 71,350.0000 seviyesini yukarı kırdı. Kırılım sonrası retest yapıldı, yükselişin devamı bekleniyor."
+    assert L({"VAL": {"kind": "hold", "dir": "up", "state": "confirmed", "level": 0.9794}})[1] == \
+        "🟢 VAL - fiyat 0.9794 seviyesine ulaştı. Retest yapıldı, yükseliş bekleniyor."
+    assert L({"VAL": {"kind": "hold", "dir": "up", "state": "touch", "level": 0.9794}})[1].startswith("⚪ VAL")
+    two = L({"VAH": {"kind": "hold", "dir": "down", "state": "touch", "level": 110.0},
+             "VAL": {"kind": "hold", "dir": "up", "state": "touch", "level": 90.0}}, 91.0)
+    assert len(two) == 2 and "VAL" in two[1]
     assert scanner.volume_profile_lines({"meta": {}}, {}) == []
-    brk = scanner.volume_profile_lines({"meta": {"precision": 4}, "vp_ev": {
-        "VAL": {"state": "down", "level": 0.9794, "from": "above"}}}, {"timeframe": "15m"})
-    assert brk[1] == "🔴 VAL - fiyat 0.9794 seviyesini test edip aşağı kırdı. Düşüşün devamı bekleniyor."
-    res["f"] = {"c": [69600.0]}; res["i"] = 0          # fiyat POC yakınında → sadece POC
-    lines = scanner.volume_profile_lines(res, {"timeframe": "1h"})
-    assert len(lines) == 2 and "POC" in lines[1]
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

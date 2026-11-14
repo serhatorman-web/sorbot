@@ -982,14 +982,14 @@ VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı"
 
 
 def volume_profile_lines(res, cfg):
-    """Hacim profili seviyeleri (VAH / POC / VAL): fiyat seviyeye ulaştıysa ve tepkisi varsa yazılır."""
+    """Hacim profili (VAH / POC / VAL): sadece fiyatın şu an bulunduğu seviye yazılır.
+    Kırılım: ⏳ retest yok · 🔄 retest yapılıyor · ✅ retest yapıldı.  Tepki: ⚪ bekleniyor · 🟢/🔴 retest yapıldı."""
     evs = res.get("vp_ev") or {}
     if not evs:
         return []
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     out = [f"📊 <b>Hacim profili</b> · {span}"]
-    # sadece fiyatın şu an bulunduğu (en yakın) seviye yazılır
     f, i = res.get("f"), res.get("i")
     price = f["c"][i] if f else None
     names = [n for n in ("VAH", "POC", "VAL") if n in evs]
@@ -997,20 +997,24 @@ def volume_profile_lines(res, cfg):
         names = [min(names, key=lambda n: abs(evs[n]["level"] - price))]
     for name in names:
         ev = evs[name]
-        head = f"{name} - fiyat {fmt_price(ev['level'], prec)} seviyesine ulaştı."
-        if ev["state"] in ("up", "down"):
-            icon = "🟢" if ev["state"] == "up" else "🔴"
-            exp = VP_EXPECT[(name, ev["state"])]
-            through = (ev.get("from") == "above" and ev["state"] == "down") or \
-                      (ev.get("from") == "below" and ev["state"] == "up")
-            if through:      # seviye test edildi ama tutmadı, kırıldı
-                yon = "aşağı" if ev["state"] == "down" else "yukarı"
-                out.append(f"{icon} {name} - fiyat {fmt_price(ev['level'], prec)} seviyesini test edip {yon} kırdı. "
-                           f"{exp[0].upper() + exp[1:]} bekleniyor.")
-            else:            # seviye tuttu (destek / direnç) – retest
-                out.append(f"{icon} {head} Retest yapıldı, {exp} bekleniyor.")
+        lv = fmt_price(ev["level"], prec)
+        d = ev.get("dir", ev.get("state"))
+        exp = VP_EXPECT.get((name, d), "hareket")
+        if ev.get("kind") == "break":
+            yon = "aşağı" if d == "down" else "yukarı"
+            head = f"{name} - fiyat {lv} seviyesini {yon} kırdı."
+            if ev["state"] == "confirmed":
+                out.append(f"✅ {head} Kırılım sonrası retest yapıldı, {exp} bekleniyor.")
+            elif ev["state"] == "touch":
+                out.append(f"🔄 {head} Kırılım sonrası retest yapılıyor, {exp} teyidi bekleniyor.")
+            else:
+                out.append(f"⏳ {head} Retest yapılmadı, bekle.")
         else:
-            out.append(f"⚪ {head} Retest yapılıyor, tepki bekleniyor.")
+            head = f"{name} - fiyat {lv} seviyesine ulaştı."
+            if ev["state"] == "confirmed":
+                out.append(f"{'🟢' if d == 'up' else '🔴'} {head} Retest yapıldı, {exp} bekleniyor.")
+            else:
+                out.append(f"⚪ {head} Retest yapılıyor, tepki bekleniyor.")
     return out
 
 
