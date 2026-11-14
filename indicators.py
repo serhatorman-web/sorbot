@@ -271,7 +271,8 @@ def ichimoku(high, low, tenkan_n=9, kijun_n=26, senkou_b_n=52, shift=26):
     return tenkan, kijun, top, bottom
 
 
-def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_atr=0.25, atr_len=14, away_atr=2.5):
+def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_atr=0.25, atr_len=14, away_atr=2.5,
+                detach_atr=0.5):
     """Hareketli bir çizgi (Tenkan / Kijun: upper == lower) ya da bant (Ichimoku bulutu: üst / alt) için kırılım ve retest.
     Fiyatın tarafı: kapanış üstün üstünde → yukarı, altın altında → aşağı, arada → içeride.
     1) KIRILIM ("break"): fiyat son `break_window` mum içinde bu tarafa geçti (en son geçiş esas alınır).
@@ -281,6 +282,7 @@ def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_
     2) TEPKİ ("hold"): yakın zamanda kırılım yok; son `window` mumda fiyat çizgiye geri çekilip dokundu ve aynı tarafta kaldı
        (destek / direnç testi). state: "touch" / "confirmed".
     3) "trend": fiyat uzun süredir aynı tarafta, yakın zamanda dokunuş yok.   4) "inside": fiyat bulutun içinde.
+    Dokunuşun retest sayılması için fiyat önce (kapanışla) çizgiden/banttan en az detach_atr x ATR uzaklaşmış olmalı.
     Döner: None | {"kind": ..., "dir": "up"|"down", "state": str, "bars_ago": int}"""
     n = len(close)
     a = atr(high, low, close, atr_len)
@@ -300,14 +302,17 @@ def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_
     edge = lambda k: upper[k] if s == 1 else lower[k]          # fiyatın bulunduğu taraftaki kenar
     hits = lambda k: (low[k] <= edge(k) + (a[k] or 0) * tol_atr) if s == 1 else (high[k] >= edge(k) - (a[k] or 0) * tol_atr)
     beyond = lambda k, t: close[k] > high[t] if s == 1 else close[k] < low[t]
+    far = lambda m: (a[m] is not None and edge(m) is not None
+                     and ((close[m] - edge(m)) if s == 1 else (edge(m) - close[m])) >= detach_atr * a[m])   # kapanışla
     brk = last
     while brk - 1 >= 0 and side(brk - 1) == s:
         brk -= 1
     if brk > 0 and side(brk - 1) is not None and last - brk <= break_window:
-        state, touch = "none", None
+        state, touch, moved = "none", None, False
         for k in range(brk + 1, n):
+            moved = moved or far(k - 1)
             if touch is None:
-                if hits(k):
+                if moved and hits(k):
                     touch, state = k, "touch"
             elif beyond(k, touch):
                 state = "confirmed"
@@ -315,7 +320,8 @@ def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_
         if state == "none" and abs(close[last] - edge(last)) > away_atr * a[last]:
             state = "away"
         return {"kind": "break", "dir": d, "state": state, "bars_ago": last - brk}
-    touch = next((k for k in range(last, max(brk, last - window), -1) if hits(k)), None)
+    touch = next((k for k in range(last, max(brk, last - window), -1)
+                  if hits(k) and any(far(m) for m in range(max(0, k - window), k))), None)
     if touch is None:
         return {"kind": "trend", "dir": d, "state": None, "bars_ago": 0}
     state = "confirmed" if any(beyond(k, touch) for k in range(touch + 1, n)) else "touch"
@@ -514,13 +520,16 @@ def _pivots(vals, left, right, kind):
     return out
 
 
-def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14, away_atr=2.5):
+def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14, away_atr=2.5,
+                    detach_atr=0.5):
     """Yükselen / düşen trend çizgisi kırılımı ve retest.
     Yükselen çizgi: son iki dip (ikincisi daha yüksek) birleştirilir. Kapanış çizginin altına inerse KIRILDI (düşüş).
     Düşen çizgi  : son iki tepe (ikincisi daha alçak) birleştirilir. Kapanış çizginin üstüne çıkarsa KIRILDI (yükseliş).
     Kırılım son `recent` mum içinde olmalı ve son kapanış hâlâ kırılım tarafında olmalı.
     Fiyat kırılımdan sonra çizginin öbür tarafına geri kapanış yaptıysa (sahte kırılım) en son kırılım esas alınır.
     Retest gelmeden fiyat çizgiden away_atr x ATR'den fazla uzaklaştıysa retest "away" olur.
+    Dokunuşun retest sayılması için fiyat önce (kapanışla) çizgiden en az detach_atr x ATR uzaklaşmış olmalı (çizgi boyunca
+    sürünen fiyat retest sayılmaz).
     Retest: kırılımdan sonra fiyat çizgiye geri dönüp (tolerans tol_atr x ATR) dokunmuş ve yine kırılım tarafında kapanmış;
     ardından fiyat kırılım yönünde devam ettiyse (retest mumunun tepesi/dibi kapanışla geçildi) retest teyit edilmiştir.
     Döner: [{"type": "rising"|"falling", "retest": "none"|"touch"|"confirmed", "bars_ago": int}]"""
@@ -556,13 +565,17 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
         # Retest: kırılımdan sonra fiyat çizgiye geri gelir (tolerans tol_atr x ATR) ve mum kırılım tarafında kapanır.
         # Teyit: sonraki bir mum, retest mumunun tepesinin üstünde (düşen çizgi kırılımı → yükseliş)
         # ya da dibinin altında (yükselen çizgi kırılımı → düşüş) kapanır.
-        state, touch = "none", None
+        state, touch, moved = "none", None, False
         for k in range(brk + 1, n):
+            m = k - 1                                   # önceki mum çizgiden yeterince uzaklaştı mı
+            far = (line(m) - close[m]) if kind == "rising" else (close[m] - line(m))      # kapanışla uzaklaşma
+            if a[m] and far >= detach_atr * a[m]:
+                moved = True
             tol = (a[k] or 0) * tol_atr
             if touch is None:
-                if kind == "rising" and high[k] >= line(k) - tol and close[k] < line(k):
+                if moved and kind == "rising" and high[k] >= line(k) - tol and close[k] < line(k):
                     touch = k
-                if kind == "falling" and low[k] <= line(k) + tol and close[k] > line(k):
+                if moved and kind == "falling" and low[k] <= line(k) + tol and close[k] > line(k):
                     touch = k
                 if touch is not None:
                     state = "touch"
@@ -578,7 +591,7 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
 
 
 def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, open_=None,
-                 near_atr=1.5, break_window=20, break_near_atr=2.5):
+                 near_atr=1.5, break_window=20, break_near_atr=2.5, detach_atr=0.5):
     """Bir fiyat seviyesinde (VAH/POC/VAL) son durum. İki tür olay:
     1) KIRILIM ("break"): son `break_window` mumda bir mum seviyeyi kapanışla kesti ve fiyat hâlâ o tarafta.
        state: "none"  – fiyat kırılan seviyeye geri gelmedi (retest yok, bekle)
@@ -589,6 +602,7 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
        state: "touch" – tepki bekleniyor; "confirmed" – sonraki mum seviyeden uzaklaşan yönde, dokunan mumun
               tepesi/dibi ötesinde kapandı.
     Fiyat seviyeye yakın değilse (near_atr / break_near_atr x ATR) None.
+    Dokunuşun retest sayılması için fiyat önce (kapanışla) seviyeden en az detach_atr x ATR uzaklaşmış olmalı.
     Döner: None | {"kind": "break"|"hold", "dir": "up"|"down", "state": str, "bars_ago": int}"""
     n = len(close)
     if n < atr_len + max(window, break_window) + 2:
@@ -608,11 +622,15 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
             break
     if brk is not None:
         d = "down" if close[brk] < level else "up"
-        state, touch = "none", None
+        state, touch, moved = "none", None, False
         for k in range(brk + 1, n):
+            m = k - 1
+            far = (level - close[m]) if d == "down" else (close[m] - level)          # kapanışla uzaklaşma
+            if a[m] and far >= detach_atr * a[m]:
+                moved = True
             tol = (a[k] or 0) * tol_atr
             if touch is None:
-                if (d == "down" and high[k] >= level - tol) or (d == "up" and low[k] <= level + tol):
+                if moved and ((d == "down" and high[k] >= level - tol) or (d == "up" and low[k] <= level + tol)):
                     touch, state = k, "touch"
             elif (d == "down" and close[k] < low[touch]) or (d == "up" and close[k] > high[touch]):
                 state = "confirmed"
@@ -630,8 +648,11 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
     for k in range(n - 1, n - 1 - window, -1):
         tol = (a[k] or 0) * tol_atr
         if low[k] - tol <= level <= high[k] + tol and (op[k] - level) * (close[k] - level) >= 0:
-            touch = k
-            break
+            up_ = close[k] >= level
+            if any(a[m] and ((close[m] - level) if up_ else (level - close[m])) >= detach_atr * a[m]
+                   for m in range(max(0, k - window), k)):
+                touch = k                                   # önce seviyeden uzaklaşmış, sonra geri gelmiş
+                break
     if touch is None:
         return None
     d = "up" if close[touch] >= level else "down"     # seviyenin üstünden dokunduysa destek → yukarı tepki beklenir

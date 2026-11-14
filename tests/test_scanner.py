@@ -593,6 +593,32 @@ def test_ichimoku_band_retest():
     assert scanner.ichimoku_lines(res, "long", dict(cfg, ichimoku_info={"enabled": False})) == []
 
 
+def test_retest_requires_detach():
+    """Fiyat çizgiden/seviyeden önce (kapanışla) 0.5 ATR uzaklaşmadan gelen dokunuş retest sayılmaz."""
+    # band (Kijun / Tenkan): yukarı kırılım, fiyat çizginin hemen üstünde sürünüyor → retest yok
+    c = [95 + (k % 3) * 0.3 for k in range(50)] + [100.2, 100.3, 100.25, 100.2]
+    h = [x + 0.8 for x in c]; l = [x - 0.8 for x in c]; ln = [100.0] * len(c)
+    assert ta.band_retest(h, l, c, ln, ln)["state"] == "none"
+    # aynı, ama önce uzaklaşıp geri geliyor → retest
+    c = [95 + (k % 3) * 0.3 for k in range(50)] + [100.2, 102.5, 100.4]
+    h = [x + 0.8 for x in c]; l = [x - 0.8 for x in c]; ln = [100.0] * len(c)
+    assert ta.band_retest(h, l, c, ln, ln)["state"] == "touch"
+    # hacim profili seviyesi: aşağı kırılım, seviyenin hemen altında sürünme → retest yok
+    o = [110.0] * 40 + [100.4, 99.8, 99.75]
+    c = [110.0] * 40 + [99.8, 99.75, 99.8]
+    h = [max(a, b) + 0.6 for a, b in zip(o, c)]; l = [min(a, b) - 0.6 for a, b in zip(o, c)]
+    ev = ta.level_retest(h, l, c, 100.0, open_=o, break_near_atr=10)
+    assert ev["kind"] == "break" and ev["state"] == "none", ev
+    # trend çizgisi: kırılım sonrası çizginin hemen altında sürünme → retest yok
+    Lf = lambda k: 100 + 0.5 * (k - 10)
+    c = [Lf(k) + 1.5 + 0.4 * min(abs(k - 10) if k < 20 else abs(k - 30), 10) for k in range(50)]
+    c += [Lf(50) - 1.2, Lf(51) - 1.15, Lf(52) - 1.2]
+    h = [x + 0.6 for x in c]; l = [x - 0.6 for x in c]
+    l[10] = 99.0; l[30] = 109.0
+    ev = ta.trendline_break(h, l, c)
+    assert ev and ev[0]["type"] == "rising" and ev[0]["retest"] == "none", ev
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
