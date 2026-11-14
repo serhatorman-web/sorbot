@@ -463,11 +463,13 @@ def _pivots(vals, left, right, kind):
     return out
 
 
-def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14):
+def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14, away_atr=2.5):
     """Yükselen / düşen trend çizgisi kırılımı ve retest.
     Yükselen çizgi: son iki dip (ikincisi daha yüksek) birleştirilir. Kapanış çizginin altına inerse KIRILDI (düşüş).
     Düşen çizgi  : son iki tepe (ikincisi daha alçak) birleştirilir. Kapanış çizginin üstüne çıkarsa KIRILDI (yükseliş).
     Kırılım son `recent` mum içinde olmalı ve son kapanış hâlâ kırılım tarafında olmalı.
+    Fiyat kırılımdan sonra çizginin öbür tarafına geri kapanış yaptıysa (sahte kırılım) en son kırılım esas alınır.
+    Retest gelmeden fiyat çizgiden away_atr x ATR'den fazla uzaklaştıysa retest "away" olur.
     Retest: kırılımdan sonra fiyat çizgiye geri dönüp (tolerans tol_atr x ATR) dokunmuş ve yine kırılım tarafında kapanmış;
     ardından fiyat kırılım yönünde devam ettiyse (retest mumunun tepesi/dibi kapanışla geçildi) retest teyit edilmiştir.
     Döner: [{"type": "rising"|"falling", "retest": "none"|"touch"|"confirmed", "bars_ago": int}]"""
@@ -491,16 +493,15 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
         if any((kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k))
                for k in range(p1 + 1, p2)):
             continue
-        brk = None
-        for k in range(p2 + 1, n):
-            if (kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k)):
-                brk = k
-                break
-        if brk is None or n - 1 - brk > recent:
-            continue
+        side = lambda k: (kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k))
         last = n - 1
-        if (kind == "rising" and close[last] >= line(last)) or (kind == "falling" and close[last] <= line(last)):
-            continue                                    # kırılım geri alındı – yazma
+        if last <= p2 or not side(last):
+            continue                                    # kırılım yok ya da geri alındı – yazma
+        brk = last                                      # en son kırılım: son kapanışa kadar kesintisiz süren kırılımın ilk mumu
+        while brk - 1 > p2 and side(brk - 1):
+            brk -= 1
+        if last - brk > recent:
+            continue
         # Retest: kırılımdan sonra fiyat çizgiye geri gelir (tolerans tol_atr x ATR) ve mum kırılım tarafında kapanır.
         # Teyit: sonraki bir mum, retest mumunun tepesinin üstünde (düşen çizgi kırılımı → yükseliş)
         # ya da dibinin altında (yükselen çizgi kırılımı → düşüş) kapanır.
@@ -517,6 +518,8 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
             elif (kind == "falling" and close[k] > high[touch]) or (kind == "rising" and close[k] < low[touch]):
                 state = "confirmed"
                 break
+        if state == "none" and a[last] and abs(close[last] - line(last)) > away_atr * a[last]:
+            state = "away"                              # retest gelmeden fiyat çizgiden uzaklaştı
         retest = state
         out.append({"type": kind, "retest": retest, "bars_ago": last - brk})
     return out

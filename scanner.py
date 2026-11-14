@@ -1033,7 +1033,9 @@ def trendline_lines(res):
             head = f"🟢 {name}: Düşen trend çizgisi kırıldı"
         move = "yükseliş" if ev["type"] == "falling" else "düşüş"
         tail = {"confirmed": f"✅ Retest yapıldı, {move} başladı",
-                "touch": f"🔄 Retest yapılıyor, {move} teyidi bekleniyor"}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
+                "touch": f"🔄 Retest yapılıyor, {move} teyidi bekleniyor",
+                "away": f"{'⬆️' if move == 'yükseliş' else '⬇️'} Retest yapılmadan {move} devam etti (geç giriş riski)"
+                }.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
         out.append(f"{head} · {tail}")
     return (["📐 <b>Trend çizgisi</b>"] + out) if out else []
 

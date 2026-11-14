@@ -472,7 +472,19 @@ def test_trendline_break():
     c = [100 + k * 0.5 + 3 * math.sin(k / 3) for k in range(120)] + [150 - k * 2 for k in range(1, 9)]
     h = [x + 1 for x in c]; l = [x - 1 for x in c]
     ev = ta.trendline_break(h, l, c)
-    assert any(e["type"] == "rising" and e["retest"] == "none" for e in ev), ev
+    assert any(e["type"] == "rising" and e["retest"] == "away" for e in ev), ev      # sert düşüş, retest yok → uzaklaştı
+    c = [100 + k * 0.5 + 3 * math.sin(k / 3) for k in range(120)] + [158.0, 156.5]
+    h = [x + 1 for x in c]; l = [x - 1 for x in c]
+    ev = ta.trendline_break(h, l, c)
+    assert any(e["type"] == "rising" and e["retest"] == "none" for e in ev), ev      # çizginin hemen altı → bekle
+    # sahte kırılım: kır, dokun, çizginin üstüne geri kapan, tekrar kır → en son kırılım esas alınır
+    Lf = lambda k: 100 + 0.5 * (k - 10)
+    c = [Lf(k) + 1.5 + 0.4 * min(abs(k - 10) if k < 20 else abs(k - 30), 10) for k in range(50)]
+    c += [Lf(50) - 1.3, Lf(51) - 1.2, Lf(52) + 1, Lf(53) + 1.5, Lf(54) - 1.8, Lf(55) - 2.0]
+    h = [x + 0.6 for x in c]; l = [x - 0.6 for x in c]
+    l[10] = 99.0; l[30] = 109.0; l[55] = 117.5
+    ev = ta.trendline_break(h, l, c)
+    assert ev and ev[0]["type"] == "rising" and ev[0]["bars_ago"] == 1, ev
     # düşen kanal, yukarı kırılım, geri çekilip çizgiye dokunma (retest), tekrar yukarı
     c = [200 - k * 0.5 + 3 * math.sin(k / 3) for k in range(120)]
     c += [c[-1] + 6, c[-1] + 9, c[-1] + 4, c[-1] + 3.5, c[-1] + 8, c[-1] + 11]
@@ -481,11 +493,15 @@ def test_trendline_break():
     assert any(e["type"] == "falling" for e in ev), ev
     lines = scanner.trendline_lines({"tline": [{"type": "rising", "retest": "none", "tf": "15m"},
                                                {"type": "falling", "retest": "confirmed", "tf": "4h"},
-                                               {"type": "rising", "retest": "touch", "tf": "1d"}]})
+                                               {"type": "rising", "retest": "touch", "tf": "1d"},
+                                               {"type": "falling", "retest": "away", "tf": "1h"},
+                                               {"type": "rising", "retest": "away", "tf": "1w"}]})
     assert lines == ["📐 <b>Trend çizgisi</b>",
                      "🔴 15dk: Yükselen trend çizgisi kırıldı · ⏳ Retest yapılmadı, bekle",
                      "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı, yükseliş başladı",
-                     "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor"]
+                     "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor",
+                     "🟢 1 saat: Düşen trend çizgisi kırıldı · ⬆️ Retest yapılmadan yükseliş devam etti (geç giriş riski)",
+                     "🔴 1 hafta: Yükselen trend çizgisi kırıldı · ⬇️ Retest yapılmadan düşüş devam etti (geç giriş riski)"]
     assert scanner.trendline_lines({}) == []
 
 
