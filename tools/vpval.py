@@ -7,6 +7,8 @@ def candles_at(sym, tf, ms, shot):
     raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "endTime": shot, "limit": 499})
     cs = [{"t": int(k[0]), "o": float(k[1]), "h": float(k[2]), "l": float(k[3]), "c": float(k[4]),
            "v": float(k[7]), "bv": float(k[5])} for k in raw]
+    if cs[-1]["t"] >= shot:
+        cs = cs[:-1]
     last = cs[-1]
     if last["t"] + ms > shot:
         m1 = api.get("/fapi/v1/klines", {"symbol": sym, "interval": "1m", "startTime": last["t"], "endTime": shot - 1, "limit": 1500})
