@@ -145,6 +145,17 @@
   "ichimoku_info": {
     "enabled": true
   },
+  "early_reversal": {
+    "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Kurallar zaman dilimi ve yöne göre (geçmiş testte en iyi sonuç veren varyant). Test (120 coin, PF): 1s LONG 1.33, 1s SHORT 1.10, 15dk SHORT 1.12 kârlı; 15dk LONG 0.83, 4s LONG 0.68, 4s SHORT 0.64 zararlıydı (kullanıcı isteğiyle açık).",
+    "enabled": true,
+    "window": 8,
+    "max_per_scan": 10,
+    "rules": {
+      "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},
+      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},
+      "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null}, "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null}}
+    }
+  },
   "volume_profile": {
     "window": "swing",
     "anchor_lookback": 300,

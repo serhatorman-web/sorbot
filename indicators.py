@@ -362,6 +362,48 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
     return check(lows, True), check(highs, False)
 
 
+def early_reversal(open_, high, low, close, volume, atr_, vol_ma, rsi_, s, window=8,
+                   body_atr=1.5, vol_x=2.0, rsi_th=30):
+    """ERKEN DÖNÜŞ (son mumda): sert ve hacimli düşüş (s=1, LONG) / yükseliş (s=-1, SHORT) sonrası dönüş.
+    1) Son `window` mumda kapitülasyon mumu: gövde ≥ body_atr × ATR (ya da aralık ≥ 2 × body_atr × ATR)
+       ve hacim ≥ vol_x × hacim ortalaması.
+    2) O mumdan sonraki en düşük dip (SHORT: en yüksek tepe) sonrasında yeni dip (tepe) yapılmadı.
+    3) RSI o arada ≤ rsi_th (SHORT: ≥ 100 − rsi_th) oldu (rsi_th None ise şart yok).
+    4) Tetik: son mum yeşil (SHORT: kırmızı) ve dipten sonraki mumların tepesinin üstünde (dibinin altında) kapandı.
+    Döner: None | {"cap": int, "ext_i": int, "ext": float, "vol_x": float, "move_pct": float}"""
+    i = len(close) - 1
+    cap = None
+    for k in range(i - 1, max(0, i - window) - 1, -1):
+        a, vm = atr_[k], vol_ma[k]
+        if not a or not vm:
+            continue
+        body = (open_[k] - close[k]) * s
+        rng = high[k] - low[k]
+        if (body >= body_atr * a or (body > 0 and rng >= 2 * body_atr * a)) and volume[k] >= vol_x * vm:
+            cap = k
+            break
+    if cap is None:
+        return None
+    seg = range(cap, i)
+    j = min(seg, key=lambda k: low[k]) if s == 1 else max(seg, key=lambda k: high[k])
+    after = list(range(j + 1, i))
+    if not after:
+        return None
+    ext = low[j] if s == 1 else high[j]
+    if any((low[k] <= ext) if s == 1 else (high[k] >= ext) for k in after + [i]):
+        return None
+    if rsi_th is not None:
+        rs = [rsi_[k] for k in range(cap, i + 1) if rsi_[k] is not None]
+        if not rs or ((min(rs) > rsi_th) if s == 1 else (max(rs) < 100 - rsi_th)):
+            return None
+    top = max(high[k] for k in after) if s == 1 else min(low[k] for k in after)
+    if not (((close[i] > top) if s == 1 else (close[i] < top)) and (close[i] - open_[i]) * s > 0):
+        return None
+    ref = open_[cap]
+    return {"cap": cap, "ext_i": j, "ext": ext, "vol_x": volume[cap] / vol_ma[cap],
+            "move_pct": (ext - ref) / ref * 100}
+
+
 def swing_anchor(high, low, lookback=300):
     """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
     Hacim profili bu mumdan son muma kadar hesaplanır."""

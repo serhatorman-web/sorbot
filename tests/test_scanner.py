@@ -671,6 +671,27 @@ def test_perf_evaluate():
     assert "Üst zaman dilimi uyumlu: ✅ %100 (1) · ❌ %0 (1)" in msg, msg
 
 
+def test_early_reversal():
+    n = 40
+    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; v = [10.0] * n
+    # 35: sert hacimli düşüş, 36: dip, 37-38: yeni dip yok, 39: yeşil, dengelenme tepesinin üstünde kapanış
+    o[35], c[35], h[35], l[35], v[35] = 100.0, 95.0, 100.2, 94.8, 50.0
+    o[36], c[36], h[36], l[36] = 95.0, 94.5, 95.3, 94.0
+    o[37], c[37], h[37], l[37] = 94.5, 95.0, 95.4, 94.3
+    o[38], c[38], h[38], l[38] = 95.0, 94.9, 95.5, 94.6
+    o[39], c[39], h[39], l[39] = 94.9, 95.9, 96.0, 94.8
+    atr = [1.0] * n; vm = [10.0] * n; rsi = [50.0] * 35 + [20.0, 18.0, 25.0, 28.0, 35.0]
+    ev = ta.early_reversal(o, h, l, c, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25)
+    assert ev and ev["ext"] == 94.0 and ev["ext_i"] == 36 and ev["vol_x"] == 5.0, ev
+    assert ta.early_reversal(o, h, l, c, v, atr, vm, [50.0] * n, 1, 8, 2.0, 3.0, 25) is None     # RSI şartı yok
+    l2 = list(l); l2[38] = 93.9
+    assert ta.early_reversal(o, h, l2, c, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # yeni dip yapıldı
+    c2 = list(c); c2[39] = 95.4
+    assert ta.early_reversal(o, h, l, c2, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # tepe aşılmadı
+    v2 = list(v); v2[35] = 20.0
+    assert ta.early_reversal(o, h, l, c, v2, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # hacim yetersiz
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

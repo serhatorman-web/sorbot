@@ -43,14 +43,14 @@ def save(d):
     os.replace(tmp, PERF_PATH)
 
 
-def record_signal(symbol, typ, tf, direction, bar_close_ms, entry, sl, tps, grade, checks):
+def record_signal(symbol, typ, tf, direction, bar_close_ms, entry, sl, tps, grade, checks, kind="supertrend"):
     d = load()
-    sid = f"{symbol}|{tf}|{direction}|{bar_close_ms}"
+    sid = f"{symbol}|{tf}|{direction}|{bar_close_ms}|{kind}"
     if any(x["id"] == sid for x in d["signals"]):
         return
     d["signals"].append({"id": sid, "symbol": symbol, "type": typ, "tf": tf, "dir": direction,
                          "t": bar_close_ms, "entry": entry, "sl": sl, "tps": list(tps),
-                         "grade": grade, "checks": checks, "status": "open", "best": 0})
+                         "grade": grade, "checks": checks, "kind": kind, "status": "open", "best": 0})
     save(d)
 
 
@@ -146,6 +146,14 @@ def weekly_message(d, now=None):
         r = _row(TF_NAMES[tf], [x for x in done if x["tf"] == tf])
         if r:
             lines.append(r)
+    lines += ["", "━━━━━━━━━━━━━━━━", "<b>Sinyal türü</b>"]
+    for kind, name in (("supertrend", "📌 Supertrend"), ("early", "⚡ Erken dönüş")):
+        for tf in ("15m", "1h", "4h"):
+            for d, dn in (("long", "LONG"), ("short", "SHORT")):
+                r = _row(f"{name} {TF_NAMES[tf]} {dn}", [x for x in done if x.get("kind", "supertrend") == kind
+                                                         and x["tf"] == tf and x["dir"] == d])
+                if r:
+                    lines.append(r)
     lines += ["", "━━━━━━━━━━━━━━━━", "<b>Kalite notu</b>"]
     for g, badge in (("A", "🅰️"), ("B", "🅱️"), ("C", "Ⓒ")):
         r = _row(f"{badge} {g}", [x for x in done if x.get("grade") == g])

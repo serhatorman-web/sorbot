@@ -830,6 +830,13 @@ def levels(res, direction, cfg, method=None):
     f, i = res["f"], res["i"]
     entry = f["c"][i]
     s = 1 if direction == "long" else -1
+    er = res.get("early")
+    if er and er.get("dir") == direction:
+        # Erken dönüş: stop panik dibinin altında / zirvenin üstünde (0.2 ATR tampon)
+        risk = max(abs(entry - er["ext"]) + 0.2 * f["atr"][i], 0.3 * f["atr"][i])
+        label = "dibin altı" if s == 1 else "tepenin üstü"
+        sl = entry - s * risk
+        return entry, sl, [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]], label
     risk, label = stop_distance(f, i, s, cfg["risk"], method)
     sl = entry - s * risk
     tps = [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]]
@@ -1339,6 +1346,9 @@ def build_message(res, direction, cfg, now_utc):
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
+    early = res.get("early") if (res.get("early") or {}).get("dir") == direction else None
+    if early:
+        head = "⚡ <b>ERKEN DÖNÜŞ</b> · " + head
     if res.get("votes"):
         score_line = (technical_rating_line(res["votes"]) + "\n\n"
                       + f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)")
@@ -1378,7 +1388,14 @@ def build_message(res, direction, cfg, now_utc):
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
 
-    if res.get("votes"):
+    if early:
+        move = (f"Sert düşüş ({early['move_pct']:+.1f}%, hacim {early['vol_x']:.1f}x) sonrası dip tuttu, toparlanma başladı"
+                if direction == "long" else
+                f"Sert yükseliş ({early['move_pct']:+.1f}%, hacim {early['vol_x']:.1f}x) sonrası tepe tuttu, düşüş başladı")
+        st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
+        st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
+        lines += ["", SEP, f"📌 Tetik: ⚡ {move}", "", f"📌 {trigger_name(cfg)}: {st_txt}"]
+    elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
     else:
@@ -1755,6 +1772,56 @@ def main():
             notifier.send("\n".join(lines))
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
+
+    # ---- ERKEN DÖNÜŞ (Supertrend'den bağımsız): sert hacimli hareket sonrası dip/tepe dönüşü ----
+    ecfg = cfg.get("early_reversal", {})
+    rules = ecfg.get("rules", {}).get(cfg["timeframe"], {}) if ecfg.get("enabled", False) else {}
+    early_n = 0
+    picked_st = {(r["meta"]["symbol"], d) for _, d, r in picks}
+    for r in results:
+        if early_n >= ecfg.get("max_per_scan", 10):
+            break
+        f_, i_ = r["f"], r["i"]
+        for d, s_ in (("long", 1), ("short", -1)):
+            rule = rules.get(d)
+            if not rule or not rule.get("enabled", True) or (r["meta"]["symbol"], d) in picked_st:
+                continue
+            ev = ta.early_reversal(f_["o"], f_["h"], f_["l"], f_["c"], f_["v"], f_["atr"], f_["vol_ma"], f_["rsi"], s_,
+                                   ecfg.get("window", 8), rule.get("body_atr", 1.5), rule.get("vol_x", 2.0),
+                                   rule.get("rsi_th", 30))
+            if not ev:
+                continue
+            key = f"{r['meta']['symbol']}|early_{d}"
+            ext_t = f_["t"][ev["ext_i"]]
+            if state["signals"].get(key + "_ext") == ext_t:
+                continue                      # aynı dip/tepe için ikinci sinyal yok
+            r["early"] = dict(ev, dir=d)
+            fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+            compute_volume_profile(r, cfg)
+            msg = build_message(r, d, cfg, now_utc)
+            try:
+                if notifier.send(msg):
+                    early_n += 1
+                    state["signals"][key] = now
+                    state["signals"][key + "_ext"] = ext_t
+                    print(f"  → Erken dönüş gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']}) "
+                          f"kalite {r.get('grade', '-')}")
+                    if not notifier.dry:
+                        try:
+                            import perf
+                            entry, sl, tps, _ = levels(r, d, cfg)
+                            grade, checks = quality_grade(r, d, cfg)
+                            perf.record_signal(r["meta"]["symbol"], r["meta"]["type"], cfg["timeframe"], d,
+                                               f_["t"][i_] + perf.TF_MS.get(cfg["timeframe"], HOUR_MS),
+                                               entry, sl, tps, grade, checks, kind="early")
+                        except Exception as e:  # noqa: BLE001
+                            print(f"  Karne kaydı hatası: {e}", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Telegram hatası: {e}", file=sys.stderr)
+            r.pop("early", None)
+            r.pop("_ichi", None)
+    if early_n:
+        print(f"Erken dönüş: {early_n} sinyal")
 
     # ---- Pump/Dump radarı (Supertrend'den bağımsız) ----
     rc = cfg.get("pump_radar", {})
