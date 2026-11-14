@@ -911,6 +911,15 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
         if n_:
             neg.append(TF_NAMES[tf])
     res["div"] = {"pos": pos, "neg": neg}
+    # trend çizgisi kırılımı + retest (RSI uyumsuzluğu ile aynı zaman dilimleri)
+    tl = []
+    for tf in DIV_TFS:
+        cs = candles.get(tf, [])
+        if len(cs) < 40:
+            continue
+        for ev in ta.trendline_break([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
+            tl.append(dict(ev, tf=tf))
+    res["tline"] = tl
 
 
 def compute_volume_profile(res, cfg):
@@ -972,6 +981,20 @@ def volume_profile_lines(res, cfg):
             f"🔴 VAH: <code>{fmt_price(vah, prec)}</code> ({pct(vah, price):+.2f}%)",
             f"🟡 POC: <code>{fmt_price(poc, prec)}</code> ({pct(poc, price):+.2f}%)",
             f"🟢 VAL: <code>{fmt_price(val, prec)}</code> ({pct(val, price):+.2f}%)"]
+
+
+def trendline_lines(res):
+    """Trend çizgisi kırılımları: veri varsa yazılır, yoksa bölüm çıkmaz."""
+    out = []
+    for ev in res.get("tline") or []:
+        name = TF_NAMES.get(ev["tf"], ev["tf"])
+        if ev["type"] == "rising":
+            head = f"🔴 {name}: Yükselen trend çizgisi kırıldı"
+        else:
+            head = f"🟢 {name}: Düşen trend çizgisi kırıldı"
+        tail = "✅ Retest yapıldı" if ev["retest"] else "⏳ Retest yapılmadı, bekle"
+        out.append(f"{head} · {tail}")
+    return (["📐 <b>Trend çizgisi</b>"] + out) if out else []
 
 
 def divergence_lines(res):
@@ -1170,6 +1193,9 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
+        tll = trendline_lines(res)
+        if tll:
+            lines += ["", SEP] + tll
         div = divergence_lines(res)
         if div:
             lines += ["", SEP] + div
@@ -1232,7 +1258,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
-    for block in (divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
+    for block in (trendline_lines(res), divergence_lines(res), volume_lines(res, cfg), volume_profile_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
     trend = tf_table_html(res)

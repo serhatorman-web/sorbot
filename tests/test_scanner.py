@@ -465,6 +465,27 @@ def test_trendflex():
     sig = [ta.trendflex_signal(c, line, sma, i) for i in range(len(c))]
     assert 1 in sig and sig.count(1) == 1
 
+
+def test_trendline_break():
+    import math
+    # yükselen kanal (dalgalı), sonra sert düşüş → yükselen çizgi kırıldı, retest yok
+    c = [100 + k * 0.5 + 3 * math.sin(k / 3) for k in range(120)] + [150 - k * 2 for k in range(1, 9)]
+    h = [x + 1 for x in c]; l = [x - 1 for x in c]
+    ev = ta.trendline_break(h, l, c)
+    assert any(e["type"] == "rising" and not e["retest"] for e in ev), ev
+    # düşen kanal, yukarı kırılım, geri çekilip çizgiye dokunma (retest), tekrar yukarı
+    c = [200 - k * 0.5 + 3 * math.sin(k / 3) for k in range(120)]
+    c += [c[-1] + 6, c[-1] + 9, c[-1] + 4, c[-1] + 3.5, c[-1] + 8, c[-1] + 11]
+    h = [x + 1 for x in c]; l = [x - 1 for x in c]
+    ev = ta.trendline_break(h, l, c)
+    assert any(e["type"] == "falling" for e in ev), ev
+    lines = scanner.trendline_lines({"tline": [{"type": "rising", "retest": False, "tf": "15m"},
+                                               {"type": "falling", "retest": True, "tf": "4h"}]})
+    assert lines == ["📐 <b>Trend çizgisi</b>",
+                     "🔴 15dk: Yükselen trend çizgisi kırıldı · ⏳ Retest yapılmadı, bekle",
+                     "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı"]
+    assert scanner.trendline_lines({}) == []
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -449,3 +449,58 @@ def trendflex_signal(close, line, sma, i):
     if close[i] < line[i] and close[i - 1] >= line[i - 1] and close[i] <= sma[i]:
         return -1
     return 0
+
+
+def _pivots(vals, left, right, kind):
+    """Onaylanmış pivot noktaları (indeks listesi). kind='low' dip, 'high' tepe."""
+    out = []
+    for j in range(left, len(vals) - right):
+        win = vals[j - left:j + right + 1]
+        if (kind == "low" and vals[j] == min(win)) or (kind == "high" and vals[j] == max(win)):
+            if not out or j - out[-1] > right:      # aynı bölgedeki tekrarları at
+                out.append(j)
+    return out
+
+
+def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14):
+    """Yükselen / düşen trend çizgisi kırılımı ve retest.
+    Yükselen çizgi: son iki dip (ikincisi daha yüksek) birleştirilir. Kapanış çizginin altına inerse KIRILDI (düşüş).
+    Düşen çizgi  : son iki tepe (ikincisi daha alçak) birleştirilir. Kapanış çizginin üstüne çıkarsa KIRILDI (yükseliş).
+    Kırılım son `recent` mum içinde olmalı ve son kapanış hâlâ kırılım tarafında olmalı.
+    Retest: kırılımdan sonra fiyat çizgiye geri dönüp (tolerans tol_atr x ATR) dokunmuş ve yine kırılım tarafında kapanmış.
+    Döner: [{"type": "rising"|"falling", "retest": bool, "bars_ago": int}]"""
+    n = len(close)
+    if n < left + right + 20:
+        return []
+    a = atr(high, low, close, atr_len)
+    out = []
+    for kind, src in (("rising", low), ("falling", high)):
+        piv = _pivots(src, left, right, "low" if kind == "rising" else "high")
+        if len(piv) < 2:
+            continue
+        p1, p2 = piv[-2], piv[-1]
+        if kind == "rising" and not src[p2] > src[p1]:
+            continue
+        if kind == "falling" and not src[p2] < src[p1]:
+            continue
+        slope = (src[p2] - src[p1]) / (p2 - p1)
+        line = lambda k: src[p2] + slope * (k - p2)
+        brk = None
+        for k in range(p2 + 1, n):
+            if (kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k)):
+                brk = k
+                break
+        if brk is None or n - 1 - brk > recent:
+            continue
+        last = n - 1
+        if (kind == "rising" and close[last] >= line(last)) or (kind == "falling" and close[last] <= line(last)):
+            continue                                    # kırılım geri alındı – yazma
+        retest = False
+        for k in range(brk + 1, n):
+            tol = (a[k] or 0) * tol_atr
+            if kind == "rising" and high[k] >= line(k) - tol and close[k] < line(k):
+                retest = True
+            if kind == "falling" and low[k] <= line(k) + tol and close[k] > line(k):
+                retest = True
+        out.append({"type": kind, "retest": retest, "bars_ago": last - brk})
+    return out
