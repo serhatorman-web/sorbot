@@ -1620,8 +1620,8 @@ def build_message(res, direction, cfg, now_utc):
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
         pa_block = [] if early else price_action_lines(res, direction, cfg)
-        for block in (pa_block, trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
-                      order_block_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
+        for block in (pa_block, order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
+                      volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
     lines += ["", SEP, trend_line] + market_lines(res, cfg, now_utc)
