@@ -514,6 +514,12 @@ def test_volume_profile_retest():
     h[-2] = 105.1
     ev = ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=10)
     assert ev["state"] == "confirmed", ev
+    # retest yapıldıktan sonra fiyat çok uzaklaştı → yazılmaz
+    assert ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=0.1) is None
+    # retest gelmeden fiyat çok uzaklaştı → away
+    h, l, c, o = mk(base + [108, 107, 104, 101, 97, 93])
+    ev = ta.level_retest(h, l, c, 105.0, open_=o, break_near_atr=1.0)
+    assert ev["kind"] == "break" and ev["dir"] == "down" and ev["state"] == "away", ev
     # fiyat seviyeden uzak → yok
     assert ta.level_retest(h, l, c, 150.0, open_=o) is None
     mk_res = lambda evs, p=None: {"meta": {"precision": 4}, "vp_ev": evs,
@@ -525,6 +531,10 @@ def test_volume_profile_retest():
         "🔄 POC - fiyat 2.2481 seviyesini aşağı kırdı. Kırılım sonrası retest yapılıyor, düşüş teyidi bekleniyor."
     assert L({"VAH": {"kind": "break", "dir": "up", "state": "confirmed", "level": 71350.0}})[1] == \
         "✅ VAH - fiyat 71,350.0000 seviyesini yukarı kırdı. Kırılım sonrası retest yapıldı, yükselişin devamı bekleniyor."
+    assert L({"VAL": {"kind": "break", "dir": "down", "state": "away", "level": 1.5259}})[1] == \
+        "⬇️ VAL - fiyat 1.5259 seviyesini aşağı kırdı. Retest yapılmadan düşüş devam etti, fiyat seviyeden uzaklaştı (geç giriş riski)."
+    assert L({"VAH": {"kind": "break", "dir": "up", "state": "away", "level": 1.5998}})[1] == \
+        "⬆️ VAH - fiyat 1.5998 seviyesini yukarı kırdı. Retest yapılmadan yükseliş devam etti, fiyat seviyeden uzaklaştı (geç giriş riski)."
     assert L({"VAL": {"kind": "hold", "dir": "up", "state": "confirmed", "level": 0.9794}})[1] == \
         "🟢 VAL - fiyat 0.9794 seviyesine ulaştı. Retest yapıldı, yükseliş bekleniyor."
     assert L({"VAL": {"kind": "hold", "dir": "up", "state": "touch", "level": 0.9794}})[1].startswith("⚪ VAL")

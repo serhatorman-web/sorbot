@@ -1003,7 +1003,11 @@ def volume_profile_lines(res, cfg):
         if ev.get("kind") == "break":
             yon = "aşağı" if d == "down" else "yukarı"
             head = f"{name} - fiyat {lv} seviyesini {yon} kırdı."
-            if ev["state"] == "confirmed":
+            if ev["state"] == "away":
+                hareket = "düşüş" if d == "down" else "yükseliş"
+                out.append(f"{'⬇️' if d == 'down' else '⬆️'} {head} Retest yapılmadan {hareket} devam etti, "
+                           f"fiyat seviyeden uzaklaştı (geç giriş riski).")
+            elif ev["state"] == "confirmed":
                 out.append(f"✅ {head} Kırılım sonrası retest yapıldı, {exp} bekleniyor.")
             elif ev["state"] == "touch":
                 out.append(f"🔄 {head} Kırılım sonrası retest yapılıyor, {exp} teyidi bekleniyor.")

@@ -530,6 +530,7 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
        state: "none"  – fiyat kırılan seviyeye geri gelmedi (retest yok, bekle)
               "touch" – geri geldi, dokundu ve kırılım tarafında kapandı (retest yapılıyor)
               "confirmed" – sonra dokunan mumun dibi (aşağı kırılım) / tepesi (yukarı kırılım) kapanışla geçildi
+              "away"  – retest gelmeden fiyat seviyeden break_near_atr x ATR'den fazla uzaklaştı
     2) TEPKİ ("hold"): kırılım yok; son `window` mumda fiyat seviyeye iğneyle dokundu (açılış ve kapanış aynı tarafta).
        state: "touch" – tepki bekleniyor; "confirmed" – sonraki mum seviyeden uzaklaşan yönde, dokunan mumun
               tepesi/dibi ötesinde kapandı.
@@ -552,8 +553,6 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
             brk = k
             break
     if brk is not None:
-        if dist > break_near_atr * a[-1]:
-            return None
         d = "down" if close[brk] < level else "up"
         state, touch = "none", None
         for k in range(brk + 1, n):
@@ -564,6 +563,10 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
             elif (d == "down" and close[k] < low[touch]) or (d == "up" and close[k] > high[touch]):
                 state = "confirmed"
                 break
+        if dist > break_near_atr * a[-1]:
+            if state != "none":
+                return None
+            state = "away"        # retest gelmeden fiyat seviyeden uzaklaştı
         return {"kind": "break", "dir": d, "state": state, "bars_ago": n - 1 - brk}
 
     # 2) kırılım yok – seviyeye iğneyle dokunuş ve tepki
