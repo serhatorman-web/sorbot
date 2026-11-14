@@ -467,8 +467,9 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
     Yükselen çizgi: son iki dip (ikincisi daha yüksek) birleştirilir. Kapanış çizginin altına inerse KIRILDI (düşüş).
     Düşen çizgi  : son iki tepe (ikincisi daha alçak) birleştirilir. Kapanış çizginin üstüne çıkarsa KIRILDI (yükseliş).
     Kırılım son `recent` mum içinde olmalı ve son kapanış hâlâ kırılım tarafında olmalı.
-    Retest: kırılımdan sonra fiyat çizgiye geri dönüp (tolerans tol_atr x ATR) dokunmuş ve yine kırılım tarafında kapanmış.
-    Döner: [{"type": "rising"|"falling", "retest": bool, "bars_ago": int}]"""
+    Retest: kırılımdan sonra fiyat çizgiye geri dönüp (tolerans tol_atr x ATR) dokunmuş ve yine kırılım tarafında kapanmış;
+    ardından fiyat kırılım yönünde devam ettiyse (retest mumunun tepesi/dibi kapanışla geçildi) retest teyit edilmiştir.
+    Döner: [{"type": "rising"|"falling", "retest": "none"|"touch"|"confirmed", "bars_ago": int}]"""
     n = len(close)
     if n < left + right + 20:
         return []
@@ -495,12 +496,22 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
         last = n - 1
         if (kind == "rising" and close[last] >= line(last)) or (kind == "falling" and close[last] <= line(last)):
             continue                                    # kırılım geri alındı – yazma
-        retest = False
+        # Retest: kırılımdan sonra fiyat çizgiye geri gelir (tolerans tol_atr x ATR) ve mum kırılım tarafında kapanır.
+        # Teyit: sonraki bir mum, retest mumunun tepesinin üstünde (düşen çizgi kırılımı → yükseliş)
+        # ya da dibinin altında (yükselen çizgi kırılımı → düşüş) kapanır.
+        state, touch = "none", None
         for k in range(brk + 1, n):
             tol = (a[k] or 0) * tol_atr
-            if kind == "rising" and high[k] >= line(k) - tol and close[k] < line(k):
-                retest = True
-            if kind == "falling" and low[k] <= line(k) + tol and close[k] > line(k):
-                retest = True
+            if touch is None:
+                if kind == "rising" and high[k] >= line(k) - tol and close[k] < line(k):
+                    touch = k
+                if kind == "falling" and low[k] <= line(k) + tol and close[k] > line(k):
+                    touch = k
+                if touch is not None:
+                    state = "touch"
+            elif (kind == "falling" and close[k] > high[touch]) or (kind == "rising" and close[k] < low[touch]):
+                state = "confirmed"
+                break
+        retest = state
         out.append({"type": kind, "retest": retest, "bars_ago": last - brk})
     return out

@@ -472,18 +472,20 @@ def test_trendline_break():
     c = [100 + k * 0.5 + 3 * math.sin(k / 3) for k in range(120)] + [150 - k * 2 for k in range(1, 9)]
     h = [x + 1 for x in c]; l = [x - 1 for x in c]
     ev = ta.trendline_break(h, l, c)
-    assert any(e["type"] == "rising" and not e["retest"] for e in ev), ev
+    assert any(e["type"] == "rising" and e["retest"] == "none" for e in ev), ev
     # düşen kanal, yukarı kırılım, geri çekilip çizgiye dokunma (retest), tekrar yukarı
     c = [200 - k * 0.5 + 3 * math.sin(k / 3) for k in range(120)]
     c += [c[-1] + 6, c[-1] + 9, c[-1] + 4, c[-1] + 3.5, c[-1] + 8, c[-1] + 11]
     h = [x + 1 for x in c]; l = [x - 1 for x in c]
     ev = ta.trendline_break(h, l, c)
     assert any(e["type"] == "falling" for e in ev), ev
-    lines = scanner.trendline_lines({"tline": [{"type": "rising", "retest": False, "tf": "15m"},
-                                               {"type": "falling", "retest": True, "tf": "4h"}]})
+    lines = scanner.trendline_lines({"tline": [{"type": "rising", "retest": "none", "tf": "15m"},
+                                               {"type": "falling", "retest": "confirmed", "tf": "4h"},
+                                               {"type": "rising", "retest": "touch", "tf": "1d"}]})
     assert lines == ["📐 <b>Trend çizgisi</b>",
                      "🔴 15dk: Yükselen trend çizgisi kırıldı · ⏳ Retest yapılmadı, bekle",
-                     "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı"]
+                     "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı, yükseliş başladı",
+                     "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor"]
     assert scanner.trendline_lines({}) == []
 
 if __name__ == "__main__":

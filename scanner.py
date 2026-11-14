@@ -992,7 +992,9 @@ def trendline_lines(res):
             head = f"🔴 {name}: Yükselen trend çizgisi kırıldı"
         else:
             head = f"🟢 {name}: Düşen trend çizgisi kırıldı"
-        tail = "✅ Retest yapıldı" if ev["retest"] else "⏳ Retest yapılmadı, bekle"
+        move = "yükseliş" if ev["type"] == "falling" else "düşüş"
+        tail = {"confirmed": f"✅ Retest yapıldı, {move} başladı",
+                "touch": f"🔄 Retest yapılıyor, {move} teyidi bekleniyor"}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
         out.append(f"{head} · {tail}")
     return (["📐 <b>Trend çizgisi</b>"] + out) if out else []
 
