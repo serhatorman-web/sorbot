@@ -486,6 +486,10 @@ def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, 
             continue
         slope = (src[p2] - src[p1]) / (p2 - p1)
         line = lambda k: src[p2] + slope * (k - p2)
+        # geçerli çizgi: iki pivot arasında hiçbir mum çizginin öbür tarafında kapanmamış olmalı
+        if any((kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k))
+               for k in range(p1 + 1, p2)):
+            continue
         brk = None
         for k in range(p2 + 1, n):
             if (kind == "rising" and close[k] < line(k)) or (kind == "falling" and close[k] > line(k)):
