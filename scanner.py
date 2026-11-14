@@ -1129,6 +1129,57 @@ def ichimoku_lines(res, direction, cfg):
     return out
 
 
+HTF_NAME = {"5m": "20dk", "15m": "1 saat", "1h": "4 saat", "4h": "16 saat"}
+
+
+def early_criteria(f, i, s, ev, btc_f=None):
+    """Erken dönüş teyit kriterleri (geçmiş testte seçildi). Döner {anahtar: True/False}; hesaplanamayan yok.
+    btc_mom: BTC son 3 mumda sinyal yönünde · btc_st: BTC Supertrend sinyal yönünde ·
+    btc_not_against: BTC Supertrend ters değil ya da son 3 mumda sinyal yönünde ·
+    sweep: dip/tepe son 100 mumun dibinin/tepesinin ötesine geçti (likidite süpürme) ·
+    htf_with: 4 kat üst zaman diliminin Supertrend'i sinyal yönünde · ema200_side: fiyat EMA200'ün sinyal tarafında ·
+    vp_level: dip/tepe hacim profili seviyesine (VAH/POC/VAL) 0.5 ATR yakın · wick: dip/tepe mumunda gövdeden uzun iğne"""
+    j, cap, ext = ev["ext_i"], ev["cap"], ev["ext"]
+    a = f["atr"][i]
+    aj = f["atr"][j] or a
+    out = {}
+    if btc_f is not None and len(btc_f["c"]) > 3:
+        bc, bst = btc_f["c"], btc_f["st_dir"]
+        mom = (bc[-1] - bc[-4]) * s > 0
+        out["btc_mom"] = mom
+        out["btc_st"] = bst[-1] == s
+        out["btc_not_against"] = bst[-1] != -s or mom
+    w = range(max(0, cap - 100), cap)
+    if len(w) > 20:
+        out["sweep"] = ext < min(f["l"][k] for k in w) if s == 1 else ext > max(f["h"][k] for k in w)
+    out["htf_with"] = f["h4_st"][i] == s
+    if f["ema200"][i]:
+        out["ema200_side"] = (f["c"][i] - f["ema200"][i]) * s > 0
+    vol = f.get("bv") or f["v"]
+    hh, ll, vv = f["h"][:cap + 1], f["l"][:cap + 1], vol[:cap + 1]
+    an = ta.swing_anchor(hh, ll, 300)
+    vp = ta.volume_profile(hh[an:], ll[an:], vv[an:], 24, 0.7)
+    if vp:
+        out["vp_level"] = min(abs(ext - x) for x in vp) <= 0.5 * aj
+    rng = f["h"][j] - f["l"][j]
+    if rng > 0:
+        out["wick"] = ((min(f["o"][j], f["c"][j]) - f["l"][j]) if s == 1
+                       else (f["h"][j] - max(f["o"][j], f["c"][j]))) >= 0.5 * rng
+    return out
+
+
+def early_criteria_names(direction, tf):
+    up = direction == "long"
+    return {"btc_mom": f"BTC son 3 mumda {'yükselişte' if up else 'düşüşte'}",
+            "btc_st": f"BTC Supertrend {'AL' if up else 'SAT'}",
+            "btc_not_against": "BTC ters yönde değil",
+            "sweep": f"Son 100 mumun {'dibi' if up else 'tepesi'} süpürüldü (likidite)",
+            "htf_with": f"{HTF_NAME.get(tf, 'Üst zaman dilimi')} Supertrend {'AL' if up else 'SAT'}",
+            "ema200_side": f"Fiyat EMA200'ün {'üstünde' if up else 'altında'}",
+            "vp_level": f"{'Dip' if up else 'Tepe'} hacim profili seviyesinde (VAH/POC/VAL)",
+            "wick": f"{'Dip' if up else 'Tepe'} mumunda uzun iğne"}
+
+
 QUALITY_BADGE = {"A": "🅰️", "B": "🅱️", "C": "Ⓒ"}
 QUALITY_CHECKS = (("htf", "Üst zaman dilimleri uyumlu"), ("ichi", "Ichimoku ≥3/4 uyumlu"),
                   ("retest", "Retest teyidi var"), ("leader", "BTC/QQQ yönü aynı"))
@@ -1360,8 +1411,9 @@ def build_message(res, direction, cfg, now_utc):
             score_line += "\n\n" + extra_line
     grade, _ = quality_grade(res, direction, cfg)
     res["grade"] = grade
+    badge = "" if early else f" · {QUALITY_BADGE[grade]}"      # trend notu erken dönüşte anlamsız (trende karşı)
     lines = banner_lines(meta, cfg) + [
-        f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']} · {QUALITY_BADGE[grade]}",
+        f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}{badge}",
         SEP,
         score_line,
         "",
@@ -1394,7 +1446,12 @@ def build_message(res, direction, cfg, now_utc):
                 f"Sert yükseliş ({early['move_pct']:+.1f}%, hacim {early['vol_x']:.1f}x) sonrası tepe tuttu, düşüş başladı")
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 Tetik: ⚡ {move}", "", f"📌 {trigger_name(cfg)}: {st_txt}"]
+        lines += ["", SEP, f"📌 Tetik: ⚡ {move}"]
+        names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
+        ok = [names[k] for k in names if (early.get("criteria") or {}).get(k)]
+        if ok:
+            lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
+        lines += ["", f"📌 {trigger_name(cfg)}: {st_txt}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
@@ -1775,6 +1832,7 @@ def main():
 
     # ---- ERKEN DÖNÜŞ (Supertrend'den bağımsız): sert hacimli hareket sonrası dip/tepe dönüşü ----
     ecfg = cfg.get("early_reversal", {})
+    btc_f = compute_features(candles["BTCUSDT"], cfg) if len(candles.get("BTCUSDT") or []) >= cfg["min_candles"] else None
     rules = ecfg.get("rules", {}).get(cfg["timeframe"], {}) if ecfg.get("enabled", False) else {}
     early_n = 0
     picked_st = {(r["meta"]["symbol"], d) for _, d, r in picks}
@@ -1794,6 +1852,10 @@ def main():
             # Dip/tepe girişten çok uzaksa (ör. +%26 iğne) stop anlamsız uzar → sinyal yok
             if abs(f_["c"][i_] - ev["ext"]) + 0.2 * f_["atr"][i_] > ecfg.get("max_risk_atr", 3.0) * f_["atr"][i_]:
                 continue
+            crit = early_criteria(f_, i_, s_, ev, None if r["meta"]["symbol"] == "BTCUSDT" else btc_f)
+            if not all(crit.get(k) is True for k in rule.get("require", [])):
+                continue
+            ev["criteria"] = crit
             key = f"{r['meta']['symbol']}|early_{d}"
             ext_t = f_["t"][ev["ext_i"]]
             if state["signals"].get(key + "_ext") == ext_t:
@@ -1813,10 +1875,9 @@ def main():
                         try:
                             import perf
                             entry, sl, tps, _ = levels(r, d, cfg)
-                            grade, checks = quality_grade(r, d, cfg)
                             perf.record_signal(r["meta"]["symbol"], r["meta"]["type"], cfg["timeframe"], d,
                                                f_["t"][i_] + perf.TF_MS.get(cfg["timeframe"], HOUR_MS),
-                                               entry, sl, tps, grade, checks, kind="early")
+                                               entry, sl, tps, "-", ev["criteria"], kind="early")
                         except Exception as e:  # noqa: BLE001
                             print(f"  Karne kaydı hatası: {e}", file=sys.stderr)
             except Exception as e:  # noqa: BLE001

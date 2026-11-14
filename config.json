@@ -146,15 +146,18 @@
     "enabled": true
   },
   "early_reversal": {
-    "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Kurallar zaman dilimi ve yöne göre (geçmiş testte en iyi sonuç veren varyant). Test (120 coin, PF): 1s LONG 1.33, 1s SHORT 1.10, 15dk SHORT 1.12 kârlı; 15dk LONG 0.83, 4s LONG 0.68, 4s SHORT 0.64 zararlıydı (kullanıcı isteğiyle açık).",
+    "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Her zaman dilimi/yön için 'require' listesindeki teyitlerin hepsi gerekir (150 coinde geçmiş test, dönem ikiye bölünerek doğrulandı). Teyitli PF: 1s LONG 2.94 (iki yarıda 3.68/2.16), 4s LONG 1.70 (1.48/2.01), 4s SHORT 2.11 (2.92/1.75, az sinyal). Kararsız (iki yarıda farklı): 15dk LONG 1.17 (2.15/0.40), 15dk SHORT 2.06 (0.48/4.33), 1s SHORT 1.29 (0.42/2.53). Anahtarlar: btc_mom, btc_st, btc_not_against, sweep, htf_with, ema200_side, vp_level, wick.",
     "enabled": true,
     "window": 8,
     "max_per_scan": 10,
     "max_risk_atr": 3.0,
     "rules": {
-      "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},
-      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25}, "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30}},
-      "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null}, "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null}}
+      "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_not_against", "sweep"]},
+              "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["htf_with", "ema200_side"]}},
+      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_mom", "sweep"]},
+             "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["wick", "htf_with"]}},
+      "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["btc_st", "htf_with"]},
+             "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["vp_level", "htf_with"]}}
     }
   },
   "volume_profile": {
