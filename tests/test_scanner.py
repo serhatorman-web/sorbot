@@ -723,8 +723,8 @@ def test_signal_price_action():
     f = {"o": o, "h": h, "l": l, "c": c, "atr": [1.0] * n}
     pa = scanner.signal_price_action(f, n - 1, 1)
     assert pa["pa_engulf"] and pa["pa_strong_close"] and pa["pa_bos"], pa
-    out = scanner.price_action_lines({"f": f, "i": n - 1}, "long", {"timeframe": "1h"})
-    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and "✅ Yapı kırılımı (son tepe kapanışla geçildi)" in out, out
+    out = scanner.price_action_lines({"f": f, "i": n - 1, "meta": {"precision": 2}}, "long", {"timeframe": "1h"})
+    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and "✅ Yapı kırılımı (son tepe 100.50 kapanışla geçildi) → yükseliş trendi teyit edildi" in out, out
 
 
 if __name__ == "__main__":

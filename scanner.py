@@ -1294,6 +1294,7 @@ def signal_price_action(f, i, s):
     piv_lo = [k for k in range(i - 2, max(1, i - 30), -1) if l_[k] == min(l_[k - 2:k + 3])]
     ref = piv_hi if s == 1 else piv_lo
     out["pa_bos"] = bool(ref) and ((c_[i] > h_[ref[0]]) if s == 1 else (c_[i] < l_[ref[0]]))
+    out["_bos_level"] = (h_[ref[0]] if s == 1 else l_[ref[0]]) if ref else None
     two = piv_lo[:2] if s == 1 else piv_hi[:2]
     out["pa_structure"] = len(two) == 2 and ((l_[two[0]] > l_[two[1]]) if s == 1 else (h_[two[0]] < h_[two[1]]))
     return out
@@ -1306,13 +1307,33 @@ def price_action_lines(res, direction, cfg):
     pa = signal_price_action(f, i, s)
     names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
     up = direction == "long"
+    lvl = pa.get("_bos_level")
+    lvl_txt = f" {fmt_price(lvl, res['meta'].get('precision'))}" if lvl is not None else ""
     names.update({"pa_hammer": "Pin bar / çekiç (uzun alt iğne)" if up else "Pin bar / ters çekiç (uzun üst iğne)",
-                  "pa_bos": f"Yapı kırılımı (son {'tepe' if up else 'dip'} kapanışla geçildi)",
+                  "pa_bos": f"Yapı kırılımı (son {'tepe' if up else 'dip'}{lvl_txt} kapanışla geçildi)",
                   "pa_structure": "Yükselen dipler" if up else "Alçalan tepeler"})
     order = ("pa_bos", "pa_structure", "pa_engulf", "pa_hammer", "pa_star", "pa_inside_break", "pa_strong_close")
-    ok = [names[k] for k in order if pa.get(k)]
+    res_txt = pa_result_texts(direction)
+    ok = [f"{names[k]} → {res_txt[k]}" for k in order if pa.get(k)]
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     return [f"🕯️ <b>Price action</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
+
+
+def pa_result_texts(direction):
+    """Price action formasyonlarının sinyal yönündeki anlamı / beklenen sonuç."""
+    up = direction == "long"
+    mv = "yükseliş" if up else "düşüş"
+    side = "alıcılar" if up else "satıcılar"
+    return {"pa_bos": f"{mv} trendi teyit edildi",
+            "pa_structure": f"{side} baskın, {mv} yapısı sürüyor",
+            "pa_engulf": f"{side} kontrolü aldı, {mv} bekleniyor",
+            "pa_hammer": f"{'dipte' if up else 'tepede'} güçlü ret, {mv} bekleniyor",
+            "pa_star": f"{'dip' if up else 'tepe'} dönüş formasyonu, {mv} bekleniyor",
+            "pa_inside_break": f"sıkışma {'yukarı' if up else 'aşağı'} kırıldı, {mv} bekleniyor",
+            "pa_strong_close": f"{'alış' if up else 'satış'} baskısı güçlü, {'yükselişin' if up else 'düşüşün'} devamı bekleniyor",
+            "pa_higher_low": f"{'dip' if up else 'tepe'} tuttu, {mv} bekleniyor",
+            "pa_choch": f"trend {'yukarı' if up else 'aşağı'} döndü, {mv} teyit edildi",
+            "ob_zone": f"{'alıcı' if up else 'satıcı'} bölgesinden tepki"}
 
 
 def early_criteria_names(direction, tf):
@@ -1606,7 +1627,8 @@ def build_message(res, direction, cfg, now_utc):
         crit = early.get("criteria") or {}
         is_pa = lambda k: k.startswith("pa_") or k == "ob_zone"
         ok = [names[k] for k in names if crit.get(k) and not is_pa(k)]
-        pa = [names[k] for k in names if crit.get(k) and is_pa(k)]
+        rt = pa_result_texts(direction)
+        pa = [f"{names[k]} → {rt[k]}" if k in rt else names[k] for k in names if crit.get(k) and is_pa(k)]
         if ok:
             lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
         if pa:
