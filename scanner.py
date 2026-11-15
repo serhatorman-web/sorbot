@@ -887,7 +887,7 @@ TF_NAMES = {"5m": "5dk", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1
 DIV_TFS = ("15m", "1h", "4h", "1d", "1w")
 
 
-def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
+def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
     """Mesaj gönderilecek sembol için diğer zaman dilimlerini çeker:
     trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (15dk / 1s / 4s / 1g / 1h)."""
     sym = res["meta"]["symbol"]
@@ -926,6 +926,8 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
     res["tline"] = tl
     # Order block'lar: TradingView'deki "Volumized Order Blocks | Flux Charts" son 1750 mumu kullanır;
     # tarama 499 mumla yapıldığı için mesaj gönderilecek sembolde uzun geçmiş ayrıca çekilir.
+    if not order_blocks:
+        return
     try:
         hist = fetch_long_history(api, sym, base_tf, now_ms, OB_HISTORY)
         if len(hist) > i:
@@ -1888,7 +1890,7 @@ def main():
             if not r:
                 continue
             d = "long" if st_of(r) == 1 else "short"
-            fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+            fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             compute_volume_profile(r, cfg)
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
             n += notifier.send(msg) and 1 or 0
@@ -1935,7 +1937,7 @@ def main():
     maxn = sig_cfg["max_signals_per_run"]
     sent = 0
     for score, d, r in picks[:maxn]:
-        fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+        fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
         compute_volume_profile(r, cfg)
         msg = build_message(r, d, cfg, now_utc)
         try:
@@ -1976,7 +1978,7 @@ def main():
                 if state["signals"].get(key + "_ev") == f_["t"][ev]:
                     continue                  # aynı SSL Buy/Sell için ikinci sinyal yok
                 r["ssl_sig"] = {"dir": d, "ev": ev}
-                fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
                 compute_volume_profile(r, cfg)
                 msg = build_message(r, d, cfg, now_utc)
                 try:
@@ -2012,7 +2014,7 @@ def main():
         radar.sort(key=lambda x: -x[0])
         for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
             if "tf" not in r:
-                fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             if "vp" not in r:
                 compute_volume_profile(r, cfg)
             try:
