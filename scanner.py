@@ -1085,7 +1085,7 @@ def order_block_lines(res, cfg):
             st = (f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role}) → "
                   f"{'düşüşte ilk destek, buradan tepki beklenir' if s == 1 else 'yükselişte ilk direnç, buradan satış beklenir'}")
         out.append(f"{name} {zone} · {vol} · {st}")
-    return ([f"🧱 <b>Order block</b> · {span}"] + out) if out else []
+    return ([f"🧱 <b>ORDER BLOCK</b> · {span}"] + out) if out else []
 
 
 def volume_profile_lines(res, cfg):
@@ -1096,7 +1096,7 @@ def volume_profile_lines(res, cfg):
         return []
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
-    out = [f"📊 <b>Hacim profili</b> · {span}"]
+    out = [f"📊 <b>HACİM PROFİLİ</b> · {span}"]
     f, i = res.get("f"), res.get("i")
     price = f["c"][i] if f else None
     names = [n for n in ("VAH", "POC", "VAL") if n in evs]
@@ -1148,7 +1148,7 @@ def ichimoku_lines(res, direction, cfg):
     sa_now = (ten[i] + kij[i]) / 2
     sig = 1 if direction == "long" else -1
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
-    out = [f"☁️ <b>Ichimoku</b> · {span}"]
+    out = [f"☁️ <b>ICHIMOKU</b> · {span}"]
     confirmed = {1: [], -1: []}
     # bugünkü bulutun rengi: 26 mum önce hesaplanan Senkou A / B (A > B → yeşil)
     shift = (cfg.get("indicators", {}).get("ichimoku") or [9, 26, 52, 26])[3]
@@ -1447,7 +1447,7 @@ def pivot_lines(res, direction, cfg):
             ago = i - k
             break
     when = ("bu mumda kapanış yaptı" if ago == 0 else f"{ago} mum önce kapanış yaptı") if ago is not None else "dönem başından beri"
-    out = [f"📍 <b>Pivots</b> · {TF_NAMES.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}"]
+    out = [f"📍 <b>PIVOTS</b> · {TF_NAMES.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}"]
     out.append(f"Pivot {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
     rt = pivot_retest_line(f, i, P, pv["start"])
     if rt:
@@ -1506,7 +1506,7 @@ def price_action_lines(res, direction, cfg):
                          else f"{mv} trendi devam ediyor")
     ok = [f"{names[k]} → {res_txt[k]}" for k in order if pa.get(k)]
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
-    return [f"🕯️ <b>Price action</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
+    return [f"🕯️ <b>PRICE ACTION</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
 
 
 def pa_result_texts(direction):
@@ -1546,7 +1546,7 @@ def trendline_lines(res):
                 "away": f"{'⬆️' if move == 'yükseliş' else '⬇️'} Retest yapılmadan {move} devam etti (geç giriş riski)"
                 }.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
         out.append(f"{head} · {tail}")
-    return (["📐 <b>Trend çizgisi</b>"] + out) if out else []
+    return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
 
 def divergence_lines(res):

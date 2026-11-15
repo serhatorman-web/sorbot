@@ -495,7 +495,7 @@ def test_trendline_break():
                                                {"type": "rising", "retest": "touch", "tf": "1d"},
                                                {"type": "falling", "retest": "away", "tf": "1h"},
                                                {"type": "rising", "retest": "away", "tf": "1w"}]})
-    assert lines == ["📐 <b>Trend çizgisi</b>",
+    assert lines == ["📐 <b>TREND ÇİZGİSİ</b>",
                      "🔴 15dk: Yükselen trend çizgisi kırıldı · ⏳ Retest yapılmadı, bekle",
                      "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı, yükseliş başladı",
                      "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor",
@@ -579,7 +579,7 @@ def test_ichimoku_band_retest():
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}}
     cfg = {"timeframe": "1h", "indicators": {"ichimoku": [9, 26, 52, 26]}}
     out = scanner.ichimoku_lines(res, "long", cfg)
-    assert out[0] == "☁️ <b>Ichimoku</b> · 1 saat", out
+    assert out[0] == "☁️ <b>ICHIMOKU</b> · 1 saat", out
     assert out[1].startswith("🟢 Bulut (yeşil) ") and "fiyat üstünde (destek)" in out[1], out
     assert out[4].startswith("🟢 İleri bulut (26 mum sonrası): yeşil · ") and out[4].endswith("→ yükseliş trendi bekleniyor"), out
     assert out[5] == "🟢 Tenkan Kijun'un üstünde → kısa vadede yükseliş eğilimi", out
@@ -661,7 +661,7 @@ def test_order_block_lines():
            {"type": -1, "top": 105.0, "bottom": 104.0, "vol": 6262.718, "pct": 7, "breaker": False},
            {"type": -1, "top": 110.0, "bottom": 109.0, "vol": 1.0, "pct": 1, "breaker": True}]
     out = scanner.order_block_lines({"f": f, "i": n - 1, "meta": {"precision": 2}, "obs": obs}, {"timeframe": "15m"})
-    assert out[0] == "🧱 <b>Order block</b> · 15dk", out
+    assert out[0] == "🧱 <b>ORDER BLOCK</b> · 15dk", out
     assert out[1] == "🔴 Ayı OB 104.00 – 105.00 · 6.263K (%7) · fiyatın %4.0 üstünde (direnç) → yükselişte ilk direnç, buradan satış beklenir", out
     assert out[2] == "🟢 Boğa OB 97.00 – 98.00 · 14.155K (%9) · fiyatın %2.0 altında (destek) → düşüşte ilk destek, buradan tepki beklenir", out
     assert len(out) == 3, out                                       # bozulmuş bölge yazılmaz
@@ -677,7 +677,7 @@ def test_signal_price_action():
     pa = scanner.signal_price_action(f, n - 1, 1)
     assert pa["pa_engulf"] and pa["pa_strong_close"] and pa["pa_bos"], pa
     out = scanner.price_action_lines({"f": f, "i": n - 1, "meta": {"precision": 2}}, "long", {"timeframe": "1h"})
-    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and any(x.startswith("✅ Yapı kırılımı (BOS): son tepe 100.50") or x.startswith("✅ Karakter değişimi (CHoCH)") for x in out), out
+    assert out[0] == "🕯️ <b>PRICE ACTION</b> · 1 saat" and any(x.startswith("✅ Yapı kırılımı (BOS): son tepe 100.50") or x.startswith("✅ Karakter değişimi (CHoCH)") for x in out), out
 
 
 def test_choch_label():
@@ -744,7 +744,7 @@ def test_pivot_lines():
     f = {"c": c, "t": [1000 + k for k in range(n)], "st_dir": [1] * n, "dyna": [5.0] * n, "qqe": [1] * n}
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}, "pivot": pv}
     out = scanner.pivot_lines(res, "long", {"timeframe": "15m"})
-    assert out[0] == "📍 <b>Pivots</b> · 15dk", out
+    assert out[0] == "📍 <b>PIVOTS</b> · 15dk", out
     assert out[1] == "Pivot 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
     assert out[2] == "✅ Pivot üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
     assert out[3] == "✅ Pivot stratejisi onaylandı → LONG girilebilir", out
