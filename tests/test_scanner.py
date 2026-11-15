@@ -771,6 +771,34 @@ def test_pivot_retest_line():
         assert scanner.pivot_retest_line(f, n - 1, P, 0) == want, (scanner.pivot_retest_line(f, n - 1, P, 0), want)
 
 
+def test_pivot_signal():
+    D = 86_400_000
+    n = 200                                  # 15dk: dün 96 mum + bugün
+    t0 = 10 * D - 96 * 900_000 - 8 * 900_000
+    t = [t0 + k * 900_000 for k in range(n)]
+    c = [100.0] * n; h = [101.0] * n; l = [99.0] * n
+    for k in range(n):
+        if t[k] < 10 * D - 96 * 900_000:
+            c[k], h[k], l[k] = 95.0, 96.0, 94.0
+        elif t[k] < 10 * D:
+            c[k], h[k], l[k] = 100.0, 110.0, 90.0        # dün: H 110, L 90, C 100 → P 100
+        else:
+            c[k], h[k], l[k] = 98.0, 99.0, 97.0
+    c[-1], h[-1] = 102.0, 102.5                           # son mum pivotun üstünde kapandı
+    f = {"t": t, "c": c, "h": h, "l": l, "st_dir": [1] * n, "dyna": [1.0] * n, "qqe": [1] * n}
+    pv = scanner.pivot_from_bars(f, n - 1, "15m")
+    assert pv and round(pv["P"], 2) == 100.0 and pv["tf"] == "1d" and pv["start"] == 10 * D, pv
+    sig = scanner.pivot_signal(f, n - 1, 1, pv)
+    assert sig["dir"] == "long" and [x[0] for x in sig["tps"]] == ["R1", "R2", "R3"] and sig["stop_name"] == "S1", sig
+    assert round(sig["tps"][0][1], 2) == 107.64 and round(sig["stop"], 2) == 92.36
+    assert scanner.pivot_signal(f, n - 1, -1, pv) is None
+    f["qqe"] = [1] * (n - 1) + [0]
+    assert scanner.pivot_signal(f, n - 1, 1, pv) is None          # QQE MOD onayı yok
+    # haftalık dönem başlangıcı pazartesi 00:00 UTC
+    mon = scanner.pivot_period_start(1794700800000, 7 * D)       # 15.11.2026 pazar → 09.11.2026 pazartesi
+    assert mon == 1794182400000, mon
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

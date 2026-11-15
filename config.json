@@ -145,6 +145,11 @@
   "ichimoku_info": {
     "enabled": true
   },
+  "pivot_signal": {
+    "_aciklama": "Pivot sinyali (Supertrend sinyallerinden ayrı, ikisi de gelir): mum pivotun üstünde (SHORT: altında) kapanır + Supertrend + DynaRange + QQE MOD aynı yönde (dördü bu mumda ilk kez birlikte). Giriş/hedef/stop pivot seviyeleri: TP R1-R2-R3, stop S1 (SHORT: TP S1-S2-S3, stop R1). Her pivot döneminde (15dk: gün, 1s/4s: hafta) her yönde en fazla 1 sinyal.",
+    "enabled": true,
+    "max_per_scan": 20
+  },
   "pivots": {
     "_aciklama": "Mesajda Price action üstünde 📍 Pivots bölümü (TradingView Pivot Points Standard, Fibonacci, Auto: 15dk günlük, 1s/4s haftalık). Kullanıcı stratejisi: P üstünde/altında kapanış + Supertrend + DynaRange + QQE MOD aynı yönde → TP R1-R2-R3 (SHORT: S1-S2-S3), stop S1 (SHORT: R1).",
     "enabled": true

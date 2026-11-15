@@ -833,6 +833,9 @@ def levels(res, direction, cfg, method=None):
     f, i = res["f"], res["i"]
     entry = f["c"][i]
     s = 1 if direction == "long" else -1
+    ps = res.get("pivot_sig")
+    if ps and ps.get("dir") == direction:
+        return entry, ps["stop"], [v for _, v in ps["tps"]], f"{ps['stop_name']} (pivot)"
     risk, label = stop_distance(f, i, s, cfg["risk"], method)
     sl = entry - s * risk
     tps = [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]]
@@ -1345,6 +1348,54 @@ def pivot_levels(h, l, c):
             "S1": p - 0.382 * r, "S2": p - 0.618 * r, "S3": p - r}
 
 
+PIVOT_WEEK_OFFSET = 4 * 86_400_000          # 1970-01-01 perşembe; Binance haftası pazartesi 00:00 UTC başlar
+
+
+def pivot_period_start(t, period_ms):
+    if period_ms == 86_400_000:
+        return t // period_ms * period_ms
+    return (t - PIVOT_WEEK_OFFSET) // period_ms * period_ms + PIVOT_WEEK_OFFSET
+
+
+def pivot_from_bars(f, i, tf):
+    """Taramadaki mumlardan içinde bulunulan dönemin pivotları (önceki günün / haftanın H-L-C'si).
+    TradingView Auto: 15dk ve altı günlük, üstü haftalık. Önceki dönemin tamamı yoksa None."""
+    per = 86_400_000 if TF_MS.get(tf, HOUR_MS) <= 15 * 60 * 1000 else 7 * 86_400_000
+    start = pivot_period_start(f["t"][i], per)
+    prev = start - per
+    ks = [k for k in range(i + 1) if prev <= f["t"][k] < start]
+    if not ks or f["t"][ks[0]] > prev + TF_MS.get(tf, HOUR_MS) * 2:
+        return None
+    h = max(f["h"][k] for k in ks)
+    l = min(f["l"][k] for k in ks)
+    c = f["c"][ks[-1]]
+    return dict(pivot_levels(h, l, c), tf="1d" if per == 86_400_000 else "1w", start=start)
+
+
+def pivot_signal(f, i, s, pv):
+    """Pivot stratejisi sinyali: mum pivotun üstünde (SHORT: altında) kapanır + Supertrend + DynaRange + QQE MOD
+    aynı yönde; dört şart bu dönemde bu mumda ilk kez birlikte sağlanır. Hedef / stop: R1-R2-R3 / S1
+    (SHORT: S1-S2-S3 / R1). Döner: {dir, tps, stop, stop_name} ya da None."""
+    if not pv or i < 1:
+        return None
+    qqe = f.get("qqe") or [0] * (i + 1)
+
+    def ok(k):
+        d = f["dyna"][k]
+        return ((f["c"][k] - pv["P"]) * s > 0 and f["st_dir"][k] == s and d is not None and d * s > 0
+                and qqe[k] == s)
+    if not ok(i) or (f["t"][i - 1] >= pv["start"] and ok(i - 1)):
+        return None
+    price = f["c"][i]
+    names = ("R1", "R2", "R3") if s == 1 else ("S1", "S2", "S3")
+    stop_name = "S1" if s == 1 else "R1"
+    tps = [(n, pv[n]) for n in names if (pv[n] - price) * s > 0]
+    stop = pv[stop_name]
+    if not tps or (price - stop) * s <= 0:
+        return None
+    return {"dir": "long" if s == 1 else "short", "tps": tps, "stop": stop, "stop_name": stop_name}
+
+
 def pivot_retest_line(f, i, P, start):
     """P seviyesinde retest kontrolü (bu dönemin mumları): kapanışla kesildikten sonra gerçekten geri gelip test
     edildi mi, yoksa retest yapmadan mı gitti."""
@@ -1653,6 +1704,8 @@ def build_message(res, direction, cfg, now_utc):
     ssl_sig = res.get("ssl_sig") if (res.get("ssl_sig") or {}).get("dir") == direction else None
     if ssl_sig:
         head = "🔷 <b>SSL</b> · " + head
+    if (res.get("pivot_sig") or {}).get("dir") == direction:
+        head = "📍 <b>PIVOT</b> · " + head
     # teknik görünüm ve güven skoru mesajda yok (kullanıcı isteği); sadece trend uyum satırları
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     top = []
@@ -1665,9 +1718,13 @@ def build_message(res, direction, cfg, now_utc):
         "",
         f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
+    psig = res.get("pivot_sig") if (res.get("pivot_sig") or {}).get("dir") == direction else None
     for n, tp in enumerate(tps, 1):
-        r = cfg["risk"]["tp_r_multiples"][n - 1]
-        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
+        if psig:
+            lab = psig["tps"][n - 1][0]
+        else:
+            lab = f"{cfg['risk']['tp_r_multiples'][n - 1]:g}R"
+        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {lab}"]
     if cfg["risk"].get("show_breakeven_note", True):
         lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
@@ -1694,7 +1751,10 @@ def build_message(res, direction, cfg, now_utc):
                   "", f"📌 {trigger_name(cfg)}: {st_txt}{st_note}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
-        lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        if psig:
+            lines += ["", SEP, f"📌 Tetik: Pivot {'üstünde' if direction == 'long' else 'altında'} kapanış "
+                               f"+ Supertrend, DynaRange, QQE MOD onayı"]
+        lines += ([""] if psig else ["", SEP]) + [f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
         si = ssl_info_lines(res, direction) if cfg.get("ssl_info", {}).get("enabled", True) else []
         if si:
             lines += [""] + si
@@ -2059,6 +2119,40 @@ def main():
             notifier.send("\n".join(lines))
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
+
+    # ---- Pivot sinyali (Supertrend'den ayrı): pivot üstünde/altında kapanış + Supertrend + DynaRange + QQE MOD ----
+    pcfg = cfg.get("pivot_signal", {})
+    piv_n = 0
+    if pcfg.get("enabled", False):
+        for r in results:
+            if piv_n >= pcfg.get("max_per_scan", 20):
+                break
+            f_, i_ = r["f"], r["i"]
+            pv = pivot_from_bars(f_, i_, cfg["timeframe"])
+            for d, s_ in (("long", 1), ("short", -1)):
+                sig = pivot_signal(f_, i_, s_, pv)
+                if not sig:
+                    continue
+                key = f"{r['meta']['symbol']}|pivot_{d}"
+                if state["signals"].get(key + "_period") == pv["start"]:
+                    continue                  # aynı pivot döneminde aynı yönde ikinci sinyal yok
+                r["pivot_sig"] = sig
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
+                r["pivot"] = pv               # sinyalle aynı seviyeler
+                compute_volume_profile(r, cfg)
+                msg = build_message(r, d, cfg, now_utc)
+                try:
+                    if notifier.send(msg):
+                        piv_n += 1
+                        state["signals"][key] = now
+                        state["signals"][key + "_period"] = pv["start"]
+                        print(f"  → Pivot sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Telegram hatası: {e}", file=sys.stderr)
+                r.pop("pivot_sig", None)
+                r.pop("_ichi", None)
+    if piv_n:
+        print(f"Pivot sinyali: {piv_n}")
 
     # ---- SSL Hybrid sinyali (Supertrend'den bağımsız): SSL Buy/Sell + QQE MOD + DynaRange ----
     scfg = cfg.get("ssl_signal", {})
