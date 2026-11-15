@@ -331,14 +331,13 @@ def test_volume_lines():
 def test_technical_rating():
     v = lambda b, s_, z=0: [("x", 1)] * b + [("x", -1)] * s_ + [("x", 0)] * z
     r = lambda *a: scanner.technical_rating(v(*a))[0]
-    assert r(17, 5) == "GÜÇLÜ AL" and r(22, 0) == "GÜÇLÜ AL"        # %77+
-    assert r(16, 6) == "AL" and r(15, 7) == "AL"                    # %73 / %68
-    assert r(14, 8) == "NÖTR" and r(11, 11) == "NÖTR" and r(8, 14) == "NÖTR"
-    assert r(7, 15) == "SAT" and r(6, 16) == "SAT"
-    assert r(5, 17) == "GÜÇLÜ SAT"
-    assert r(14, 2, 6) == "NÖTR"                                    # AL %64 → nötr
-    assert r(15, 2, 5) == "AL" and r(17, 0, 5) == "GÜÇLÜ AL"
-    assert r(13, 7) == "AL" and r(12, 8) == "NÖTR"                  # 20 oyda %65 / %60
+    assert r(20, 3) == "GÜÇLÜ AL" and r(22, 0) == "GÜÇLÜ AL"        # net +0.74 / +1
+    assert r(15, 5) == "AL" and r(14, 6, 2) == "AL"                 # net +0.50 (sınır AL) / +0.36
+    assert r(6, 4, 10) == "NÖTR" and r(11, 11) == "NÖTR" and r(4, 6, 10) == "NÖTR"   # tam ±0.1 nötr
+    assert r(6, 4) == "AL" and r(4, 6) == "SAT"                     # ±0.2
+    assert r(5, 15, 2) == "SAT" and r(5, 15) == "SAT"               # -0.45 / -0.50 (sınır SAT)
+    assert r(3, 18, 1) == "GÜÇLÜ SAT" and r(1, 21, 1) == "GÜÇLÜ SAT"
+    assert r(12, 9, 1) == "AL" and r(11, 10, 1) == "NÖTR"           # +0.136 / +0.045
 
 
 def test_trend_alignment():

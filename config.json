@@ -151,7 +151,7 @@
     "max_per_scan": 20
   },
   "technical_rating": {
-    "_aciklama": "Mesajın başında Teknik görünüm: indikatör oylarının AL % / SAT % ile Güçlü AL (AL %75+) / AL (%65-74) / Nötr / SAT (%65-74) / Güçlü SAT (SAT %75+).",
+    "_aciklama": "Mesajın başında Teknik görünüm: indikatör oyları (AL +1 / Nötr 0 / SAT -1) ortalaması, TradingView Technical Ratings eşikleri: net > +0.5 Güçlü AL, +0.1..+0.5 AL, -0.1..+0.1 Nötr, -0.5..-0.1 SAT, < -0.5 Güçlü SAT.",
     "enabled": true
   },
   "pivots": {
