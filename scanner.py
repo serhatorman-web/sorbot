@@ -1525,7 +1525,7 @@ def build_message(res, direction, cfg, now_utc):
         up = direction == "long"
         st = f["st_dir"][i]
         st_txt = ("🟢 <b>AL</b>" if st == 1 else "🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        st_note = "" if st == (1 if up else -1) else " (henüz dönmedi)"
+        st_note = "" if st == (1 if up else -1) else f" (henüz {'AL' if up else 'SAT'} vermedi)"
         lines += ["", SEP, f"📌 Tetik: SSL Hybrid {'🟢 <b>AL</b>' if up else '🔴 <b>SAT</b>'}",
                   f"✅ 1. teyit: QQE MOD {'mavi' if up else 'pembe'} → {'alıcılar' if up else 'satıcılar'} güçlü",
                   f"✅ 2. teyit: DynaRange {'yeşil' if up else 'kırmızı'} → {'yükseliş' if up else 'düşüş'} teyit edildi",
@@ -1854,7 +1854,8 @@ def main():
     # Karar
     now = time.time()
     picks = []
-    for r in results:
+    st_on = cfg.get("signal_supertrend", {}).get("enabled", True) or cfg.get("strategy") != "supertrend"
+    for r in (results if st_on else []):     # Supertrend dönüş sinyalleri kapatılabilir (sadece SSL sinyali)
         d = decide(r, cfg, state, now)
         if d:
             picks.append((r[d]["score"], d, r))
