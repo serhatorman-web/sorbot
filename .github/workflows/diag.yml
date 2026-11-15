@@ -8,4 +8,4 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/flips.py 2>&1 | grep -E "Taranacak|Analiz|Gönderildi|Bitti|EVAA|Traceback|Error|line"
+      - run: python3 tools/flips.py
