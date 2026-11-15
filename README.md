@@ -133,12 +133,6 @@ Pump/Dump radarı sadece 1 saatlikte. Mesaj başlığında zaman dilimi `15m` ol
 
 Eski ağırlıklı puan stratejisine dönmek için `config.json`'da `"strategy": "score"` yazmanız yeterli.
 
-## ⚡ Erken dönüş sinyali (`early_reversal`)
-Supertrend'i beklemeden, sert ve hacimli bir düşüşten (LONG) / yükselişten (SHORT) sonra dip/tepe tutunca gelir:
-kapitülasyon mumu (gövde ≥ 1.5–2 ATR, hacim ≥ 1.5–3x) → yeni dip/tepe yok → RSI aşırı bölgede →
-son mum dengelenme bölgesinin tepesini (dibini) kapanışla aşar. Stop dibin altında / tepenin üstünde;
-dip/tepe girişten 3 ATR'den uzaksa sinyal gelmez. 15dk, 1s, 4s; LONG ve SHORT. Kurallar `config.json → early_reversal.rules`.
-
 ## Nasıl çalışır? (genel akış ve "score" stratejisi)
 
 1. Binance'ten tüm USDT.P kontratları, 24s hacim, fonlama oranları alınır.

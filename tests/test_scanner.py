@@ -632,43 +632,6 @@ def test_swing_anchor():
     assert ta.swing_anchor([50] + h, [1] + l, 7) == 2
 
 
-def test_early_reversal():
-    n = 40
-    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; v = [10.0] * n
-    # 35: sert hacimli düşüş, 36: dip, 37-38: yeni dip yok, 39: yeşil, dengelenme tepesinin üstünde kapanış
-    o[35], c[35], h[35], l[35], v[35] = 100.0, 95.0, 100.2, 94.8, 50.0
-    o[36], c[36], h[36], l[36] = 95.0, 94.5, 95.3, 94.0
-    o[37], c[37], h[37], l[37] = 94.5, 95.0, 95.4, 94.3
-    o[38], c[38], h[38], l[38] = 95.0, 94.9, 95.5, 94.6
-    o[39], c[39], h[39], l[39] = 94.9, 95.9, 96.0, 94.8
-    atr = [1.0] * n; vm = [10.0] * n; rsi = [50.0] * 35 + [20.0, 18.0, 25.0, 28.0, 35.0]
-    ev = ta.early_reversal(o, h, l, c, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25)
-    assert ev and ev["ext"] == 94.0 and ev["ext_i"] == 36 and ev["vol_x"] == 5.0, ev
-    assert ta.early_reversal(o, h, l, c, v, atr, vm, [50.0] * n, 1, 8, 2.0, 3.0, 25) is None     # RSI şartı yok
-    l2 = list(l); l2[38] = 93.9
-    assert ta.early_reversal(o, h, l2, c, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # yeni dip yapıldı
-    c2 = list(c); c2[39] = 95.4
-    assert ta.early_reversal(o, h, l, c2, v, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # tepe aşılmadı
-    v2 = list(v); v2[35] = 20.0
-    assert ta.early_reversal(o, h, l, c, v2, atr, vm, rsi, 1, 8, 2.0, 3.0, 25) is None          # hacim yetersiz
-
-
-def test_early_criteria():
-    n = 150
-    c = [100.0 + (k % 5) * 0.2 for k in range(n)]
-    f = {"o": list(c), "h": [x + 0.5 for x in c], "l": [x - 0.5 for x in c], "c": c, "v": [10.0] * n, "bv": [10.0] * n,
-         "atr": [1.0] * n, "ema200": [110.0] * n, "h4_st": [1] * n}
-    f["l"][140] = 90.0; f["o"][140] = 95.0; f["c"][140] = 94.0; f["h"][140] = 96.0      # dip mumu: uzun alt iğne, 100 mumun dibi süpürüldü
-    ev = {"ext_i": 140, "cap": 139, "ext": 90.0}
-    btc = {"c": [1, 2, 3, 4, 5.0], "st_dir": [1, 1, 1, 1, 1]}
-    cr = scanner.early_criteria(f, n - 1, 1, ev, btc)
-    assert cr["btc_mom"] and cr["btc_st"] and cr["btc_not_against"] and cr["sweep"] and cr["htf_with"], cr
-    assert cr["ema200_side"] is False and cr["wick"] is True, cr
-    assert "ob_zone" in cr and {"pa_engulf", "pa_hammer", "pa_star", "pa_higher_low", "pa_choch", "pa_inside_break", "pa_strong_close"} <= set(cr), cr
-    names = scanner.early_criteria_names("long", "1h")
-    assert names["htf_with"] == "4 saat Supertrend AL" and names["sweep"].startswith("Son 100 mumun dibi")
-
-
 def test_order_blocks():
     n = 40
     o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; atr = [1.0] * n

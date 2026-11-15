@@ -830,13 +830,6 @@ def levels(res, direction, cfg, method=None):
     f, i = res["f"], res["i"]
     entry = f["c"][i]
     s = 1 if direction == "long" else -1
-    er = res.get("early")
-    if er and er.get("dir") == direction:
-        # Erken dönüş: stop panik dibinin altında / zirvenin üstünde (0.2 ATR tampon)
-        risk = max(abs(entry - er["ext"]) + 0.2 * f["atr"][i], 0.3 * f["atr"][i])
-        label = "dibin altı" if s == 1 else "tepenin üstü"
-        sl = entry - s * risk
-        return entry, sl, [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]], label
     risk, label = stop_distance(f, i, s, cfg["risk"], method)
     sl = entry - s * risk
     tps = [entry + s * risk * r for r in cfg["risk"]["tp_r_multiples"]]
@@ -1181,55 +1174,9 @@ def ichimoku_lines(res, direction, cfg):
     return out
 
 
-HTF_NAME = {"5m": "20dk", "15m": "1 saat", "1h": "4 saat", "4h": "16 saat"}
-
-
-def early_criteria(f, i, s, ev, btc_f=None):
-    """Erken dönüş teyit kriterleri (geçmiş testte seçildi). Döner {anahtar: True/False}; hesaplanamayan yok.
-    btc_mom: BTC son 3 mumda sinyal yönünde · btc_st: BTC Supertrend sinyal yönünde ·
-    btc_not_against: BTC Supertrend ters değil ya da son 3 mumda sinyal yönünde ·
-    sweep: dip/tepe son 100 mumun dibinin/tepesinin ötesine geçti (likidite süpürme) ·
-    htf_with: 4 kat üst zaman diliminin Supertrend'i sinyal yönünde · ema200_side: fiyat EMA200'ün sinyal tarafında ·
-    vp_level: dip/tepe hacim profili seviyesine (VAH/POC/VAL) 0.5 ATR yakın · wick: dip/tepe mumunda gövdeden uzun iğne"""
-    j, cap, ext = ev["ext_i"], ev["cap"], ev["ext"]
-    a = f["atr"][i]
-    aj = f["atr"][j] or a
-    out = {}
-    if btc_f is not None and len(btc_f["c"]) > 3:
-        bc, bst = btc_f["c"], btc_f["st_dir"]
-        mom = (bc[-1] - bc[-4]) * s > 0
-        out["btc_mom"] = mom
-        out["btc_st"] = bst[-1] == s
-        out["btc_not_against"] = bst[-1] != -s or mom
-    w = range(max(0, cap - 100), cap)
-    if len(w) > 20:
-        out["sweep"] = ext < min(f["l"][k] for k in w) if s == 1 else ext > max(f["h"][k] for k in w)
-    out["htf_with"] = f["h4_st"][i] == s
-    if f["ema200"][i]:
-        out["ema200_side"] = (f["c"][i] - f["ema200"][i]) * s > 0
-    vol = f.get("bv") or f["v"]
-    hh, ll, vv = f["h"][:cap + 1], f["l"][:cap + 1], vol[:cap + 1]
-    an = ta.swing_anchor(hh, ll, 300)
-    vp = ta.volume_profile(hh[an:], ll[an:], vv[an:], 24, 0.7)
-    if vp:
-        out["vp_level"] = min(abs(ext - x) for x in vp) <= 0.5 * aj
-    rng = f["h"][j] - f["l"][j]
-    if rng > 0:
-        out["wick"] = ((min(f["o"][j], f["c"][j]) - f["l"][j]) if s == 1
-                       else (f["h"][j] - max(f["o"][j], f["c"][j]))) >= 0.5 * rng
-    obs = ta.order_blocks(f["o"], f["h"], f["l"], f["c"], f["atr"], s, cap)
-    out["ob_zone"] = any(lo - 0.25 * aj <= ext <= hi + 0.25 * aj for lo, hi, _ in obs)
-    out.update(price_action(f, i, s, j, ext, aj))
-    return out
-
-
-def price_action(f, i, s, j, ext, aj):
-    """Erken dönüşte price action formasyonları (LONG için; SHORT'ta tersi). j: dip/tepe mumu, ext: dip/tepe fiyatı.
-    pa_engulf: tetik ya da önceki mum, kendinden önceki ters mumun gövdesini yutuyor
-    pa_hammer: dip (tepe) mumunda ya da sonrakinde iğne ≥ 2 × gövde ve kapanış mumun uç üçte birinde (çekiç / pin bar)
-    pa_star: sabah (akşam) yıldızı · pa_higher_low: dipten ≥2 mum sonra dibe 1 ATR yaklaşıp daha yukarıda döndü
-    pa_choch: karakter değişimi – dipten önceki son alçalan tepe (pivot 2/2, en fazla 60 mum geri) kapanışla kırıldı
-    pa_inside_break: önceki mum iç mum ve tetik onu kırdı · pa_strong_close: tetik mumu tepesine yakın, gövdesi büyük"""
+def _pa_basic(f, i, s):
+    """Sinyal mumu formasyonları (LONG için; SHORT'ta tersi): pa_engulf yutan mum (sinyal ya da önceki mum),
+    pa_inside_break iç mum kırılımı, pa_strong_close güçlü kapanış."""
     o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
     body = lambda k: abs(c_[k] - o_[k])
     up = lambda k: (c_[k] - o_[k]) * s > 0
@@ -1238,33 +1185,6 @@ def price_action(f, i, s, j, ext, aj):
                            ((c_[k] >= o_[k - 1] and o_[k] <= c_[k - 1]) if s == 1
                             else (c_[k] <= o_[k - 1] and o_[k] >= c_[k - 1]))
                            for k in (i, i - 1) if k >= 1)
-
-    def hammer(k):
-        r = h_[k] - l_[k]
-        if r <= 0:
-            return False
-        wick = (min(o_[k], c_[k]) - l_[k]) if s == 1 else (h_[k] - max(o_[k], c_[k]))
-        pos = (c_[k] - l_[k]) / r if s == 1 else (h_[k] - c_[k]) / r
-        return wick >= 2 * max(body(k), 1e-12) and pos >= 2 / 3
-    out["pa_hammer"] = any(hammer(k) for k in (j, j + 1) if k <= i)
-
-    def star(k):
-        a2 = f["atr"][k] or aj
-        return (k >= 2 and not up(k - 2) and body(k - 2) >= 0.5 * a2 and body(k - 1) <= 0.3 * a2 and up(k)
-                and body(k) >= 0.5 * a2
-                and ((c_[k] > (o_[k - 2] + c_[k - 2]) / 2) if s == 1 else (c_[k] < (o_[k - 2] + c_[k - 2]) / 2)))
-    out["pa_star"] = any(star(k) for k in range(j + 1, i + 1))
-    out["pa_higher_low"] = any(((l_[k] > ext and l_[k] <= ext + aj) if s == 1 else (h_[k] < ext and h_[k] >= ext - aj))
-                               for k in range(j + 2, i))
-    piv = None
-    for k in range(j - 2, max(1, j - 60), -1):          # dipten geriye: son pivot tepe (LONG) / dip (SHORT)
-        if s == 1 and h_[k] == max(h_[k - 2:k + 3]):
-            piv = h_[k]
-            break
-        if s == -1 and l_[k] == min(l_[k - 2:k + 3]):
-            piv = l_[k]
-            break
-    out["pa_choch"] = piv is not None and ((c_[i] > piv) if s == 1 else (c_[i] < piv))
     out["pa_inside_break"] = (i >= 2 and h_[i - 1] <= h_[i - 2] and l_[i - 1] >= l_[i - 2]
                               and ((c_[i] > h_[i - 1]) if s == 1 else (c_[i] < l_[i - 1])))
     r = h_[i] - l_[i]
@@ -1280,8 +1200,7 @@ def signal_price_action(f, i, s):
     pa_structure: son iki pivot dip yükseliyor (SHORT: son iki pivot tepe alçalıyor)"""
     o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
     a = f["atr"][i] or (h_[i] - l_[i]) or 1e-12
-    out = {k: v for k, v in price_action(f, i, s, max(0, i - 1), l_[i] if s == 1 else h_[i], a).items()
-           if k in ("pa_engulf", "pa_inside_break", "pa_strong_close")}
+    out = _pa_basic(f, i, s)
     body = lambda k: abs(c_[k] - o_[k])
     up = lambda k: (c_[k] - o_[k]) * s > 0
 
@@ -1314,8 +1233,8 @@ def price_action_lines(res, direction, cfg):
     f, i = res["f"], res["i"]
     s = 1 if direction == "long" else -1
     pa = signal_price_action(f, i, s)
-    names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
     up = direction == "long"
+    names = pa_names(direction)
     lvl = pa.get("_bos_level")
     lvl_txt = f" {fmt_price(lvl, res['meta'].get('precision'))}" if lvl is not None else ""
     choch = pa.get("_choch")
@@ -1348,28 +1267,13 @@ def pa_result_texts(direction):
             "pa_hammer": f"{'dipte' if up else 'tepede'} güçlü ret, {mv} bekleniyor",
             "pa_star": f"{'dip' if up else 'tepe'} dönüş formasyonu, {mv} bekleniyor",
             "pa_inside_break": f"sıkışma {'yukarı' if up else 'aşağı'} kırıldı, {mv} bekleniyor",
-            "pa_strong_close": f"{'alış' if up else 'satış'} baskısı güçlü, {'yükselişin' if up else 'düşüşün'} devamı bekleniyor",
-            "pa_higher_low": f"{'dip' if up else 'tepe'} tuttu, {mv} bekleniyor",
-            "pa_choch": f"trend {'yukarı' if up else 'aşağı'} döndü, {mv} teyit edildi",
-            "ob_zone": f"{'alıcı' if up else 'satıcı'} bölgesinden tepki"}
+            "pa_strong_close": f"{'alış' if up else 'satış'} baskısı güçlü, {'yükselişin' if up else 'düşüşün'} devamı bekleniyor"}
 
 
-def early_criteria_names(direction, tf):
+def pa_names(direction):
     up = direction == "long"
-    return {"btc_mom": f"BTC son 3 mumda {'yükselişte' if up else 'düşüşte'}",
-            "btc_st": f"BTC Supertrend {'AL' if up else 'SAT'}",
-            "btc_not_against": "BTC ters yönde değil",
-            "sweep": f"Son 100 mumun {'dibi' if up else 'tepesi'} süpürüldü (likidite)",
-            "htf_with": f"{HTF_NAME.get(tf, 'Üst zaman dilimi')} Supertrend {'AL' if up else 'SAT'}",
-            "ema200_side": f"Fiyat EMA200'ün {'üstünde' if up else 'altında'}",
-            "vp_level": f"{'Dip' if up else 'Tepe'} hacim profili seviyesinde (VAH/POC/VAL)",
-            "wick": f"{'Dip' if up else 'Tepe'} mumunda uzun iğne",
-            "ob_zone": f"{'Dip boğa' if up else 'Tepe ayı'} order block bölgesinde",
-            "pa_engulf": f"Yutan {'boğa' if up else 'ayı'} mumu",
-            "pa_hammer": "Çekiç / pin bar (dipte uzun alt iğne)" if up else "Ters çekiç / pin bar (tepede uzun üst iğne)",
+    return {"pa_engulf": f"Yutan {'boğa' if up else 'ayı'} mumu",
             "pa_star": "Sabah yıldızı" if up else "Akşam yıldızı",
-            "pa_higher_low": "Yükselen dip (HL): dip tekrar test edildi, tuttu" if up else "Alçalan tepe (LH): tepe tekrar test edildi, tuttu",
-            "pa_choch": f"Karakter değişimi (CHoCH): son {'alçalan tepe (LH)' if up else 'yükselen dip (HL)'} kırıldı",
             "pa_inside_break": f"İç mum {'yukarı' if up else 'aşağı'} kırıldı",
             "pa_strong_close": f"Güçlü kapanış (mum {'tepesine' if up else 'dibine'} yakın)"}
 
@@ -1544,9 +1448,6 @@ def build_message(res, direction, cfg, now_utc):
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
-    early = res.get("early") if (res.get("early") or {}).get("dir") == direction else None
-    if early:
-        head = "⚡ <b>ERKEN DÖNÜŞ</b> · " + head
     # teknik görünüm ve güven skoru mesajda yok (kullanıcı isteği); sadece trend uyum satırları
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     top = []
@@ -1577,33 +1478,14 @@ def build_message(res, direction, cfg, now_utc):
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
 
-    if early:
-        move = (f"Sert düşüş ({early['move_pct']:+.1f}%, hacim {early['vol_x']:.1f}x) sonrası dip tuttu, toparlanma başladı"
-                if direction == "long" else
-                f"Sert yükseliş ({early['move_pct']:+.1f}%, hacim {early['vol_x']:.1f}x) sonrası tepe tuttu, düşüş başladı")
-        st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
-        st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 Tetik: ⚡ {move}"]
-        names = early_criteria_names(direction, cfg.get("timeframe", "1h"))
-        crit = early.get("criteria") or {}
-        is_pa = lambda k: k.startswith("pa_") or k == "ob_zone"
-        ok = [names[k] for k in names if crit.get(k) and not is_pa(k)]
-        rt = pa_result_texts(direction)
-        pa = [f"{names[k]} → {rt[k]}" if k in rt else names[k] for k in names if crit.get(k) and is_pa(k)]
-        if ok:
-            lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
-        if pa:
-            lines += ["", "🕯️ <b>Price action:</b>"] + [f"• {x}" for x in pa]
-        lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}"]
-    elif res.get("votes"):
+    if res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
-        pa_block = [] if early else price_action_lines(res, direction, cfg)
-        for block in (pa_block, order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
+        for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
                       volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
@@ -1959,56 +1841,6 @@ def main():
             notifier.send("\n".join(lines))
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
-
-    # ---- ERKEN DÖNÜŞ (Supertrend'den bağımsız): sert hacimli hareket sonrası dip/tepe dönüşü ----
-    ecfg = cfg.get("early_reversal", {})
-    btc_f = compute_features(candles["BTCUSDT"], cfg) if len(candles.get("BTCUSDT") or []) >= cfg["min_candles"] else None
-    rules = ecfg.get("rules", {}).get(cfg["timeframe"], {}) if ecfg.get("enabled", False) else {}
-    early_n = 0
-    picked_st = {(r["meta"]["symbol"], d) for _, d, r in picks}
-    for r in results:
-        if early_n >= ecfg.get("max_per_scan", 10):
-            break
-        f_, i_ = r["f"], r["i"]
-        for d, s_ in (("long", 1), ("short", -1)):
-            rule = rules.get(d)
-            if not rule or not rule.get("enabled", True) or (r["meta"]["symbol"], d) in picked_st:
-                continue
-            ev = ta.early_reversal(f_["o"], f_["h"], f_["l"], f_["c"], f_["v"], f_["atr"], f_["vol_ma"], f_["rsi"], s_,
-                                   ecfg.get("window", 8), rule.get("body_atr", 1.5), rule.get("vol_x", 2.0),
-                                   rule.get("rsi_th", 30))
-            if not ev:
-                continue
-            # Dip/tepe girişten çok uzaksa (ör. +%26 iğne) stop anlamsız uzar → sinyal yok
-            risk_ = abs(f_["c"][i_] - ev["ext"]) + 0.2 * f_["atr"][i_]
-            if risk_ > ecfg.get("max_risk_atr", 3.0) * f_["atr"][i_]:
-                continue
-            if risk_ / f_["c"][i_] * 100 > ecfg.get("max_risk_pct", 100):
-                continue                      # stop girişten çok uzak (ör. %5'ten fazla) → sinyal yok
-            crit = early_criteria(f_, i_, s_, ev, None if r["meta"]["symbol"] == "BTCUSDT" else btc_f)
-            if not all(crit.get(k) is True for k in rule.get("require", [])):
-                continue
-            ev["criteria"] = crit
-            key = f"{r['meta']['symbol']}|early_{d}"
-            ext_t = f_["t"][ev["ext_i"]]
-            if state["signals"].get(key + "_ext") == ext_t:
-                continue                      # aynı dip/tepe için ikinci sinyal yok
-            r["early"] = dict(ev, dir=d)
-            fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
-            compute_volume_profile(r, cfg)
-            msg = build_message(r, d, cfg, now_utc)
-            try:
-                if notifier.send(msg):
-                    early_n += 1
-                    state["signals"][key] = now
-                    state["signals"][key + "_ext"] = ext_t
-                    print(f"  → Erken dönüş gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
-            except Exception as e:  # noqa: BLE001
-                print(f"  Telegram hatası: {e}", file=sys.stderr)
-            r.pop("early", None)
-            r.pop("_ichi", None)
-    if early_n:
-        print(f"Erken dönüş: {early_n} sinyal")
 
     # ---- Pump/Dump radarı (Supertrend'den bağımsız) ----
     rc = cfg.get("pump_radar", {})
