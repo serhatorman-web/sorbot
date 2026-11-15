@@ -1466,8 +1466,8 @@ def pivot_lines(res, direction, cfg):
         stop_n = "S1" if up else "R1"
         tgt = [(n, pv[n]) for n in tps if (pv[n] - price) * s > 0]
         stop = pv[stop_n]
-        if not tgt:
-            out.append(f"⚠️ Pivot stratejisi onaylandı ama fiyat {tps[-1]}'ün ötesinde → hedef kalmadı, bekle")
+        if (price - pv[tps[0]]) * s >= 0:            # fiyat ilk hedefi (S1 / R1) geçmiş → hareket kaçmış
+            out.append(f"⚠️ Pivot stratejisi onaylandı ama fiyat {tps[0]}'i geçmiş → geç kalındı, bekle")
         elif (price - stop) * s <= 0:
             out.append(f"⚠️ Pivot stratejisi onaylandı ama fiyat {stop_n} stop seviyesinin ötesinde → bekle")
         else:

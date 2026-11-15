@@ -750,6 +750,11 @@ def test_pivot_lines():
     assert out[3] == "✅ Pivot stratejisi onaylandı → LONG girilebilir", out
     assert out[4] == "Giriş: Pivot 867.94" and out[5] == "TP1: R1 921.08 (+6.12%)", out
     assert out[8] == "Stop: S1 814.80 (-6.12%)", out
+    f["c"] = c[:-1] + [925.0]                        # fiyat R1'i (921.08) geçti → geç kalındı
+    out = scanner.pivot_lines(res, "long", {"timeframe": "15m"})
+    assert out[-1] == "⚠️ Pivot stratejisi onaylandı ama fiyat R1'i geçmiş → geç kalındı, bekle", out
+    assert not any(x.startswith("TP") for x in out), out
+    f["c"] = c
     f["qqe"] = [0] * n
     out = scanner.pivot_lines(res, "long", {})
     assert out[2].endswith("❌ QQE MOD gri") and out[-1] == "⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle", out
