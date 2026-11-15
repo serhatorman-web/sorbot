@@ -145,6 +145,10 @@
   "ichimoku_info": {
     "enabled": true
   },
+  "ssl_info": {
+    "_aciklama": "Supertrend mesajında SSL Hybrid + QQE MOD + DynaRange onay bloğu (işleme girebilirsin / riskli, bekle). false: gösterilmez.",
+    "enabled": false
+  },
   "ssl_signal": {
     "_aciklama": "SSL Hybrid ayrı sinyali (şu an kapalı: SSL durumu Supertrend mesajında bilgi olarak gösterilir). Sıra: fiyat SSL çıkış çizgisini (HMA 15) keser (Buy/Sell) → 1. teyit: Buy/Sell mumunda ya da sonrasında QQE MOD mavi (pembe) → 2. teyit: DynaRange yeşil (kırmızı). Hepsi Buy/Sell'den en fazla wait_bars mum içinde.",
     "enabled": false,

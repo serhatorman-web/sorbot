@@ -1594,7 +1594,7 @@ def build_message(res, direction, cfg, now_utc):
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
-        si = ssl_info_lines(res, direction)
+        si = ssl_info_lines(res, direction) if cfg.get("ssl_info", {}).get("enabled", True) else []
         if si:
             lines += [""] + si
     else:
