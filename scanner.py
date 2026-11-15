@@ -1845,7 +1845,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     score = ([technical_rating_line(rating_votes(res)), ""]
              if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True) else [])
     lines = banner + [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}", SEP] + score + [
-             f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
+             f"<b>RADAR SKORU :</b> {rd['score']}/100 · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
