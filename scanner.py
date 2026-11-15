@@ -1447,7 +1447,7 @@ def pivot_lines(res, direction, cfg):
             ago = i - k
             break
     when = ("bu mumda kapanış yaptı" if ago == 0 else f"{ago} mum önce kapanış yaptı") if ago is not None else "dönem başından beri"
-    out = ["📍 <b>Pivots</b> · Oto"]
+    out = [f"📍 <b>Pivots</b> · {TF_NAMES.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}"]
     out.append(f"Pivot {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
     rt = pivot_retest_line(f, i, P, pv["start"])
     if rt:
