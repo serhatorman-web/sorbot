@@ -1643,25 +1643,23 @@ def rating_votes(res):
 
 
 def technical_rating(votes):
-    """Teknik görünüm – TradingView Technical Ratings eşikleri. Her indikatör AL +1 / Nötr 0 / SAT -1;
-    net = ortalama (-1..+1, mesajda % olarak):
-      net > +0.5 GÜÇLÜ AL | +0.1 < net ≤ +0.5 AL | -0.1 ≤ net ≤ +0.1 NÖTR | -0.5 ≤ net < -0.1 SAT | net < -0.5 GÜÇLÜ SAT
+    """İşlem skoru – AL % ve SAT % (nötrler toplama dahil; tam sayılarla):
+      AL %75+  GÜÇLÜ AL | AL %65–74  AL | ikisi de %65 altı  NÖTR | SAT %65–74  SAT | SAT %75+  GÜÇLÜ SAT
     Döner: (etiket, ikon, AL %, SAT %, net %)"""
     n = len(votes) or 1
     b = sum(1 for _, v in votes if v == 1)
     sl = sum(1 for _, v in votes if v == -1)
-    d = b - sl                         # net × n (tam sayı karşılaştırma)
-    if d * 10 > 5 * n:                 # net > +0.5
+    if b * 100 >= 75 * n:              # AL %75 ve üzeri
         label, icon = "GÜÇLÜ AL", "🟢🟢"
-    elif d * 10 > n:                   # +0.1 < net ≤ +0.5
-        label, icon = "AL", "🟢"
-    elif d * 10 >= -n:                 # -0.1 ≤ net ≤ +0.1
-        label, icon = "NÖTR", "⚪"
-    elif d * 10 >= -5 * n:             # -0.5 ≤ net < -0.1
-        label, icon = "SAT", "🔴"
-    else:                              # net < -0.5
+    elif sl * 100 >= 75 * n:           # SAT %75 ve üzeri
         label, icon = "GÜÇLÜ SAT", "🔴🔴"
-    return label, icon, b / n * 100, sl / n * 100, d * 100 / n
+    elif b * 100 >= 65 * n:            # AL %65–74
+        label, icon = "AL", "🟢"
+    elif sl * 100 >= 65 * n:           # SAT %65–74
+        label, icon = "SAT", "🔴"
+    else:                              # ikisi de %65'in altında
+        label, icon = "NÖTR", "⚪"
+    return label, icon, b / n * 100, sl / n * 100, (b - sl) * 100 / n
 
 
 def trend_alignment_line(res, direction):
