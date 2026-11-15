@@ -874,7 +874,7 @@ def fmt_volume(v):
 
 
 
-def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=0):
+def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25):
     """TradingView 'Technical Ratings' (TechnicalRating kütüphanesi): 15 hareketli ortalama + 11 osilatör.
     Her biri AL +1 / Nötr 0 / SAT -1; MA puanı ve osilatör puanı ayrı ortalanır, toplam = ikisinin ortalaması.
     Döner: her mum için {'all', 'osc', 'ma', 'votes': [+1/0/-1 ... 26 adet]} ya da None."""
@@ -962,7 +962,7 @@ def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=0):
                   if sk[i] is not None and sd[i] is not None else None)
         ov.append(v(cc[i] < -100 and cc[i] > cc[i - 1], cc[i] > 100 and cc[i] < cc[i - 1], cc[i], cc[i - 1])
                   if cc[i] is not None and cc[i - 1] is not None else None)
-        ov.append(v(pdi[i] > ndi[i] and ax[i] > 20 and ax[i] > ax[i - 1], pdi[i] < ndi[i] and ax[i] > 20 and ax[i] < ax[i - 1])
+        ov.append(v(pdi[i] > ndi[i] and ax[i] > 20 and ax[i] > ax[i - 1], pdi[i] < ndi[i] and ax[i] > 20 and ax[i] > ax[i - 1])
                   if None not in (ax[i], ax[i - 1], pdi[i], ndi[i]) else None)
         if None in (ao[i], ao[i - 1], ao[i - 2]):
             ov.append(None)
