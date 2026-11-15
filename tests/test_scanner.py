@@ -745,7 +745,7 @@ def test_pivot_lines():
     f = {"c": c, "t": [1000 + k for k in range(n)], "st_dir": [1] * n, "dyna": [5.0] * n, "qqe": [1] * n}
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}, "pivot": pv}
     out = scanner.pivot_lines(res, "long", {})
-    assert out[0] == "📍 <b>Pivots</b> · günlük (Fibonacci)", out
+    assert out[0] == "📍 <b>Pivots</b> · Oto", out
     assert out[1] == "Pivot 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
     assert out[2] == "✅ Pivot üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
     assert out[3] == "✅ Pivot stratejisi onaylıyor → LONG girilebilir", out

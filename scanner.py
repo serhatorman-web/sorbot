@@ -1438,7 +1438,6 @@ def pivot_lines(res, direction, cfg):
     price = f["c"][i]
     P = pv["P"]
     fp = lambda x: fmt_price(x, prec)
-    span = "günlük" if pv["tf"] == "1d" else "haftalık"
     side = 1 if price > P else -1
     ago = None
     for k in range(i, 0, -1):
@@ -1448,7 +1447,7 @@ def pivot_lines(res, direction, cfg):
             ago = i - k
             break
     when = ("bu mumda kapanış yaptı" if ago == 0 else f"{ago} mum önce kapanış yaptı") if ago is not None else "dönem başından beri"
-    out = [f"📍 <b>Pivots</b> · {span} (Fibonacci)"]
+    out = ["📍 <b>Pivots</b> · Oto"]
     out.append(f"Pivot {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
     rt = pivot_retest_line(f, i, P, pv["start"])
     if rt:
