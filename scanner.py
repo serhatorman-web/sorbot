@@ -1834,7 +1834,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     direction = rd["dir"]
     long_ = direction == "long"
     if rd["kind"] == "start":
-        head = "🚀 <b>PUMP BAŞLIYOR</b>" if long_ else "💥 <b>DUMP BAŞLIYOR</b>"
+        head = "🚀 <b>PUMP SİNYALİ</b>" if long_ else "💥 <b>DUMP SİNYALİ</b>"
     else:
         head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
     score = ([technical_rating_line(rating_votes(res)), ""]

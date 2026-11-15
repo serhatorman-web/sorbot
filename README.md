@@ -123,7 +123,7 @@ orta/yüksek önem, beklenti ve önceki değerle). Not: bu kaynak açıklanan "g
 **Emtia ve değerli metaller (`COMMODITY`):** XAU, XAG, XPT, XPD, WTI (CL), Brent (BZ), doğal gaz, bakır; başlıkta "Değerli Metal (Altın)" / "Emtia (Brent Petrol)". Piyasa lideri yok (kendi 4s trendi).
 
 **Pump/Dump radarı (kripto + hisse, `pump_radar.types`):** Supertrend'den bağımsız ayrı mesajlar:
-- 🚀/💥 **PUMP/DUMP BAŞLIYOR:** Bollinger sıkışmasından hacim patlamasıyla 20 mumluk direnç/destek kırılımı (giriş/TP/stop ile).
+- 🚀/💥 **PUMP/DUMP SİNYALİ:** Bollinger sıkışmasından hacim patlamasıyla 20 mumluk direnç/destek kırılımı (giriş/TP/stop ile).
   Zaten %10 (3s) / %25 (24s) hareket etmiş coinler "geç kalınmış" sayılıp elenir.
 - 👀 **ERKEN UYARI:** Sıkışmada birikim/dağıtım (OBV) + açık pozisyon (OI) ≥ %5 artış, henüz kırılım yok (izleme uyarısı).
 
