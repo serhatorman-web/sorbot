@@ -1237,8 +1237,8 @@ def ssl_info_lines(res, direction, lookback=50):
     out = [f"🔷 SSL Hybrid: {'🟢 <b>AL</b>' if side == 1 else '🔴 <b>SAT</b>'}{when}",
            f"{mark(q)} 1. teyit: QQE MOD {'mavi' if q == 1 else 'pembe' if q == -1 else 'gri'}",
            f"{mark(d)} 2. teyit: DynaRange {'yeşil' if d == 1 else 'kırmızı' if d == -1 else 'nötr'}"]
-    out.append("→ SSL stratejisi sinyali onaylıyor" if side == s and q == s and d == s
-               else "⚠️ SSL stratejisi sinyali onaylamıyor")
+    out.append("✅ SSL stratejisi sinyali onaylıyor → işleme girebilirsin" if side == s and q == s and d == s
+               else "⚠️ SSL stratejisi sinyali onaylamıyor → işleme girmek riskli, bekle")
     return out
 
 
