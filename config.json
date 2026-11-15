@@ -60,8 +60,8 @@
       "USDCUSDT",
       "BTCDOMUSDT"
     ],
-    "_equity_aciklama": "Boş liste = Binance'teki tüm hisse kontratları taranır. Eski büyük şirket listesi equity_whitelist_eski'de duruyor (geri almak için equity_whitelist'e kopyalanır).",
-    "equity_whitelist": [],
+    "_equity_aciklama": "91 hisse: 61 büyük şirket + 30 hareketli şirket (günlük hareket ≥%5, 30 gün medyan hacim ≥3M $, 15.11 testi). Boş liste = Binance'teki tüm hisse kontratları taranır. Eski büyük şirket listesi equity_whitelist_eski'de duruyor (geri almak için equity_whitelist'e kopyalanır).",
+    "equity_whitelist": ["NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "TSM", "BRKB", "LLY", "JPM", "V", "WMT", "ORCL", "XOM", "UNH", "COST", "NFLX", "HD", "ABBV", "BAC", "KO", "PLTR", "AMD", "ASML", "CRM", "CSCO", "MU", "IBM", "MRK", "GEV", "CAT", "NOW", "TXN", "QCOM", "ADBE", "AMAT", "INTC", "LRCX", "KLAC", "ARM", "APP", "MCD", "DIS", "GS", "SHOP", "UBER", "ANET", "PANW", "CRWD", "ACN", "BABA", "PDD", "SONY", "NVO", "MELI", "AMGN", "PFE", "CEG", "BX", "SNDK", "SPCX", "SKHY", "MSTR", "CRCL", "NBIS", "LITE", "MRVL", "CRWV", "AAOI", "COIN", "CBRS", "BE", "AXTI", "HOOD", "RKLB", "WDC", "IREN", "BMNR", "DELL", "MRNA", "COHR", "GLW", "CRDO", "BNC", "ASTS", "SMCI", "USAR", "FLNC", "ALAB"],
     "scan_equity_when_closed": true,
     "min_quote_volume_24h": {
       "COIN": 3000000,
