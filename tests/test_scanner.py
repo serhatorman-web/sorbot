@@ -760,7 +760,7 @@ def test_pivot_lines():
 def test_pivot_retest_line():
     P, n = 100.0, 60
     cases = [([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.5, 101.5, 103, 105] + [106.0] * 10,
-              "✅ Retest: pivot test edildi ve tuttu → yükseliş teyit edildi"),
+              "✅ Retest: pivot test edildi ve onaylandı → yükseliş teyit edildi"),
              ([95.0] * 40 + [101 + 3 * k for k in range(20)], "⬆️ Retest yapmadan yükseliş devam etti → geç giriş riski"),
              ([95.0] * 55 + [101, 102, 102.5, 103, 103], "⏳ Retest: pivota geri gelmedi, retest yapılmadı → bekle"),
              ([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.4] + [100.6] * 13,

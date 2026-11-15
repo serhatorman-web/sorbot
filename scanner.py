@@ -1416,7 +1416,7 @@ def pivot_retest_line(f, i, P, start):
     if ev["kind"] == "break":
         return {"none": "⏳ Retest: pivota geri gelmedi, retest yapılmadı → bekle",
                 "touch": f"🔄 Retest: pivota geri geldi, test ediliyor → {mv} teyidi bekleniyor",
-                "confirmed": f"✅ Retest: pivot test edildi ve tuttu → {mv} teyit edildi",
+                "confirmed": f"✅ Retest: pivot test edildi ve onaylandı → {mv} teyit edildi",
                 "away": f"{'⬆️' if up else '⬇️'} Retest yapmadan {mv} devam etti → geç giriş riski"}[ev["state"]]
     role = "destek" if up else "direnç"
     return {"touch": f"🔄 Retest: pivota dokundu, {role} test ediliyor → tepki bekleniyor",
