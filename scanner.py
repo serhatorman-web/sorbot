@@ -968,8 +968,9 @@ def volume_lines(res, cfg):
         return []
     ratio = lambda k: f["v"][k] / f["vol_ma"][k] if f["vol_ma"][k] else 0
     vr = ratio(i)
-    out = ["🔊 Hacim: " + ("🟢 Yüksek" if vr >= vc.get("high_ratio", 1.0) else "🔴 Düşük")
-           + f" ({vr:.1f}x ortalama)"]
+    high = vr >= vc.get("high_ratio", 1.0)
+    out = ["🔊 Hacim: " + ("🟢 Yüksek" if high else "🔴 Düşük") + f" ({vr:.1f}x ortalama) → "
+           + ("hareket hacimle destekleniyor" if high else "hareket zayıf, teyit için hacim artışı beklenmeli")]
     # Son N mumdaki en büyük gövdeli hareket (ATR'ye göre)
     big = None
     for k in range(max(1, i - vc.get("big_move_lookback", 3) + 1), i + 1):
@@ -983,13 +984,15 @@ def volume_lines(res, cfg):
         chg = (f["c"][k] / f["o"][k] - 1) * 100
         when = "sinyal mumu" if k == i else f"{i - k} mum önce"
         if body > 0:
-            out.append(f"📈 Büyük yükseliş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when})")
+            out.append(f"📈 Büyük yükseliş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when}) → alıcılar güçlü")
         else:
-            out.append(f"📉 Büyük düşüş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when})")
+            out.append(f"📉 Büyük düşüş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when}) → satıcılar güçlü")
     peak = max(range(max(0, i - 2), i + 1), key=ratio)
     if ratio(peak) >= vc.get("spike_ratio", 3.0):
         when = "sinyal mumu" if peak == i else f"{i - peak} mum önce"
-        out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when})")
+        pk_up = f["c"][peak] >= f["o"][peak]
+        out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when}) → "
+                   + ("güçlü alım, yükseliş ilgisi" if pk_up else "güçlü satış, düşüş baskısı"))
     return out
 
 
@@ -1124,7 +1127,7 @@ def ichimoku_lines(res, direction, cfg):
         if not ev:
             continue
         if ev["kind"] == "inside":
-            out.append(f"⚪ {label}: fiyat bulutun içinde, kararsız")
+            out.append(f"⚪ {label}: fiyat bulutun içinde, kararsız → yön için bulut kırılımı beklenmeli")
             continue
         s_ = 1 if ev["dir"] == "up" else -1
         icon = "🟢" if s_ == 1 else "🔴"
@@ -1144,7 +1147,7 @@ def ichimoku_lines(res, direction, cfg):
             else:
                 out.append(f"{icon} {label}: fiyat {where} · 🔄 {sr.capitalize()} test ediliyor, tepki bekleniyor")
         else:
-            out.append(f"{icon} {label}: fiyat {where} ({sr})")
+            out.append(f"{icon} {label}: fiyat {where} ({sr}) → {move} yönü korunuyor")
         if ev["state"] == "confirmed":
             confirmed[s_].append(name)
     tk = 1 if ten[i] > kij[i] else (-1 if ten[i] < kij[i] else 0)
@@ -1159,7 +1162,8 @@ def ichimoku_lines(res, direction, cfg):
     if fut != 0 and atr_i and abs(sa_now - sb_now) < 0.25 * atr_i:
         fut_line += " · ⚠️ bulut incelmiş, renk dönüşü yakın"
     out.append(fut_line)
-    out.append(f"{'🟢' if tk == 1 else ('🔴' if tk == -1 else '⚪')} {tk_txt}")
+    tk_res = {1: " → kısa vadede yükseliş eğilimi", -1: " → kısa vadede düşüş eğilimi", 0: " → kısa vadede kararsız"}[tk]
+    out.append(f"{'🟢' if tk == 1 else ('🔴' if tk == -1 else '⚪')} {tk_txt}{tk_res}")
     cloud = 1 if c[-1] > top[i] else (-1 if c[-1] < bot[i] else 0)
     vs_kij = 1 if c[-1] > kij[i] else (-1 if c[-1] < kij[i] else 0)
     n_ok = sum(1 for v in (cloud, tk, vs_kij, fut) if v == sig)
@@ -1428,9 +1432,9 @@ def divergence_lines(res):
     d = res.get("div") or {}
     out = []
     if d.get("pos"):
-        out.append("🟢 RSI pozitif uyumsuzluk: " + ", ".join(d["pos"]))
+        out.append("🟢 RSI pozitif uyumsuzluk: " + ", ".join(d["pos"]) + " → düşüş zayıflıyor, yükseliş dönüşü beklenebilir")
     if d.get("neg"):
-        out.append("🔴 RSI negatif uyumsuzluk: " + ", ".join(d["neg"]))
+        out.append("🔴 RSI negatif uyumsuzluk: " + ", ".join(d["neg"]) + " → yükseliş zayıflıyor, düşüş dönüşü beklenebilir")
     return out
 
 
@@ -1702,8 +1706,9 @@ def build_radar_message(res, rd, cfg, now_utc):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
-    for block in (trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
-                  order_block_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
+    for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res),
+                  ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
+                  divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
     trend = tf_table_html(res)

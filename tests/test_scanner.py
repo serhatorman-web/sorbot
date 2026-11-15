@@ -304,7 +304,7 @@ def test_rsi_divergence():
     assert ta.rsi_divergence(hi, lo, c) == (True, False)
     c2 = [300 - x for x in c]
     assert ta.rsi_divergence([x + 0.2 for x in c2], [x - 0.2 for x in c2], c2) == (False, True)
-    assert scanner.divergence_lines({"div": {"pos": ["4 saat"], "neg": []}}) == ["🟢 RSI pozitif uyumsuzluk: 4 saat"]
+    assert scanner.divergence_lines({"div": {"pos": ["4 saat"], "neg": []}}) == ["🟢 RSI pozitif uyumsuzluk: 4 saat → düşüş zayıflıyor, yükseliş dönüşü beklenebilir"]
     assert scanner.divergence_lines({"div": {"pos": [], "neg": []}}) == []
 
 
@@ -583,7 +583,7 @@ def test_ichimoku_band_retest():
     assert out[0] == "☁️ <b>Ichimoku</b> · 1 saat", out
     assert out[1].startswith("🟢 Bulut (yeşil) ") and "fiyat üstünde (destek)" in out[1], out
     assert out[4].startswith("🟢 İleri bulut (26 mum sonrası): yeşil · ") and out[4].endswith("→ yükseliş trendi bekleniyor"), out
-    assert out[5] == "🟢 Tenkan Kijun'un üstünde", out
+    assert out[5] == "🟢 Tenkan Kijun'un üstünde → kısa vadede yükseliş eğilimi", out
     assert out[6] == "✅ Ichimoku sinyalle uyumlu (4/4)", out
     assert scanner.ichimoku_lines(res, "short", cfg)[6] == "⚠️ Ichimoku sinyalle uyumsuz (0/4)"
     # ileri bulut incelmiş → renk dönüşü uyarısı
