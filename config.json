@@ -145,6 +145,10 @@
   "ichimoku_info": {
     "enabled": true
   },
+  "pivots": {
+    "_aciklama": "Mesajda Price action üstünde 📍 Pivots bölümü (TradingView Pivot Points Standard, Fibonacci, Auto: 15dk günlük, 1s/4s haftalık). Kullanıcı stratejisi: P üstünde/altında kapanış + Supertrend + DynaRange + QQE MOD aynı yönde → TP R1-R2-R3 (SHORT: S1-S2-S3), stop S1 (SHORT: R1).",
+    "enabled": true
+  },
   "ssl_info": {
     "_aciklama": "Supertrend mesajında SSL Hybrid + QQE MOD + DynaRange onay bloğu (işleme girebilirsin / riskli, bekle). false: gösterilmez.",
     "enabled": false

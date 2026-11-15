@@ -925,6 +925,13 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
         for ev in ta.trendline_break([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
             tl.append(dict(ev, tf=tf))
     res["tline"] = tl
+    # Pivot noktaları (TradingView "Pivot Points Standard", Fibonacci, Auto: 15dk ve altı günlük, üstü haftalık)
+    ptf = "1d" if TF_MS.get(base_tf, HOUR_MS) <= 15 * 60 * 1000 else "1w"
+    pc = candles.get(ptf) or []
+    if pc:
+        last = pc[-1]                      # son kapanmış gün / hafta → içinde bulunulan dönemin pivotları
+        res["pivot"] = dict(pivot_levels(last["h"], last["l"], last["c"]), tf=ptf,
+                            start=last["t"] + (86_400_000 if ptf == "1d" else 7 * 86_400_000))
     # Order block'lar: TradingView'deki "Volumized Order Blocks | Flux Charts" son 1750 mumu kullanır;
     # tarama 499 mumla yapıldığı için mesaj gönderilecek sembolde uzun geçmiş ayrıca çekilir.
     if not order_blocks:
@@ -1330,6 +1337,73 @@ def signal_price_action(f, i, s):
     return out
 
 
+def pivot_levels(h, l, c):
+    """Fibonacci pivot (TradingView Pivot Points Standard, Type: Fibonacci)."""
+    p = (h + l + c) / 3
+    r = h - l
+    return {"P": p, "R1": p + 0.382 * r, "R2": p + 0.618 * r, "R3": p + r,
+            "S1": p - 0.382 * r, "S2": p - 0.618 * r, "S3": p - r}
+
+
+def pivot_lines(res, direction, cfg):
+    """📍 Pivots: kullanıcının stratejisi. LONG: mum beyaz P'nin üstünde kapanır + Supertrend AL + DynaRange yeşil +
+    QQE MOD mavi → TP1-2-3 = R1-R2-R3, stop = S1. SHORT tersi (TP S1-S2-S3, stop R1)."""
+    if not cfg.get("pivots", {}).get("enabled", True):
+        return []
+    pv = res.get("pivot")
+    f, i = res["f"], res["i"]
+    if not pv:
+        return []
+    up = direction == "long"
+    s = 1 if up else -1
+    prec = res["meta"].get("precision")
+    price = f["c"][i]
+    P = pv["P"]
+    fp = lambda x: fmt_price(x, prec)
+    span = "günlük" if pv["tf"] == "1d" else "haftalık"
+    side = 1 if price > P else -1
+    ago = None
+    for k in range(i, 0, -1):
+        if f["t"][k] < pv["start"]:
+            break
+        if (f["c"][k] - P) * side > 0 and (f["c"][k - 1] - P) * side <= 0:
+            ago = i - k
+            break
+    when = ("bu mumda kesti" if ago == 0 else f"{ago} mum önce kesti") if ago is not None else "dönem başından beri"
+    out = [f"📍 <b>Pivots</b> · {span} (Fibonacci)"]
+    for name in ("R3", "R2", "R1"):
+        out.append(f"{name} {fp(pv[name])}")
+    out.append(f"⚪ P {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
+    for name in ("S1", "S2", "S3"):
+        out.append(f"{name} {fp(pv[name])}")
+    st = f["st_dir"][i]
+    d = f["dyna"][i] or 0
+    q = (f.get("qqe") or [0] * (i + 1))[i]
+    mark = lambda ok: "✅" if ok else "❌"
+    checks = [(side == s, f"P {'üstünde' if up else 'altında'} kapanış"),
+              (st == s, f"Supertrend {'AL' if st == 1 else 'SAT' if st == -1 else '—'}"),
+              (d * s > 0, f"DynaRange {'yeşil' if d > 0 else 'kırmızı' if d < 0 else 'nötr'}"),
+              (q == s, f"QQE MOD {'mavi' if q == 1 else 'pembe' if q == -1 else 'gri'}")]
+    out.append(" · ".join(f"{mark(ok)} {txt}" for ok, txt in checks))
+    if all(ok for ok, _ in checks):
+        tps = [("R1", "R2", "R3") if up else ("S1", "S2", "S3")][0]
+        stop_n = "S1" if up else "R1"
+        tgt = [(n, pv[n]) for n in tps if (pv[n] - price) * s > 0]
+        stop = pv[stop_n]
+        if not tgt:
+            out.append(f"⚠️ Pivot stratejisi onaylıyor ama fiyat {tps[-1]}'ün ötesinde → hedef kalmadı, bekle")
+        elif (price - stop) * s <= 0:
+            out.append(f"⚠️ Pivot stratejisi onaylıyor ama fiyat {stop_n} stop seviyesinin ötesinde → bekle")
+        else:
+            out.append(f"✅ Pivot stratejisi onaylıyor → {'LONG' if up else 'SHORT'} girilebilir")
+            for k, (n, v) in enumerate(tgt, 1):
+                out.append(f"TP{k}: {n} {fp(v)} ({pct(v, price):+.2f}%)")
+            out.append(f"Stop: {stop_n} {fp(stop)} ({pct(stop, price):+.2f}%)")
+    else:
+        out.append("⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle")
+    return out
+
+
 def price_action_lines(res, direction, cfg):
     """Supertrend sinyallerinde 🕯️ Price action bölümü."""
     f, i = res["f"], res["i"]
@@ -1602,7 +1676,7 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += [""] + indicator_list_lines(res, direction)
-        for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
+        for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
                       volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += ["", SEP] + block
