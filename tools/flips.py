@@ -1,13 +1,16 @@
-import sys, os, json, time
+import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["DRY_RUN"] = "1"
 import scanner as sc
-api = sc.Binance(); cfg = json.load(open("config.json"))
-u, allm, tickers, funding = sc.build_universe(api, cfg)
-print("EVAA evrende mi:", any(m["symbol"] == "EVAAUSDT" for m in u), "hacim", tickers.get("EVAAUSDT"))
-now = 1794704400000 + 28000   # 01:00:28 UTC
-for sym in ("EVAAUSDT", "KOMAUSDT"):
-    raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": "1h", "limit": 499, "endTime": now})
-    cs = sc.parse_klines(raw, now)
-    f = sc.compute_features(cs, cfg); i = len(cs) - 1
-    import datetime as dt
-    print(sym, len(cs), "son mum", dt.datetime.utcfromtimestamp(cs[-1]["t"]/1000), "st", f["st_dir"][i-1], f["st_dir"][i], "min_candles", cfg["min_candles"])
+T = 1794704400 + 28
+orig = sc.Binance.get
+def get(self, path, params=None, retries=3):
+    p = dict(params or {})
+    if path == "/fapi/v1/klines" and "endTime" not in p and "startTime" not in p:
+        p["endTime"] = T * 1000
+    return orig(self, path, p, retries)
+sc.Binance.get = get
+_t = time.time
+sc.time.time = lambda: T
+import builtins
+sc.main()
