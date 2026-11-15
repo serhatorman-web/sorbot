@@ -757,6 +757,20 @@ def test_pivot_lines():
     assert out[2].startswith("❌ P altında kapanış") and out[-1].startswith("⚠️"), out
 
 
+def test_pivot_retest_line():
+    P, n = 100.0, 60
+    cases = [([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.5, 101.5, 103, 105] + [106.0] * 10,
+              "✅ Retest: P test edildi ve tuttu → yükseliş teyit edildi"),
+             ([95.0] * 40 + [101 + 3 * k for k in range(20)], "⬆️ Retest yapmadan yükseliş devam etti → geç giriş riski"),
+             ([95.0] * 55 + [101, 102, 102.5, 103, 103], "⏳ Retest: P'ye geri gelmedi, retest yapılmadı → bekle"),
+             ([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.4] + [100.6] * 13,
+              "🔄 Retest: P'ye geri geldi, test ediliyor → yükseliş teyidi bekleniyor")]
+    for c, want in cases:
+        h = [x + 0.5 for x in c]; l = [x - 0.5 for x in c]
+        f = {"c": c, "h": h, "l": l, "o": [c[0]] + c[:-1], "t": list(range(n)), "atr": ta.atr(h, l, c, 14)}
+        assert scanner.pivot_retest_line(f, n - 1, P, 0) == want, (scanner.pivot_retest_line(f, n - 1, P, 0), want)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
