@@ -872,3 +872,122 @@ def fmt_volume(v):
             return f"{v / div:.3f}".rstrip("0").rstrip(".") + suf
     return f"{v:.3f}".rstrip("0").rstrip(".")
 
+
+
+def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=0):
+    """TradingView 'Technical Ratings' (TechnicalRating kütüphanesi): 15 hareketli ortalama + 11 osilatör.
+    Her biri AL +1 / Nötr 0 / SAT -1; MA puanı ve osilatör puanı ayrı ortalanır, toplam = ikisinin ortalaması.
+    Döner: her mum için {'all', 'osc', 'ma', 'votes': [+1/0/-1 ... 26 adet]} ya da None."""
+    n = len(close)
+    hl2 = [(h + l) / 2 for h, l in zip(high, low)]
+
+    def at(a, i, k=0):
+        j = i - k
+        return a[j] if 0 <= j < len(a) else None
+
+    def ma_vote(m, i):
+        if m[i] is None:
+            return None
+        return 1 if m[i] < close[i] else (-1 if m[i] > close[i] else 0)
+
+    def vwma(nn):
+        out = [None] * n
+        for i in range(nn - 1, n):
+            sv = sum(volume[i - nn + 1:i + 1])
+            out[i] = None if sv == 0 else sum(c * v for c, v in zip(close[i - nn + 1:i + 1], volume[i - nn + 1:i + 1])) / sv
+        return out
+
+    def donch(nn):
+        hi, lo = highest(high, nn), lowest(low, nn)
+        return [None if a is None else (a + b) / 2 for a, b in zip(hi, lo)]
+
+    mas = [sma(close, k) for k in (10, 20, 30, 50, 100, 200)] + [ema_tv(close, k) for k in (10, 20, 30, 50, 100, 200)]
+    mas += [hma(close, 9), vwma(20)]
+    conv, base, lead2 = donch(9), donch(26), donch(52)
+    lead1 = [None if a is None or b is None else (a + b) / 2 for a, b in zip(conv, base)]
+    r = rsi(close, 14)
+    raw = [None] * n
+    hh, ll = highest(high, 14), lowest(low, 14)
+    for i in range(n):
+        if hh[i] is not None:
+            raw[i] = 0.0 if hh[i] == ll[i] else 100 * (close[i] - ll[i]) / (hh[i] - ll[i])
+    sk = sma(raw, 3)
+    sd = sma(sk, 3)
+    cc = cci(high, low, close, 20)
+    ax, pdi, ndi = adx(high, low, close, 14)
+    a5, a34 = sma(hl2, 5), sma(hl2, 34)
+    ao = [None if a is None or b is None else a - b for a, b in zip(a5, a34)]
+    mom = momentum(close, 10)
+    mline, msig, _ = macd(close)
+    srk, srd = stoch_rsi(close, 14, 14, 3, 3)
+    wpr = [None if hh[i] is None else (0.0 if hh[i] == ll[i] else 100 * (close[i] - hh[i]) / (hh[i] - ll[i]))
+           for i in range(n)]
+    e13 = ema_tv(close, 13)
+    bull = [h - e for h, e in zip(high, e13)]
+    bear = [l - e for l, e in zip(low, e13)]
+    bp = [None] + [close[i] - min(low[i], close[i - 1]) for i in range(1, n)]
+    tr = [None] + [max(high[i], close[i - 1]) - min(low[i], close[i - 1]) for i in range(1, n)]
+
+    def avg(k, i):
+        if i < k:
+            return None
+        s = sum(tr[i - k + 1:i + 1])
+        return None if s == 0 else sum(bp[i - k + 1:i + 1]) / s
+    tma = ema_tv(close, 50) if trend == "ema50" else sma(close, 50)
+
+    out = [None] * n
+    for i in range(2, n):
+        mv = [ma_vote(m, i) for m in mas]
+        l1, l2 = at(lead1, i, ichi_shift), at(lead2, i, ichi_shift)
+        if None in (l1, l2, base[i], conv[i]):
+            iv = None
+        elif l1 > l2 and base[i] > l1 and conv[i] > base[i] and close[i] > conv[i]:
+            iv = 1
+        elif l1 < l2 and base[i] < l1 and conv[i] < base[i] and close[i] < conv[i]:
+            iv = -1
+        else:
+            iv = 0
+        mv.append(iv)
+        up = tma[i] is not None and close[i] > tma[i]
+        dn = tma[i] is not None and close[i] < tma[i]
+
+        def v(buy, sell, *need):
+            if any(x is None for x in need):
+                return None
+            return 1 if buy else (-1 if sell else 0)
+        ov = []
+        ov.append(v(r[i] is not None and r[i - 1] is not None and r[i] < 30 and r[i] > r[i - 1],
+                    r[i] is not None and r[i - 1] is not None and r[i] > 70 and r[i] < r[i - 1], r[i], r[i - 1]))
+        ov.append(v(sk[i] < 20 and sd[i] < 20 and sk[i] > sd[i], sk[i] > 80 and sd[i] > 80 and sk[i] < sd[i], sk[i], sd[i])
+                  if sk[i] is not None and sd[i] is not None else None)
+        ov.append(v(cc[i] < -100 and cc[i] > cc[i - 1], cc[i] > 100 and cc[i] < cc[i - 1], cc[i], cc[i - 1])
+                  if cc[i] is not None and cc[i - 1] is not None else None)
+        ov.append(v(pdi[i] > ndi[i] and ax[i] > 20 and ax[i] > ax[i - 1], pdi[i] < ndi[i] and ax[i] > 20 and ax[i] < ax[i - 1])
+                  if None not in (ax[i], ax[i - 1], pdi[i], ndi[i]) else None)
+        if None in (ao[i], ao[i - 1], ao[i - 2]):
+            ov.append(None)
+        else:
+            b_ = (ao[i] > 0 and ao[i - 1] <= 0) or (ao[i] > 0 and ao[i - 1] > 0 and ao[i] > ao[i - 1] and ao[i - 2] > ao[i - 1])
+            s_ = (ao[i] < 0 and ao[i - 1] >= 0) or (ao[i] < 0 and ao[i - 1] < 0 and ao[i] < ao[i - 1] and ao[i - 2] < ao[i - 1])
+            ov.append(1 if b_ else (-1 if s_ else 0))
+        ov.append(v(mom[i] > mom[i - 1], mom[i] < mom[i - 1]) if mom[i] is not None and mom[i - 1] is not None else None)
+        ov.append(v(mline[i] > msig[i], mline[i] < msig[i]) if mline[i] is not None and msig[i] is not None else None)
+        ov.append(v(dn and srk[i] < 20 and srd[i] < 20 and srk[i] > srd[i], up and srk[i] > 80 and srd[i] > 80 and srk[i] < srd[i])
+                  if srk[i] is not None and srd[i] is not None else None)
+        ov.append(v(wpr[i] < -80 and wpr[i] > wpr[i - 1], wpr[i] > -20 and wpr[i] < wpr[i - 1])
+                  if wpr[i] is not None and wpr[i - 1] is not None else None)
+        ov.append(v(up and bear[i] < 0 and bear[i] > bear[i - 1], dn and bull[i] > 0 and bull[i] < bull[i - 1]))
+        a7, a14, a28 = avg(7, i), avg(14, i), avg(28, i)
+        if None in (a7, a14, a28):
+            ov.append(None)
+        else:
+            uo = 100 * (4 * a7 + 2 * a14 + a28) / 7
+            ov.append(1 if uo > 70 else (-1 if uo < 30 else 0))
+        mvv = [x for x in mv if x is not None]
+        ovv = [x for x in ov if x is not None]
+        ma_r = sum(mvv) / len(mvv) if mvv else None
+        os_r = sum(ovv) / len(ovv) if ovv else None
+        rs = [x for x in (ma_r, os_r) if x is not None]
+        out[i] = {"all": sum(rs) / len(rs) if rs else None, "osc": os_r, "ma": ma_r, "votes": mv + ov,
+                  "ma_n": len(mvv), "osc_n": len(ovv)}
+    return out
