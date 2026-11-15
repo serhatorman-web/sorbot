@@ -1594,7 +1594,7 @@ def build_message(res, direction, cfg, now_utc):
             lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
         if pa:
             lines += ["", "🕯️ <b>Price action:</b>"] + [f"• {x}" for x in pa]
-        lines += ["", f"📌 {trigger_name(cfg)}: {st_txt}"]
+        lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
