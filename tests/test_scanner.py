@@ -703,21 +703,19 @@ def test_ssl_signal():
     ssl = [101.0] * n
     qqe = [0] * n
     dyn = [-1.0] * n
-    qqe[22] = 1                                 # QQE MOD önce maviye döndü
-    for k in range(24, n): c[k] = 102.0         # 24: SSL Buy (fiyat çizgiyi yukarı kesti)
-    dyn[26] = dyn[27] = dyn[28] = dyn[29] = 1.0 # 26: DynaRange yeşile döndü → sinyal
+    for k in range(22, n): c[k] = 102.0         # 22: SSL Buy (fiyat çizgiyi yukarı kesti)
+    qqe[24] = qqe[25] = 1                       # 24: 1. teyit QQE MOD mavi
+    for k in range(25, n): dyn[k] = 1.0         # 25: 2. teyit DynaRange yeşil → sinyal
     f = {"c": c, "ssl": ssl, "qqe": qqe, "dyna": dyn}
-    assert scanner.ssl_signal(f, 25, 1) is None          # DynaRange henüz kırmızı
-    assert scanner.ssl_signal(f, 26, 1) == 24            # sinyal SSL Buy mumunu döndürür
-    assert scanner.ssl_signal(f, 27, 1) is None          # aynı Buy için ikinci sinyal yok
-    assert scanner.ssl_signal(f, 26, -1) is None
-    qqe2 = [0] * n
-    assert scanner.ssl_signal(dict(f, qqe=qqe2), 26, 1) is None   # QQE mavi olmadıysa sinyal yok
-    dyn2 = list(dyn); dyn2[26] = -1.0; dyn2[27] = -1.0; dyn2[28] = -1.0; dyn2[29] = -1.0
-    dyn2[29] = 1.0
-    assert scanner.ssl_signal(dict(f, dyna=dyn2), 29, 1) == 24           # Buy'dan 5 mum sonra: hâlâ geçerli
-    assert scanner.ssl_signal(dict(f, dyna=dyn2), 29, 1, wait=4) is None # bekleme süresi aşıldı → yok
-
+    assert scanner.ssl_signal(f, 24, 1) is None          # DynaRange henüz kırmızı
+    assert scanner.ssl_signal(f, 25, 1) == 22            # sinyal SSL Buy mumunu döndürür
+    assert scanner.ssl_signal(f, 26, 1) is None          # aynı Buy için ikinci sinyal yok
+    assert scanner.ssl_signal(f, 25, -1) is None
+    q2 = [0] * n; q2[20] = 1                             # QQE Buy'dan ÖNCE mavi → sayılmaz
+    assert scanner.ssl_signal(dict(f, qqe=q2), 25, 1) is None
+    d2 = [-1.0] * n; d2[27] = d2[28] = 1.0
+    assert scanner.ssl_signal(dict(f, dyna=d2), 27, 1) == 22             # Buy'dan 5 mum sonra: geçerli
+    assert scanner.ssl_signal(dict(f, dyna=d2), 27, 1, wait=4) is None   # bekleme aşıldı → yok
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

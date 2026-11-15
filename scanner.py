@@ -1176,12 +1176,13 @@ def ichimoku_lines(res, direction, cfg):
     return out
 
 
-def ssl_signal(f, i, s, wait=5, qqe_back=10):
-    """SSL Hybrid sinyali (kullanıcının kuralı, LONG için; SHORT'ta tersi):
-    1) Son `wait` mum içinde fiyat SSL çıkış çizgisini aşağıdan yukarı kesti (SSL Buy) ve hâlâ üstünde,
-    2) QQE MOD bu Buy'dan en fazla `qqe_back` mum önce ya da sonra maviye döndü ve şu an pembe değil,
-    3) DynaRange yeşil.
-    Üçü ilk kez birlikte sağlandığı mumda sinyal. Döner: SSL Buy/Sell mumunun indeksi ya da None."""
+def ssl_signal(f, i, s, wait=5):
+    """SSL Hybrid sinyali (kullanıcının kuralı, LONG için; SHORT'ta tersi), sırayla:
+    1) Fiyat SSL çıkış çizgisini aşağıdan yukarı keser (SSL Buy) ve üstünde kalır,
+    2) 1. teyit: Buy mumunda ya da sonrasında QQE MOD maviye döner,
+    3) 2. teyit: QQE'den sonra (ya da aynı mumda) DynaRange yeşil olur.
+    Hepsi Buy'dan en fazla `wait` mum içinde; sıra ilk kez tamamlandığı mumda sinyal.
+    Döner: SSL Buy/Sell mumunun indeksi ya da None."""
     c, ssl, qqe, dyn = f["c"], f.get("ssl"), f.get("qqe"), f.get("dyna")
     if not ssl or not qqe or not dyn:
         return None
@@ -1203,7 +1204,7 @@ def ssl_signal(f, i, s, wait=5, qqe_back=10):
                 return None
         if ev is None or (c[k] - ssl[k]) * s <= 0 or dyn[k] * s <= 0 or qqe[k] == -s:
             return None
-        if not any(qqe[j] == s for j in range(max(0, ev - qqe_back), k + 1)):
+        if not any(qqe[j] == s for j in range(ev, k + 1)):     # 1. teyit: Buy'dan sonra QQE MOD
             return None
         return ev
 
@@ -1526,8 +1527,8 @@ def build_message(res, direction, cfg, now_utc):
         st_txt = ("🟢 <b>AL</b>" if st == 1 else "🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         st_note = "" if st == (1 if up else -1) else " (henüz dönmedi)"
         lines += ["", SEP, f"📌 Tetik: SSL Hybrid {'🟢 <b>AL</b>' if up else '🔴 <b>SAT</b>'}",
-                  f"✅ QQE MOD {'mavi' if up else 'pembe'} → {'alıcılar' if up else 'satıcılar'} güçlü",
-                  f"✅ DynaRange {'yeşil' if up else 'kırmızı'} → {'yükseliş' if up else 'düşüş'} teyit edildi",
+                  f"✅ 1. teyit: QQE MOD {'mavi' if up else 'pembe'} → {'alıcılar' if up else 'satıcılar'} güçlü",
+                  f"✅ 2. teyit: DynaRange {'yeşil' if up else 'kırmızı'} → {'yükseliş' if up else 'düşüş'} teyit edildi",
                   "", f"📌 {trigger_name(cfg)}: {st_txt}{st_note}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
@@ -1905,7 +1906,7 @@ def main():
             for d, s_ in (("long", 1), ("short", -1)):
                 if (r["meta"]["symbol"], d) in picked_st:
                     continue                  # aynı mumda Supertrend sinyali zaten gitti
-                ev = ssl_signal(f_, i_, s_, scfg.get("wait_bars", 5), scfg.get("qqe_lookback", 10))
+                ev = ssl_signal(f_, i_, s_, scfg.get("wait_bars", 5))
                 if ev is None:
                     continue
                 key = f"{r['meta']['symbol']}|ssl_{d}"
