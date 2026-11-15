@@ -152,11 +152,8 @@
     "max_per_scan": 20
   },
   "order_blocks": {
-    "_aciklama": "Sinyallerde Order block bölümü: fiyatın altındaki en yakın tüketilmemiş boğa OB (destek) ve üstündeki en yakın ayı OB (direnç). OB: en az disp_atr ATR'lik yapı kıran hareketten önceki son ters mum; kapanışla geçilince tüketilir. max_atr ATR'den uzaktakiler yazılmaz.",
-    "enabled": true,
-    "lookback": 300,
-    "disp_atr": 2.0,
-    "max_atr": 6
+    "_aciklama": "Sinyallerde Order block bölümü: TradingView 'Volumized Order Blocks | Flux Charts' (swing 10, en fazla 3+3 bölge, iğneyle bozulma, üst üste binenler birleşir, son 1750 mum) ile birebir. Bozulmamış bölgeler hacim ve yüzdeyle yazılır.",
+    "enabled": true
   },
   "volume_profile": {
     "window": "swing",

@@ -632,32 +632,40 @@ def test_swing_anchor():
     assert ta.swing_anchor([50] + h, [1] + l, 7) == 2
 
 
-def test_order_blocks():
-    n = 40
-    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; atr = [1.0] * n
-    o[20], c[20], h[20], l[20] = 100.0, 99.0, 100.2, 98.8          # son kırmızı mum
-    c[21], h[21], l[21] = 102.5, 102.7, 99.0                         # sert yükseliş (+3.5 ATR), önceki tepeleri kırdı
-    for k in range(22, n): o[k], c[k], h[k], l[k] = 102.0, 102.0, 102.5, 101.5
-    obs = ta.order_blocks(o, h, l, c, atr, 1, n)
-    assert obs == [(98.8, 100.2, 20)], obs
-    c2 = list(c); c2[30] = 98.0                                      # bölgenin altında kapanış → tüketildi
-    assert ta.order_blocks(o, h, l, c2, atr, 1, n) == []
+def test_flux_order_blocks():
+    # yükseliş: swing tepe (k=12) sonra düşüş, dip mum (k=20), sonra tepe kapanışla geçilir → boğa OB = dip mumu
+    h = [100 + k for k in range(13)] + [111, 109, 107, 105, 103, 101, 100, 99.5, 101, 104, 108, 112.5, 113, 114, 115]
+    n = len(h)
+    l = [x - 1 for x in h]; c = [x - 0.5 for x in h]
+    l[20] = 97.0
+    v = [100.0] * n; v[24] = 300.0; v[23] = 200.0; v[22] = 50.0
+    obs = ta.flux_order_blocks(h, l, c, v)
+    bull = [x for x in obs if x["type"] == 1]
+    assert bull and bull[0]["bottom"] == 97.0 and bull[0]["top"] == 99.5 and not bull[0]["breaker"], obs
+    ob = bull[0]
+    assert ob["vol"] == v[ob["i"]] + v[ob["i"] - 1] + v[ob["i"] - 2] if "i" in ob else True
+    assert 0 <= ob["pct"] <= 100
+    l2 = list(l) + [96.0]; h2 = list(h) + [110.0]; c2 = list(c) + [100.0]; v2 = list(v) + [100.0]
+    obs2 = ta.flux_order_blocks(h2, l2, c2, v2)
+    assert [x for x in obs2 if x["type"] == 1][0]["breaker"] is True          # iğne bölgenin altına indi → bozuldu
+
+
+def test_fmt_volume():
+    assert ta.fmt_volume(14155.125) == "14.155K" and ta.fmt_volume(6262.718) == "6.263K"
+    assert ta.fmt_volume(1355126.586) == "1.355M" and ta.fmt_volume(950) == "950"
 
 
 def test_order_block_lines():
-    n = 40
-    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n
-    o[20], c[20], h[20], l[20] = 100.0, 99.0, 100.2, 98.8
-    c[21], h[21], l[21] = 102.5, 102.7, 99.0
-    for k in range(22, n): o[k], c[k], h[k], l[k] = 102.0, 102.0, 102.5, 101.5
-    f = {"o": o, "h": h, "l": l, "c": c, "atr": [1.0] * n}
-    res = {"f": f, "i": n - 1, "meta": {"precision": 2}}
-    out = scanner.order_block_lines(res, {"timeframe": "1h"})
-    assert out[0] == "🧱 <b>Order block</b> · 1 saat", out
-    assert out[1] == "🟢 Boğa OB 98.80 – 100.20 · fiyatın %1.8 altında (destek) → düşüşte ilk destek, buradan tepki beklenir", out
-    c[n - 1] = 100.1; l[n - 1] = 99.9
-    out = scanner.order_block_lines(res, {"timeframe": "1h"})
-    assert out[1].endswith("fiyat bölgede, destek test ediliyor → tutarsa yükseliş, kapanışla altına inerse düşüş bekleniyor"), out
+    n = 30
+    f = {"o": [100.0] * n, "h": [100.5] * n, "l": [99.5] * n, "c": [100.0] * n, "atr": [1.0] * n}
+    obs = [{"type": 1, "top": 98.0, "bottom": 97.0, "vol": 14155.125, "pct": 9, "breaker": False},
+           {"type": -1, "top": 105.0, "bottom": 104.0, "vol": 6262.718, "pct": 7, "breaker": False},
+           {"type": -1, "top": 110.0, "bottom": 109.0, "vol": 1.0, "pct": 1, "breaker": True}]
+    out = scanner.order_block_lines({"f": f, "i": n - 1, "meta": {"precision": 2}, "obs": obs}, {"timeframe": "15m"})
+    assert out[0] == "🧱 <b>Order block</b> · 15dk", out
+    assert out[1] == "🔴 Ayı OB 104.00 – 105.00 · 6.263K (%7) · fiyatın %4.0 üstünde (direnç) → yükselişte ilk direnç, buradan satış beklenir", out
+    assert out[2] == "🟢 Boğa OB 97.00 – 98.00 · 14.155K (%9) · fiyatın %2.0 altında (destek) → düşüşte ilk destek, buradan tepki beklenir", out
+    assert len(out) == 3, out                                       # bozulmuş bölge yazılmaz
 
 
 def test_signal_price_action():

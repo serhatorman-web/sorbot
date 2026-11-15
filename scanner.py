@@ -924,6 +924,42 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h"):
         for ev in ta.trendline_break([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
             tl.append(dict(ev, tf=tf))
     res["tline"] = tl
+    # Order block'lar: TradingView'deki "Volumized Order Blocks | Flux Charts" son 1750 mumu kullanır;
+    # tarama 499 mumla yapıldığı için mesaj gönderilecek sembolde uzun geçmiş ayrıca çekilir.
+    try:
+        hist = fetch_long_history(api, sym, base_tf, now_ms, OB_HISTORY)
+        if len(hist) > i:
+            res["obs"] = ta.flux_order_blocks([x["h"] for x in hist], [x["l"] for x in hist],
+                                              [x["c"] for x in hist], [x.get("bv", x["v"]) for x in hist],
+                                              open_=[x["o"] for x in hist], max_dist=1749)
+            # TradingView'de son (oluşan) mum da sayıldığı için kapanmış mumlardan 1749 tanesi işlenir
+    except Exception:  # noqa: BLE001
+        res.pop("obs", None)
+
+
+OB_HISTORY = 1760
+
+
+def fetch_long_history(api, sym, tf, now_ms, bars):
+    """Son `bars` kapanmış mum (Binance tek istekte en fazla 1500 verir, gerekirse geriye sayfalanır)."""
+    out, end = [], None
+    while len(out) < bars:
+        p = {"symbol": sym, "interval": tf, "limit": min(1500, bars - len(out) + 1)}
+        if end:
+            p["endTime"] = end
+        raw = api.get("/fapi/v1/klines", p)
+        if not raw:
+            break
+        out = parse_klines(raw, now_ms) + out
+        end = int(raw[0][0]) - 1
+        if len(raw) < p["limit"]:
+            break
+    seen, uniq = set(), []
+    for c in sorted(out, key=lambda x: x["t"]):
+        if c["t"] not in seen:
+            seen.add(c["t"])
+            uniq.append(c)
+    return uniq[-bars:]
 
 
 def compute_volume_profile(res, cfg):
@@ -997,9 +1033,10 @@ VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı"
 
 
 def order_block_lines(res, cfg):
-    """Order block (sinyal zaman dilimi): fiyatın altındaki en yakın tüketilmemiş boğa OB (destek) ve
-    üstündeki en yakın ayı OB (direnç). Fiyat bölgedeyse 'test ediliyor', son 5 mumda bölgeye dokunup
-    0.5 ATR uzaklaştıysa 'tepki geldi'. Uzaktaki (max_atr × ATR'den fazla) bölgeler yazılmaz."""
+    """Order block (sinyal zaman dilimi) – TradingView "Volumized Order Blocks | Flux Charts" ile birebir:
+    grafikte görünen bozulmamış boğa (destek) ve ayı (direnç) bölgeleri, hacim ve yüzdeyle.
+    Hacim: bölgeyi oluşturan kırılımdaki 3 mumun hacmi; yüzde: bu hacmin iki tarafının oranı (küçük / büyük).
+    Fiyat bölgedeyse 'test ediliyor', son 5 mumda bölgeye dokunup 0.5 ATR uzaklaştıysa 'tepki geldi'."""
     oc = cfg.get("order_blocks", {})
     if not oc.get("enabled", True):
         return []
@@ -1007,27 +1044,21 @@ def order_block_lines(res, cfg):
     a = f["atr"][i]
     if not a:
         return []
+    obs = res.get("obs")
+    if obs is None:      # uzun geçmiş yoksa taramadaki mumlarla
+        obs = ta.flux_order_blocks(f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1],
+                                   (f.get("bv") or f["v"])[:i + 1], open_=f["o"][:i + 1])
     price = f["c"][i]
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     out = []
-    for s in (1, -1):
-        obs = ta.order_blocks(f["o"], f["h"], f["l"], f["c"], f["atr"], s, i + 1,
-                              oc.get("lookback", 300), oc.get("disp_atr", 2.0))
-        if s == 1:
-            cand = [ob for ob in obs if ob[0] <= price]
-            ob = max(cand, key=lambda x: x[1]) if cand else None
-        else:
-            cand = [ob for ob in obs if ob[1] >= price]
-            ob = min(cand, key=lambda x: x[0]) if cand else None
-        if not ob:
-            continue
-        lo, hi, _ = ob
+    for ob in sorted((x for x in obs if not x["breaker"]), key=lambda x: -x["top"]):
+        s = ob["type"]
+        lo, hi = ob["bottom"], ob["top"]
         dist = (price - hi) if s == 1 else (lo - price)
-        if dist > oc.get("max_atr", 6) * a:
-            continue
         zone = f"{fmt_price(lo, prec)} – {fmt_price(hi, prec)}"
         name = "🟢 Boğa OB" if s == 1 else "🔴 Ayı OB"
+        vol = f"{ta.fmt_volume(ob['vol'])} (%{ob['pct']})"
         role = "destek" if s == 1 else "direnç"
         touched = any((f["l"][k] <= hi) if s == 1 else (f["h"][k] >= lo) for k in range(max(0, i - 4), i + 1))
         mv, other = ("yükseliş", "düşüş") if s == 1 else ("düşüş", "yükseliş")
@@ -1040,7 +1071,7 @@ def order_block_lines(res, cfg):
             pct_ = dist / price * 100
             st = (f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role}) → "
                   f"{'düşüşte ilk destek, buradan tepki beklenir' if s == 1 else 'yükselişte ilk direnç, buradan satış beklenir'}")
-        out.append(f"{name} {zone} · {st}")
+        out.append(f"{name} {zone} · {vol} · {st}")
     return ([f"🧱 <b>Order block</b> · {span}"] + out) if out else []
 
 

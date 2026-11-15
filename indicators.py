@@ -362,33 +362,6 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
     return check(lows, True), check(highs, False)
 
 
-def order_blocks(open_, high, low, close, atr_, s, end, lookback=300, disp_atr=2.0, bos_lookback=10):
-    """Tüketilmemiş order block'lar (end indeksine kadar; end dahil değil).
-    s=1 boğa OB: son kırmızı mum; sonraki 3 mumdan birinin kapanışı o mumun kapanışından ≥ disp_atr × ATR yukarıda
-        ve önceki bos_lookback mumun tepesinin üstünde (yapı kırılımı). Bölge: mumun dibi–tepesi.
-        Sonradan bir kapanış bölgenin dibinin altına inerse tüketilmiş sayılır.
-    s=-1 ayı OB: tersi. Döner: [(alt, üst, indeks)]"""
-    start = max(bos_lookback, end - lookback)
-    obs = []
-    for k in range(start, end - 3):
-        a = atr_[k]
-        if not a or (close[k] - open_[k]) * s >= 0:
-            continue
-        nxt = close[k + 1:k + 4]
-        ref = max(high[k - bos_lookback:k]) if s == 1 else min(low[k - bos_lookback:k])
-        if s == 1:
-            ok = max(nxt) - close[k] >= disp_atr * a and max(nxt) > ref
-        else:
-            ok = close[k] - min(nxt) >= disp_atr * a and min(nxt) < ref
-        if not ok:
-            continue
-        lo, hi = low[k], high[k]
-        if any((close[m] < lo) if s == 1 else (close[m] > hi) for m in range(k + 4, end)):
-            continue                                       # tüketildi
-        obs.append((lo, hi, k))
-    return obs
-
-
 def swing_anchor(high, low, lookback=300):
     """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
     Hacim profili bu mumdan son muma kadar hesaplanır."""
@@ -783,3 +756,119 @@ def qqe_mod(close, rsi_len=6, smooth=5, factor=3.0, threshold=3.0, bb_len=50, bb
         elif v < -threshold and v < bas[i] - bb_mult * sd[i]:
             out[i] = -1
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Volumized Order Blocks | Flux Charts (kullanıcının TradingView göstergesi) – birebir uyarlama
+# --------------------------------------------------------------------------- #
+def flux_order_blocks(high, low, close, volume, swing_len=10, max_atr_mult=3.5, show=3,
+                      end_method="Wick", open_=None, max_keep=30, max_dist=1750):
+    """Son mumdaki durum: grafikte çizilen order block'lar (birleştirilmiş). Her biri sözlük:
+    type (+1 boğa / -1 ayı), top, bottom, vol (3 mumun hacmi), high_vol, low_vol,
+    pct (küçük taraf / büyük taraf × 100, TradingView'deki yüzde), start (indeks), brk (bozulduğu indeks ya da None),
+    breaker (bölge bozuldu mu), combined."""
+    n = len(close)
+    if n < swing_len + 3:
+        return []
+    a10 = rma(true_range(high, low, close), 10)
+    o = open_ or close
+    bull, bear = [], []
+    swing_type = 0
+    top = {"x": None, "y": None, "crossed": False}
+    btm = {"x": None, "y": None, "crossed": False}
+    for i in range(n):
+        if i <= n - 1 - max_dist:
+            continue
+        # findOBSwings: ta.highest/ta.lowest(len) son len mum (bu mum dahil)
+        if i >= swing_len:
+            upper = max(high[i - swing_len + 1:i + 1])
+            lower = min(low[i - swing_len + 1:i + 1])
+            prev = swing_type
+            swing_type = 0 if high[i - swing_len] > upper else (1 if low[i - swing_len] < lower else swing_type)
+            if swing_type == 0 and prev != 0:
+                top = {"x": i - swing_len, "y": high[i - swing_len], "crossed": False}
+            if swing_type == 1 and prev != 1:
+                btm = {"x": i - swing_len, "y": low[i - swing_len], "crossed": False}
+        # boğa OB'ler: bozulma / silinme
+        for ob in list(reversed(bull)):
+            if not ob["breaker"]:
+                if (low[i] if end_method == "Wick" else min(o[i], close[i])) < ob["bottom"]:
+                    ob["breaker"], ob["brk"] = True, i
+            elif high[i] > ob["top"]:
+                bull.remove(ob)
+        if top["y"] is not None and close[i] > top["y"] and not top["crossed"]:
+            top["crossed"] = True
+            bb, bt, bl = high[i - 1], low[i - 1], i - 1
+            for j in range(1, (i - top["x"] - 1) + 1):
+                bb = min(low[i - j], bb)
+                if bb == low[i - j]:
+                    bt, bl = high[i - j], i - j
+            v = volume[i] + volume[i - 1] + volume[i - 2]
+            ob = {"type": 1, "top": bt, "bottom": bb, "vol": v, "low_vol": volume[i - 2],
+                  "high_vol": volume[i] + volume[i - 1], "start": bl, "brk": None, "breaker": False}
+            if a10[i] is not None and abs(bt - bb) <= a10[i] * max_atr_mult:
+                bull.insert(0, ob)
+                del bull[max_keep:]
+        # ayı OB'ler
+        for ob in list(reversed(bear)):
+            if not ob["breaker"]:
+                if (high[i] if end_method == "Wick" else max(o[i], close[i])) > ob["top"]:
+                    ob["breaker"], ob["brk"] = True, i
+            elif low[i] < ob["bottom"]:
+                bear.remove(ob)
+        if btm["y"] is not None and close[i] < btm["y"] and not btm["crossed"]:
+            btm["crossed"] = True
+            bb, bt, bl = low[i - 1], high[i - 1], i - 1
+            for j in range(1, (i - btm["x"] - 1) + 1):
+                bt = max(high[i - j], bt)
+                if bt == high[i - j]:
+                    bb, bl = low[i - j], i - j
+            v = volume[i] + volume[i - 1] + volume[i - 2]
+            ob = {"type": -1, "top": bt, "bottom": bb, "vol": v, "low_vol": volume[i] + volume[i - 1],
+                  "high_vol": volume[i - 2], "start": bl, "brk": None, "breaker": False}
+            if a10[i] is not None and abs(bt - bb) <= a10[i] * max_atr_mult:
+                bear.insert(0, ob)
+                del bear[max_keep:]
+    # çizilecekler: her yönde en yeni `show` tane (bozulanlar dahil), sonra üst üste binenler birleştirilir
+    shown = [dict(x, combined=False) for x in bull[:show]] + [dict(x, combined=False) for x in bear[:show]]
+    now = n - 1 + 1e-6
+
+    def end(x):
+        return x["brk"] if x["brk"] is not None else now
+
+    def touch(p, q):
+        inter = max(0.0, min(end(p), end(q)) - max(p["start"], q["start"])) * \
+            max(0.0, min(p["top"], q["top"]) - max(p["bottom"], q["bottom"]))
+        return inter > 0
+
+    merged = True
+    while merged:
+        merged = False
+        for x in range(len(shown)):
+            for y in range(len(shown)):
+                p, q = shown[x], shown[y]
+                if x == y or p["type"] != q["type"] or not touch(p, q):
+                    continue
+                brk = max(p["brk"] or 0, q["brk"] or 0) or None
+                new = {"type": p["type"], "top": max(p["top"], q["top"]), "bottom": min(p["bottom"], q["bottom"]),
+                       "vol": p["vol"] + q["vol"], "low_vol": p["low_vol"] + q["low_vol"],
+                       "high_vol": p["high_vol"] + q["high_vol"], "start": min(p["start"], q["start"]),
+                       "brk": brk, "breaker": p["breaker"] or q["breaker"], "combined": True}
+                shown = [new] + [z for k, z in enumerate(shown) if k not in (x, y)]
+                merged = True
+                break
+            if merged:
+                break
+    for x in shown:
+        hv, lv = x["high_vol"], x["low_vol"]
+        x["pct"] = int(min(hv, lv) / max(hv, lv) * 100) if max(hv, lv) > 0 else 0
+    return shown
+
+
+def fmt_volume(v):
+    """TradingView format.volume gibi: 14155 -> 14.155K, 1234567 -> 1.235M."""
+    for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if abs(v) >= div:
+            return f"{v / div:.3f}".rstrip("0").rstrip(".") + suf
+    return f"{v:.3f}".rstrip("0").rstrip(".")
+
