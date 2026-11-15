@@ -1472,9 +1472,10 @@ def pivot_lines(res, direction, cfg):
             out.append(f"⚠️ Pivot stratejisi onaylandı ama fiyat {stop_n} stop seviyesinin ötesinde → bekle")
         else:
             out.append(f"✅ Pivot stratejisi onaylandı → {'LONG' if up else 'SHORT'} girilebilir")
+            out.append(f"Giriş: Pivot {fp(P)}")
             for k, (n, v) in enumerate(tgt, 1):
-                out.append(f"TP{k}: {n} {fp(v)} ({pct(v, price):+.2f}%)")
-            out.append(f"Stop: {stop_n} {fp(stop)} ({pct(stop, price):+.2f}%)")
+                out.append(f"TP{k}: {n} {fp(v)} ({pct(v, P):+.2f}%)")
+            out.append(f"Stop: {stop_n} {fp(stop)} ({pct(stop, P):+.2f}%)")
     else:
         out.append("⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle")
     return out
