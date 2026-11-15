@@ -2001,8 +2001,11 @@ def main():
             if not ev:
                 continue
             # Dip/tepe girişten çok uzaksa (ör. +%26 iğne) stop anlamsız uzar → sinyal yok
-            if abs(f_["c"][i_] - ev["ext"]) + 0.2 * f_["atr"][i_] > ecfg.get("max_risk_atr", 3.0) * f_["atr"][i_]:
+            risk_ = abs(f_["c"][i_] - ev["ext"]) + 0.2 * f_["atr"][i_]
+            if risk_ > ecfg.get("max_risk_atr", 3.0) * f_["atr"][i_]:
                 continue
+            if risk_ / f_["c"][i_] * 100 > ecfg.get("max_risk_pct", 100):
+                continue                      # stop girişten çok uzak (ör. %5'ten fazla) → sinyal yok
             crit = early_criteria(f_, i_, s_, ev, None if r["meta"]["symbol"] == "BTCUSDT" else btc_f)
             if not all(crit.get(k) is True for k in rule.get("require", [])):
                 continue

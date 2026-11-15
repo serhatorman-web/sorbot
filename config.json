@@ -151,6 +151,7 @@
     "window": 8,
     "max_per_scan": 10,
     "max_risk_atr": 3.0,
+    "max_risk_pct": 5.0,
     "rules": {
       "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_not_against", "sweep"]},
               "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["htf_with", "ema200_side", "pa_hammer"]}},
