@@ -1666,11 +1666,10 @@ def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
     # SAT / GÜÇLÜ SAT'ta önce SAT yüzdesi, diğerlerinde önce AL yüzdesi
     b, sl = round(buy), round(sell)
-    parts = [f"🟢 AL %{b}", f"🔴 SAT %{sl}"]
+    parts = [f"AL %{b}", f"SAT %{sl}"]
     if "SAT" in label:
         parts.reverse()
-    parts.append(f"⚪ NÖTR %{max(0, 100 - b - sl)}")     # toplam %100
-    return f"<b>Teknik görünüm:</b> {icon} {label}\n" + "\n".join(parts)
+    return f"<b>Teknik görünüm:</b> {icon} {label} · " + " · ".join(parts)
 
 
 def indicator_list_lines(res, direction):
