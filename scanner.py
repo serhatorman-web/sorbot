@@ -1547,21 +1547,14 @@ def build_message(res, direction, cfg, now_utc):
     early = res.get("early") if (res.get("early") or {}).get("dir") == direction else None
     if early:
         head = "⚡ <b>ERKEN DÖNÜŞ</b> · " + head
-    if res.get("votes"):
-        score_line = (technical_rating_line(res["votes"]) + "\n\n"
-                      + f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)")
-    else:
-        score_line = (f"Güven skoru: <b>{side['score']}/100</b> ({confidence_label(side['score'])}) · "
-                      f"{'Short' if direction == 'long' else 'Long'}: {other['score']}")
-    for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
-        if extra_line:
-            score_line += "\n\n" + extra_line
+    # teknik görünüm ve güven skoru mesajda yok (kullanıcı isteği); sadece trend uyum satırları
+    align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
+    top = []
+    for x in align:
+        top += [x, ""]
     lines = banner_lines(meta, cfg) + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
-        SEP,
-        score_line,
-        "",
-        SEP,
+        SEP] + top + ([SEP] if top else []) + [
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
         "",
         f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
@@ -1641,10 +1634,6 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines = banner_lines(meta, cfg) + [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}", SEP,
              f"Radar skoru: <b>{rd['score']}/100</b> · Yön: {'🟢 LONG' if long_ else '🔴 SHORT'}",
              "📌 Kırılım sebebi: " + " · ".join(rd["reasons"])]
-    if res.get("votes"):
-        side = res[direction]
-        lines += ["", technical_rating_line(res["votes"]), "",
-                  f"<b>Güven skoru:</b> %{side['score']} ({side['agree']}/{side['total']} indikatör aynı yönde)"]
     for extra_line in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)):
         if extra_line:
             lines += ["", extra_line]
