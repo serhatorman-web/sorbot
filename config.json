@@ -62,7 +62,7 @@
     ],
     "_equity_aciklama": "Boş liste = Binance'teki tüm hisse kontratları taranır. Eski büyük şirket listesi equity_whitelist_eski'de duruyor (geri almak için equity_whitelist'e kopyalanır).",
     "equity_whitelist": [],
-    "scan_equity_when_closed": false,
+    "scan_equity_when_closed": true,
     "min_quote_volume_24h": {
       "COIN": 3000000,
       "EQUITY": 3000000,
