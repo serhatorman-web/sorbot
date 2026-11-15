@@ -1521,12 +1521,12 @@ def indicator_list_lines(res, direction):
     neu = [n for n, v in res["votes"] if v == 0]
     word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
     icon = {"AL": "🟢", "SAT": "🔴"}
-    out = [f"{icon[word]} {word} ({len(same)}/{len(res['votes'])}): " + ", ".join(same)]
+    out = [f"{icon[word]} {word} {len(same)}: " + ", ".join(same)] if same else []
     # boş olan satır (ör. %100 AL iken SAT/Nötr) yazılmaz
     if opp:
-        out += ["", f"{icon[oword]} {oword}: " + ", ".join(opp)]
+        out += ([""] if out else []) + [f"{icon[oword]} {oword} {len(opp)}: " + ", ".join(opp)]
     if neu:
-        out += ["", "⚪ Nötr: " + ", ".join(neu)]
+        out += ([""] if out else []) + [f"⚪ Nötr {len(neu)}: " + ", ".join(neu)]
     return out
 
 
