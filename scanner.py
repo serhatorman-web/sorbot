@@ -1630,6 +1630,25 @@ def tv_rating(res):
     return label, icon, sum(1 for x in vs if x == 1) / n * 100, sum(1 for x in vs if x == -1) / n * 100, o["all"]
 
 
+def rating_votes(res):
+    """Teknik görünüm için kullanılan tüm indikatörler: mesajdaki indikatör listesi + Supertrend + SSL Hybrid +
+    Pivot (fiyat pivotun üstünde/altında). Listede zaten olanlar tekrar sayılmaz."""
+    f, i = res["f"], res["i"]
+    votes = list(res.get("votes") or [])
+    names = {n for n, _ in votes}
+    c = f["c"][i]
+    sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
+    if "Supertrend" not in names and f.get("st_dir"):
+        votes.append(("Supertrend", f["st_dir"][i] or 0))
+    ssl = (f.get("ssl") or [None] * (i + 1))[i]
+    if ssl is not None:
+        votes.append(("SSL Hybrid", sgn(c - ssl)))
+    pv = res.get("pivot")
+    if pv:
+        votes.append(("Pivot", sgn(c - pv["P"])))
+    return votes
+
+
 def technical_rating(votes):
     """Teknik görünüm – TradingView Technical Ratings eşikleri. Her indikatör AL +1 / Nötr 0 / SAT -1;
     net = ortalama (-1..+1, mesajda % olarak):
@@ -1742,7 +1761,7 @@ def build_message(res, direction, cfg, now_utc):
     # teknik görünüm (Güçlü AL / AL / Nötr / SAT / Güçlü SAT, yüzdeli) + trend uyum satırları; güven skoru yok
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True):
-        align.insert(0, technical_rating_line(res["votes"]))
+        align.insert(0, technical_rating_line(rating_votes(res)))
     top = []
     for x in align:
         top += [x, ""]
