@@ -199,9 +199,9 @@
   "strategy": "supertrend",
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
   "signal_supertrend": {
-    "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, lider filtresi kapalı). Eski filtreli hal için min_score 90 ve block_against_leader true yapın.",
+    "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, min_score_gap -100 = indikatör oylaması ters olsa da gelir, lider filtresi kapalı). Eski filtreli hal için min_score 90, min_score_gap 25 ve block_against_leader true yapın.",
     "min_score": 0,
-    "min_score_gap": 0,
+    "min_score_gap": -100,
     "block_against_leader": false,
     "cooldown_hours": 1,
     "max_signals_per_run": 200

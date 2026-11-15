@@ -139,9 +139,6 @@ kapitülasyon mumu (gövde ≥ 1.5–2 ATR, hacim ≥ 1.5–3x) → yeni dip/tep
 son mum dengelenme bölgesinin tepesini (dibini) kapanışla aşar. Stop dibin altında / tepenin üstünde;
 dip/tepe girişten 3 ATR'den uzaksa sinyal gelmez. 15dk, 1s, 4s; LONG ve SHORT. Kurallar `config.json → early_reversal.rules`.
 
-## Kalite notu
-Başlıkta 🅰️ / 🅱️ / Ⓒ: üst zaman dilimi uyumu, Ichimoku ≥3/4, sinyal yönünde ✅ retest, BTC/QQQ aynı yön.
-
 ## Nasıl çalışır? (genel akış ve "score" stratejisi)
 
 1. Binance'ten tüm USDT.P kontratları, 24s hacim, fonlama oranları alınır.

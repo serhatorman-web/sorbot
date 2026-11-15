@@ -632,23 +632,6 @@ def test_swing_anchor():
     assert ta.swing_anchor([50] + h, [1] + l, 7) == 2
 
 
-def test_quality_grade():
-    base = {"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1, "1w": -1}, "tf_rows": scanner.TF_ROWS,
-            "tline": [{"type": "falling", "retest": "confirmed", "tf": "1h"}], "vp_ev": {},
-            "_ichi": {"n_ok": 4, "confirmed": [], "against": []},
-            "leader_name": "BTC", "leader_bias": 0.8}
-    cfg = {"timeframe": "1h"}
-    g, ch = scanner.quality_grade(dict(base), "long", cfg)
-    assert ch == {"htf": False, "ichi": True, "retest": True, "leader": True} and g == "B", (g, ch)   # 1 hafta ters
-    g, ch = scanner.quality_grade(dict(base, tf={"15m": 1, "1h": 1, "4h": 1, "1d": 0, "1w": 1}), "long", cfg)
-    assert g == "A", (g, ch)
-    g, ch = scanner.quality_grade(dict(base, tf={"1h": -1}, tline=[], leader_bias=-0.9), "long", cfg)
-    assert g == "C" and ch["htf"] is False and ch["retest"] is False and ch["leader"] is False, (g, ch)
-    # lider yok (emtia): 3 koşulun hepsi → A
-    g, ch = scanner.quality_grade(dict(base, tf={"1h": 1}, leader_name="4s trend"), "long", cfg)
-    assert ch["leader"] is None and g == "A", (g, ch)
-
-
 def test_early_reversal():
     n = 40
     o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n; v = [10.0] * n
