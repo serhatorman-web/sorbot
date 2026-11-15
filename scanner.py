@@ -1712,7 +1712,7 @@ def technical_rating_line(votes, rating=None):
     parts = [f"AL %{b}", f"SAT %{sl}"]
     if "SAT" in label:
         parts.reverse()
-    return f"<b>Teknik görünüm:</b> {icon} {label} · " + " · ".join(parts)
+    return f"<b>İşlem Skoru :</b> {icon} {label} · ({parts[0]} / {parts[1]})"
 
 
 def indicator_list_lines(res, direction):
