@@ -20,6 +20,7 @@ def variants(h, l, c, v):
     raw = [None if hh[i] is None else (0.0 if hh[i] == ll[i] else 100 * (c[i] - ll[i]) / (hh[i] - ll[i])) for i in range(n)]
     sk = ta.sma(raw, 3); sd = ta.sma(sk, 3)
     cc = ta.cci(h, l, c, 20)
+    cc2 = ta.cci(c, c, c, 20)
     ax, pdi, ndi = ta.adx(h, l, c, 14)
     hl2 = [(a + b) / 2 for a, b in zip(h, l)]
     ao = [None if a is None or b is None else a - b for a, b in zip(ta.sma(hl2, 5), ta.sma(hl2, 34))]
@@ -45,7 +46,8 @@ def variants(h, l, c, v):
                 "lvl": [s(sk[i] < 20 and sd[i] < 20, sk[i] > 80 and sd[i] > 80) for i in rng],
                 "k": [s(sk[i] < 20 and sk[i] > sd[i], sk[i] > 80 and sk[i] < sd[i]) for i in rng]}
     V["cci"] = {"std": [s(cc[i] < -100 and cc[i] > cc[i-1], cc[i] > 100 and cc[i] < cc[i-1]) for i in rng],
-                "lvl": [s(cc[i] < -100, cc[i] > 100) for i in rng]}
+                "lvl": [s(cc[i] < -100, cc[i] > 100) for i in rng],
+                "close": [s(cc2[i] < -100 and cc2[i] > cc2[i-1], cc2[i] > 100 and cc2[i] < cc2[i-1]) for i in rng]}
     V["adx"] = {"rise": [s(pdi[i] > ndi[i] and ax[i] > 20 and ax[i] > ax[i-1], pdi[i] < ndi[i] and ax[i] > 20 and ax[i] > ax[i-1]) for i in rng],
                 "help": [s(pdi[i] > ndi[i] and ax[i] > 20 and ax[i] > ax[i-1], pdi[i] < ndi[i] and ax[i] > 20 and ax[i] < ax[i-1]) for i in rng],
                 "lvl": [s(pdi[i] > ndi[i] and ax[i] > 20, pdi[i] < ndi[i] and ax[i] > 20) for i in rng]}
@@ -106,3 +108,11 @@ print("RESULT", best, "uyuşmaz /", sum(len(t) for _, _, t in allV), choice)
 for k in keys:
     for opt in allV[0][1][k]:
         print("TRY", k, opt, score(dict(choice, **{k: opt})))
+
+for sym, V, tvv in allV:
+    m = len(tvv); d = {}
+    for j in range(m):
+        tot = sum(V[k][choice[k]][300 - m + j] for k in keys)
+        if tot != tvv[j]:
+            d[tvv[j] - tot] = d.get(tvv[j] - tot, 0) + 1
+    print("DIFF", sym, d)
