@@ -2123,12 +2123,15 @@ def main():
     pcfg = cfg.get("pivot_signal", {})
     piv_n = 0
     if pcfg.get("enabled", False):
+        sent_st = {(r["meta"]["symbol"], d) for _, d, r in picks[:maxn]}
         for r in results:
             if piv_n >= pcfg.get("max_per_scan", 20):
                 break
             f_, i_ = r["f"], r["i"]
             pv = pivot_from_bars(f_, i_, cfg["timeframe"])
             for d, s_ in (("long", 1), ("short", -1)):
+                if (r["meta"]["symbol"], d) in sent_st:
+                    continue                  # aynı mumda Supertrend sinyali gitti; Pivots bölümü onun içinde
                 sig = pivot_signal(f_, i_, s_, pv)
                 if not sig:
                     continue
