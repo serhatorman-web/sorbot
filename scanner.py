@@ -1640,9 +1640,6 @@ def build_message(res, direction, cfg, now_utc):
             lines += ["", "✅ <b>Teyitler:</b>"] + [f"• {x}" for x in ok]
         if pa:
             lines += ["", "🕯️ <b>Price action:</b>"] + [f"• {x}" for x in pa]
-        if crit.get("ob_block"):
-            lines += ["", f"⚠️ TP1'den önce {'ayı' if direction == 'long' else 'boğa'} order block'u var → "
-                          f"fiyat TP1'e gelmeden orada {'satışla' if direction == 'long' else 'alımla'} karşılaşabilir"]
         lines += ["", f"📌 {trigger_name(cfg)}: {st_txt}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
@@ -2040,14 +2037,8 @@ def main():
             if risk_ / f_["c"][i_] * 100 > ecfg.get("max_risk_pct", 100):
                 continue                      # stop girişten çok uzak (ör. %5'ten fazla) → sinyal yok
             crit = early_criteria(f_, i_, s_, ev, None if r["meta"]["symbol"] == "BTCUSDT" else btc_f)
-            # TP1'e kadar karşı yönde tüketilmemiş order block (engel) var mı?
-            tp1_ = f_["c"][i_] + s_ * risk_
-            opp = ta.order_blocks(f_["o"], f_["h"], f_["l"], f_["c"], f_["atr"], -s_, i_ + 1)
-            crit["ob_block"] = any((f_["c"][i_] < lo < tp1_) if s_ == 1 else (tp1_ < hi < f_["c"][i_]) for lo, hi, _ in opp)
             if not all(crit.get(k) is True for k in rule.get("require", [])):
                 continue
-            if any(crit.get(k) is True for k in rule.get("exclude", [])):
-                continue                      # testte sonucu kötüleştiren durum (ör. LONG'da dip boğa OB'sinde)
             ev["criteria"] = crit
             key = f"{r['meta']['symbol']}|early_{d}"
             ext_t = f_["t"][ev["ext_i"]]

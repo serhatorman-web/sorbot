@@ -146,18 +146,18 @@
     "enabled": true
   },
   "early_reversal": {
-    "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Her zaman dilimi/yön için 'require' listesindeki teyitlerin hepsi gerekir (150 coinde geçmiş test, dönem ikiye bölünerek doğrulandı). Teyitli PF: 1s LONG 2.94 (iki yarıda 3.68/2.16), 4s LONG 1.70 (1.48/2.01), 4s SHORT 2.11 (2.92/1.75, az sinyal). Kararsız (iki yarıda farklı): 15dk LONG 1.17 (2.15/0.40), 15dk SHORT 2.06 (0.48/4.33), 1s SHORT 1.29 (0.42/2.53). Anahtarlar: btc_mom, btc_st, btc_not_against, sweep, htf_with, ema200_side, vp_level, wick. 'exclude': bu durum varsa sinyal yok – LONG'da dip boğa order block'unda (ob_zone; testte 1s/4s'te sonucu kötüleştirdi), 1s SHORT'ta TP1 önünde boğa order block'u (ob_block; iki dönemde de kötüleştirdi).",
+    "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Her zaman dilimi/yön için 'require' listesindeki teyitlerin hepsi gerekir (150 coinde geçmiş test, dönem ikiye bölünerek doğrulandı). Teyitli PF: 1s LONG 2.94 (iki yarıda 3.68/2.16), 4s LONG 1.70 (1.48/2.01), 4s SHORT 2.11 (2.92/1.75, az sinyal). Kararsız (iki yarıda farklı): 15dk LONG 1.17 (2.15/0.40), 15dk SHORT 2.06 (0.48/4.33), 1s SHORT 1.29 (0.42/2.53). Anahtarlar: btc_mom, btc_st, btc_not_against, sweep, htf_with, ema200_side, vp_level, wick.",
     "enabled": true,
     "window": 8,
     "max_per_scan": 10,
     "max_risk_atr": 3.0,
     "max_risk_pct": 5.0,
     "rules": {
-      "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_not_against", "sweep"], "exclude": ["ob_zone"]},
+      "15m": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_not_against", "sweep"]},
               "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["htf_with", "ema200_side", "pa_hammer"]}},
-      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_mom", "sweep", "pa_strong_close"], "exclude": ["ob_zone"]},
-             "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["wick", "htf_with"], "exclude": ["ob_block"]}},
-      "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["btc_st", "htf_with"], "exclude": ["ob_zone"]},
+      "1h": {"long": {"body_atr": 2.0, "vol_x": 3.0, "rsi_th": 25, "require": ["btc_mom", "sweep", "pa_strong_close"]},
+             "short": {"body_atr": 1.5, "vol_x": 1.5, "rsi_th": 30, "require": ["wick", "htf_with"]}},
+      "4h": {"long": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["btc_st", "htf_with"]},
              "short": {"body_atr": 1.5, "vol_x": 2.0, "rsi_th": null, "require": ["vp_level", "htf_with"]}}
     }
   },
