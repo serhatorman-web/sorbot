@@ -746,25 +746,25 @@ def test_pivot_lines():
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}, "pivot": pv}
     out = scanner.pivot_lines(res, "long", {})
     assert out[0] == "📍 <b>Pivots</b> · günlük (Fibonacci)", out
-    assert out[1] == "P 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
-    assert out[2] == "✅ P üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
+    assert out[1] == "Pivot 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
+    assert out[2] == "✅ Pivot üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
     assert out[3] == "✅ Pivot stratejisi onaylıyor → LONG girilebilir", out
     assert out[4] == "TP1: R1 921.08 (+3.49%)" and out[7] == "Stop: S1 814.80 (-8.45%)", out
     f["qqe"] = [0] * n
     out = scanner.pivot_lines(res, "long", {})
     assert out[2].endswith("❌ QQE MOD gri") and out[-1] == "⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle", out
     out = scanner.pivot_lines(res, "short", {})
-    assert out[2].startswith("❌ P altında kapanış") and out[-1].startswith("⚠️"), out
+    assert out[2].startswith("❌ Pivot altında kapanış") and out[-1].startswith("⚠️"), out
 
 
 def test_pivot_retest_line():
     P, n = 100.0, 60
     cases = [([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.5, 101.5, 103, 105] + [106.0] * 10,
-              "✅ Retest: P test edildi ve tuttu → yükseliş teyit edildi"),
+              "✅ Retest: pivot test edildi ve tuttu → yükseliş teyit edildi"),
              ([95.0] * 40 + [101 + 3 * k for k in range(20)], "⬆️ Retest yapmadan yükseliş devam etti → geç giriş riski"),
-             ([95.0] * 55 + [101, 102, 102.5, 103, 103], "⏳ Retest: P'ye geri gelmedi, retest yapılmadı → bekle"),
+             ([95.0] * 55 + [101, 102, 102.5, 103, 103], "⏳ Retest: pivota geri gelmedi, retest yapılmadı → bekle"),
              ([95.0] * 40 + [101, 103, 104, 105, 104, 102, 100.4] + [100.6] * 13,
-              "🔄 Retest: P'ye geri geldi, test ediliyor → yükseliş teyidi bekleniyor")]
+              "🔄 Retest: pivota geri geldi, test ediliyor → yükseliş teyidi bekleniyor")]
     for c, want in cases:
         h = [x + 0.5 for x in c]; l = [x - 0.5 for x in c]
         f = {"c": c, "h": h, "l": l, "o": [c[0]] + c[:-1], "t": list(range(n)), "atr": ta.atr(h, l, c, 14)}

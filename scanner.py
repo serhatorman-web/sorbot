@@ -1359,17 +1359,17 @@ def pivot_retest_line(f, i, P, start):
     if ev and ev["kind"] == "break" and ev["state"] == "none" and a and abs(cc[-1] - P) > 2.5 * a:
         ev = dict(ev, state="away")                   # retest gelmeden fiyat P'den uzaklaştı
     if not ev:
-        return "⚪ Retest: fiyat P'den uzak, P'ye geri gelmedi"
+        return "⚪ Retest: fiyat pivottan uzak, pivota geri gelmedi"
     up = ev["dir"] == "up"
     mv = "yükseliş" if up else "düşüş"
     if ev["kind"] == "break":
-        return {"none": "⏳ Retest: P'ye geri gelmedi, retest yapılmadı → bekle",
-                "touch": f"🔄 Retest: P'ye geri geldi, test ediliyor → {mv} teyidi bekleniyor",
-                "confirmed": f"✅ Retest: P test edildi ve tuttu → {mv} teyit edildi",
+        return {"none": "⏳ Retest: pivota geri gelmedi, retest yapılmadı → bekle",
+                "touch": f"🔄 Retest: pivota geri geldi, test ediliyor → {mv} teyidi bekleniyor",
+                "confirmed": f"✅ Retest: pivot test edildi ve tuttu → {mv} teyit edildi",
                 "away": f"{'⬆️' if up else '⬇️'} Retest yapmadan {mv} devam etti → geç giriş riski"}[ev["state"]]
     role = "destek" if up else "direnç"
-    return {"touch": f"🔄 Retest: P'ye dokundu, {role} test ediliyor → tepki bekleniyor",
-            "confirmed": f"✅ Retest: P'den tepki geldi ({role} çalıştı) → {mv} teyit edildi"}[ev["state"]]
+    return {"touch": f"🔄 Retest: pivota dokundu, {role} test ediliyor → tepki bekleniyor",
+            "confirmed": f"✅ Retest: pivottan tepki geldi ({role} çalıştı) → {mv} teyit edildi"}[ev["state"]]
 
 
 def pivot_lines(res, direction, cfg):
@@ -1398,7 +1398,7 @@ def pivot_lines(res, direction, cfg):
             break
     when = ("bu mumda kapanış yaptı" if ago == 0 else f"{ago} mum önce kapanış yaptı") if ago is not None else "dönem başından beri"
     out = [f"📍 <b>Pivots</b> · {span} (Fibonacci)"]
-    out.append(f"P {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
+    out.append(f"Pivot {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
     rt = pivot_retest_line(f, i, P, pv["start"])
     if rt:
         out.append(rt)
@@ -1406,7 +1406,7 @@ def pivot_lines(res, direction, cfg):
     d = f["dyna"][i] or 0
     q = (f.get("qqe") or [0] * (i + 1))[i]
     mark = lambda ok: "✅" if ok else "❌"
-    checks = [(side == s, f"P {'üstünde' if up else 'altında'} kapanış"),
+    checks = [(side == s, f"Pivot {'üstünde' if up else 'altında'} kapanış"),
               (st == s, f"Supertrend {'AL' if st == 1 else 'SAT' if st == -1 else '—'}"),
               (d * s > 0, f"DynaRange {'yeşil' if d > 0 else 'kırmızı' if d < 0 else 'nötr'}"),
               (q == s, f"QQE MOD {'mavi' if q == 1 else 'pembe' if q == -1 else 'gri'}")]
