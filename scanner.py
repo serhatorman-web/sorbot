@@ -1668,7 +1668,7 @@ def technical_rating_line(votes):
     parts = [f"AL %{buy:.0f}", f"SAT %{sell:.0f}"]
     if "SAT" in label:
         parts.reverse()
-    return f"<b>Teknik görünüm:</b> {icon} {label} · {parts[0]} · {parts[1]} · net {net:+.0f}%"
+    return f"<b>Teknik görünüm:</b> {icon} {label} · {parts[0]} · {parts[1]}"
 
 
 def indicator_list_lines(res, direction):
