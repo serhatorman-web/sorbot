@@ -1706,8 +1706,10 @@ def build_message(res, direction, cfg, now_utc):
         head = "🔷 <b>SSL</b> · " + head
     if (res.get("pivot_sig") or {}).get("dir") == direction:
         head = "📍 <b>PIVOT</b> · " + head
-    # teknik görünüm ve güven skoru mesajda yok (kullanıcı isteği); sadece trend uyum satırları
+    # teknik görünüm (Güçlü AL / AL / Nötr / SAT / Güçlü SAT, yüzdeli) + trend uyum satırları; güven skoru yok
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
+    if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True):
+        align.insert(0, technical_rating_line(res["votes"]))
     top = []
     for x in align:
         top += [x, ""]

@@ -150,6 +150,10 @@
     "enabled": false,
     "max_per_scan": 20
   },
+  "technical_rating": {
+    "_aciklama": "Mesajın başında Teknik görünüm: indikatör oylarının AL % / SAT % ile Güçlü AL (AL %75+) / AL (%65-74) / Nötr / SAT (%65-74) / Güçlü SAT (SAT %75+).",
+    "enabled": true
+  },
   "pivots": {
     "_aciklama": "Mesajda Price action üstünde 📍 Pivots bölümü (TradingView Pivot Points Standard, Fibonacci, Auto: 15dk günlük, 1s/4s haftalık). Kullanıcı stratejisi: P üstünde/altında kapanış + Supertrend + DynaRange + QQE MOD aynı yönde → TP R1-R2-R3 (SHORT: S1-S2-S3), stop S1 (SHORT: R1).",
     "enabled": true
