@@ -1,0 +1,16 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for tf in 15m 1h; do
+            echo "##### $tf"
+            if [ "$tf" = "1h" ]; then DRY_RUN=1 python3 scanner.py; else DRY_RUN=1 SORBOT_TF=$tf python3 scanner.py; fi > out_$tf.txt 2>&1; echo "çıkış kodu $?"
+            grep -E "Taranacak|Mum verisi|Analiz|Gönderildi|Erken dönüş|Bitti|Error|Traceback|HATA|line [0-9]+" out_$tf.txt | head -30
+          done
