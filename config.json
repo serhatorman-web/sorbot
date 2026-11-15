@@ -147,7 +147,7 @@
   },
   "early_reversal": {
     "_aciklama": "ERKEN DÖNÜŞ sinyali: sert ve hacimli düşüş/yükseliş sonrası dip/tepe tutunca, Supertrend'i beklemeden. Her zaman dilimi/yön için 'require' listesindeki teyitlerin hepsi gerekir (150 coinde geçmiş test, dönem ikiye bölünerek doğrulandı). Teyitli PF: 1s LONG 2.94 (iki yarıda 3.68/2.16), 4s LONG 1.70 (1.48/2.01), 4s SHORT 2.11 (2.92/1.75, az sinyal). Kararsız (iki yarıda farklı): 15dk LONG 1.17 (2.15/0.40), 15dk SHORT 2.06 (0.48/4.33), 1s SHORT 1.29 (0.42/2.53). Anahtarlar: btc_mom, btc_st, btc_not_against, sweep, htf_with, ema200_side, vp_level, wick.",
-    "enabled": true,
+    "enabled": false,
     "window": 8,
     "max_per_scan": 10,
     "max_risk_atr": 3.0,
