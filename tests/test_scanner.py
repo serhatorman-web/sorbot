@@ -708,10 +708,10 @@ def test_order_block_lines():
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}}
     out = scanner.order_block_lines(res, {"timeframe": "1h"})
     assert out[0] == "🧱 <b>Order block</b> · 1 saat", out
-    assert out[1] == "🟢 Boğa OB 98.80 – 100.20 · fiyatın %1.8 altında (destek)", out
+    assert out[1] == "🟢 Boğa OB 98.80 – 100.20 · fiyatın %1.8 altında (destek) → düşüşte ilk destek, buradan tepki beklenir", out
     c[n - 1] = 100.1; l[n - 1] = 99.9
     out = scanner.order_block_lines(res, {"timeframe": "1h"})
-    assert out[1].endswith("fiyat bölgede, destek test ediliyor"), out
+    assert out[1].endswith("fiyat bölgede, destek test ediliyor → tutarsa yükseliş, kapanışla altına inerse düşüş bekleniyor"), out
 
 
 def test_signal_price_action():

@@ -1032,13 +1032,16 @@ def order_block_lines(res, cfg):
         name = "🟢 Boğa OB" if s == 1 else "🔴 Ayı OB"
         role = "destek" if s == 1 else "direnç"
         touched = any((f["l"][k] <= hi) if s == 1 else (f["h"][k] >= lo) for k in range(max(0, i - 4), i + 1))
+        mv, other = ("yükseliş", "düşüş") if s == 1 else ("düşüş", "yükseliş")
         if dist <= 0:
-            st = f"fiyat bölgede, {role} test ediliyor"
+            st = (f"fiyat bölgede, {role} test ediliyor → tutarsa {mv}, kapanışla "
+                  f"{'altına inerse' if s == 1 else 'üstüne çıkarsa'} {other} bekleniyor")
         elif touched and dist >= 0.5 * a:
-            st = f"✅ bölgeden tepki geldi ({role} çalıştı)"
+            st = f"✅ bölgeden tepki geldi ({role} çalıştı) → {mv} bekleniyor"
         else:
             pct_ = dist / price * 100
-            st = f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role})"
+            st = (f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role}) → "
+                  f"{'düşüşte ilk destek, buradan tepki beklenir' if s == 1 else 'yükselişte ilk direnç, buradan satış beklenir'}")
         out.append(f"{name} {zone} · {st}")
     return ([f"🧱 <b>Order block</b> · {span}"] + out) if out else []
 
