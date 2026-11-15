@@ -5,7 +5,7 @@ permissions:
 jobs:
   diag:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/sr_bt.py
+      - run: python3 tools/ob2.py

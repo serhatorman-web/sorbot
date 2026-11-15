@@ -431,53 +431,6 @@ def order_blocks(open_, high, low, close, atr_, s, end, lookback=300, disp_atr=2
     return obs
 
 
-def structure_reversal(high, low, close, volume, vol_ma, s, piv=3, lookback=80, vol_x=1.5):
-    """YAPI DÖNÜŞÜ (son mumda). LONG (s=1): düşüş yapısında (H1 > H2 alçalan tepe) yükselen dip (L2 > L1) oluştu
-    ve son mum, son alçalan tepeyi (H2) ilk kez hacimle (≥ vol_x × ortalama) kapanışla geçti (CHoCH).
-    Sıra: H1 < L1 < H2 < L2 < son mum (pivotlar sağ/sol `piv` mumla onaylı). SHORT (s=-1) tersi.
-    Döner: None | {"l2": int, "l2_price": float, "h2_price": float, "vol_x": float}"""
-    i = len(close) - 1
-    lo = max(piv, i - lookback)
-
-    def pivots(arr, kind):
-        out = []
-        for k in range(lo, i - piv + 1):
-            w = arr[k - piv:k + piv + 1]
-            if (kind == "h" and arr[k] == max(w)) or (kind == "l" and arr[k] == min(w)):
-                if not out or k - out[-1] > piv:
-                    out.append(k)
-        return out
-    ph, pl = pivots(high, "h"), pivots(low, "l")
-    tops, bots = (ph, pl) if s == 1 else (pl, ph)
-    tarr, barr = (high, low) if s == 1 else (low, high)
-    if not bots or not tops:
-        return None
-    l2 = bots[-1]
-    h2s = [k for k in tops if k < l2]
-    if not h2s:
-        return None
-    h2 = h2s[-1]
-    l1s = [k for k in bots if k < h2]
-    if not l1s:
-        return None
-    l1 = l1s[-1]
-    h1s = [k for k in tops if k < l1]
-    if not h1s:
-        return None
-    h1 = h1s[-1]
-    better = (lambda a, b: a > b) if s == 1 else (lambda a, b: a < b)
-    if not (better(tarr[h1], tarr[h2]) and better(barr[l2], barr[l1])):
-        return None                                   # alçalan tepe + yükselen dip yok
-    lvl = tarr[h2]
-    if not ((close[i] > lvl) if s == 1 else (close[i] < lvl)):
-        return None
-    if any(((close[k] > lvl) if s == 1 else (close[k] < lvl)) for k in range(h2 + 1, i)):
-        return None                                   # seviye daha önce geçilmiş → ilk kırılım değil
-    if not vol_ma[i] or volume[i] < vol_x * vol_ma[i]:
-        return None
-    return {"l2": l2, "l2_price": barr[l2], "h2_price": lvl, "vol_x": volume[i] / vol_ma[i]}
-
-
 def swing_anchor(high, low, lookback=300):
     """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
     Hacim profili bu mumdan son muma kadar hesaplanır."""
