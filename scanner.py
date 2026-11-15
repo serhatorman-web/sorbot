@@ -1862,8 +1862,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
         lines += ["", SEP, f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}", ""] + indicator_list_lines(res, direction)
-    for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res),
-                  ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
+    for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
+                  trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                   divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += ["", SEP] + block
