@@ -1302,6 +1302,8 @@ def signal_price_action(f, i, s):
     ref = piv_hi if s == 1 else piv_lo
     out["pa_bos"] = bool(ref) and ((c_[i] > h_[ref[0]]) if s == 1 else (c_[i] < l_[ref[0]]))
     out["_bos_level"] = (h_[ref[0]] if s == 1 else l_[ref[0]]) if ref else None
+    # kırılımdan önceki yapı tersse (LONG: alçalan tepeler, SHORT: yükselen dipler) bu bir karakter değişimi (CHoCH)
+    out["_choch"] = len(ref) >= 2 and ((h_[ref[0]] < h_[ref[1]]) if s == 1 else (l_[ref[0]] > l_[ref[1]]))
     two = piv_lo[:2] if s == 1 else piv_hi[:2]
     out["pa_structure"] = len(two) == 2 and ((l_[two[0]] > l_[two[1]]) if s == 1 else (h_[two[0]] < h_[two[1]]))
     return out
@@ -1316,11 +1318,20 @@ def price_action_lines(res, direction, cfg):
     up = direction == "long"
     lvl = pa.get("_bos_level")
     lvl_txt = f" {fmt_price(lvl, res['meta'].get('precision'))}" if lvl is not None else ""
+    choch = pa.get("_choch")
+    if choch:
+        bos_name = (f"Karakter değişimi (CHoCH): son {'alçalan tepe (LH)' if up else 'yükselen dip (HL)'}{lvl_txt} "
+                    f"kapanışla geçildi")
+    else:
+        bos_name = f"Yapı kırılımı (BOS): son {'tepe' if up else 'dip'}{lvl_txt} kapanışla geçildi"
     names.update({"pa_hammer": "Pin bar / çekiç (uzun alt iğne)" if up else "Pin bar / ters çekiç (uzun üst iğne)",
-                  "pa_bos": f"Yapı kırılımı (son {'tepe' if up else 'dip'}{lvl_txt} kapanışla geçildi)",
-                  "pa_structure": "Yükselen dipler" if up else "Alçalan tepeler"})
+                  "pa_bos": bos_name,
+                  "pa_structure": "Yükselen dipler (HL)" if up else "Alçalan tepeler (LH)"})
     order = ("pa_bos", "pa_structure", "pa_engulf", "pa_hammer", "pa_star", "pa_inside_break", "pa_strong_close")
     res_txt = pa_result_texts(direction)
+    mv = "yükseliş" if up else "düşüş"
+    res_txt["pa_bos"] = (f"trend {'yukarı' if up else 'aşağı'} döndü, {mv} teyit edildi" if choch
+                         else f"{mv} trendi devam ediyor")
     ok = [f"{names[k]} → {res_txt[k]}" for k in order if pa.get(k)]
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     return [f"🕯️ <b>Price action</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
@@ -1357,8 +1368,8 @@ def early_criteria_names(direction, tf):
             "pa_engulf": f"Yutan {'boğa' if up else 'ayı'} mumu",
             "pa_hammer": "Çekiç / pin bar (dipte uzun alt iğne)" if up else "Ters çekiç / pin bar (tepede uzun üst iğne)",
             "pa_star": "Sabah yıldızı" if up else "Akşam yıldızı",
-            "pa_higher_low": "Yükselen dip (dip tekrar test edildi, tuttu)" if up else "Alçalan tepe (tepe tekrar test edildi, tuttu)",
-            "pa_choch": f"Karakter değişimi (son {'alçalan tepe' if up else 'yükselen dip'} kırıldı)",
+            "pa_higher_low": "Yükselen dip (HL): dip tekrar test edildi, tuttu" if up else "Alçalan tepe (LH): tepe tekrar test edildi, tuttu",
+            "pa_choch": f"Karakter değişimi (CHoCH): son {'alçalan tepe (LH)' if up else 'yükselen dip (HL)'} kırıldı",
             "pa_inside_break": f"İç mum {'yukarı' if up else 'aşağı'} kırıldı",
             "pa_strong_close": f"Güçlü kapanış (mum {'tepesine' if up else 'dibine'} yakın)"}
 

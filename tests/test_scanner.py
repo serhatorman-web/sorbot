@@ -724,7 +724,18 @@ def test_signal_price_action():
     pa = scanner.signal_price_action(f, n - 1, 1)
     assert pa["pa_engulf"] and pa["pa_strong_close"] and pa["pa_bos"], pa
     out = scanner.price_action_lines({"f": f, "i": n - 1, "meta": {"precision": 2}}, "long", {"timeframe": "1h"})
-    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and "✅ Yapı kırılımı (son tepe 100.50 kapanışla geçildi) → yükseliş trendi teyit edildi" in out, out
+    assert out[0] == "🕯️ <b>Price action</b> · 1 saat" and any(x.startswith("✅ Yapı kırılımı (BOS): son tepe 100.50") or x.startswith("✅ Karakter değişimi (CHoCH)") for x in out), out
+
+
+def test_choch_label():
+    n = 40
+    o = [100.0] * n; c = [100.0] * n; h = [100.5] * n; l = [99.5] * n
+    h[25] = 104.0; h[33] = 102.0                          # alçalan tepeler (LH)
+    o[39], c[39], h[39], l[39] = 100.0, 102.6, 102.7, 99.9  # son alçalan tepe kırıldı → CHoCH
+    f = {"o": o, "h": h, "l": l, "c": c, "atr": [1.0] * n}
+    out = scanner.price_action_lines({"f": f, "i": n - 1, "meta": {"precision": 2}}, "long", {"timeframe": "1h"})
+    assert any(x.startswith("✅ Karakter değişimi (CHoCH): son alçalan tepe (LH)") and "→ trend yukarı döndü, yükseliş teyit edildi" in x
+               for x in out), out
 
 
 if __name__ == "__main__":
