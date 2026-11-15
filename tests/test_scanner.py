@@ -746,7 +746,7 @@ def test_pivot_lines():
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}, "pivot": pv}
     out = scanner.pivot_lines(res, "long", {})
     assert out[0] == "📍 <b>Pivots</b> · günlük (Fibonacci)", out
-    assert out[1] == "⚪ P 867.94 · fiyat üstünde kapanış (2 mum önce kesti)", out
+    assert out[1] == "P 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
     assert out[2] == "✅ P üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
     assert out[3] == "✅ Pivot stratejisi onaylıyor → LONG girilebilir", out
     assert out[4] == "TP1: R1 921.08 (+3.49%)" and out[7] == "Stop: S1 814.80 (-8.45%)", out
