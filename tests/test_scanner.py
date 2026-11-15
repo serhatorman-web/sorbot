@@ -717,6 +717,17 @@ def test_ssl_signal():
     assert scanner.ssl_signal(dict(f, dyna=d2), 27, 1) == 22             # Buy'dan 5 mum sonra: geçerli
     assert scanner.ssl_signal(dict(f, dyna=d2), 27, 1, wait=4) is None   # bekleme aşıldı → yok
 
+def test_ssl_info_lines():
+    n = 30
+    c = [100.0] * 25 + [102.0] * 5
+    f = {"c": c, "ssl": [101.0] * n, "qqe": [0] * 29 + [1], "dyna": [1.0] * n}
+    out = scanner.ssl_info_lines({"f": f, "i": n - 1}, "long")
+    assert out == ["🔷 SSL Hybrid: 🟢 <b>AL</b> (4 mum önce)", "✅ 1. teyit: QQE MOD mavi",
+                   "✅ 2. teyit: DynaRange yeşil", "→ SSL stratejisi sinyali onaylıyor"], out
+    out = scanner.ssl_info_lines({"f": f, "i": n - 1}, "short")
+    assert out[1] == "❌ 1. teyit: QQE MOD mavi" and out[-1] == "⚠️ SSL stratejisi sinyali onaylamıyor", out
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

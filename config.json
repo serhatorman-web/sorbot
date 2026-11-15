@@ -146,8 +146,8 @@
     "enabled": true
   },
   "ssl_signal": {
-    "_aciklama": "SSL Hybrid ek sinyali (Supertrend sinyalleri ayrıca devam eder). Sıra: fiyat SSL çıkış çizgisini (HMA 15) keser (Buy/Sell) → 1. teyit: Buy/Sell mumunda ya da sonrasında QQE MOD mavi (pembe) → 2. teyit: DynaRange yeşil (kırmızı). Hepsi Buy/Sell'den en fazla wait_bars mum içinde.",
-    "enabled": true,
+    "_aciklama": "SSL Hybrid ayrı sinyali (şu an kapalı: SSL durumu Supertrend mesajında bilgi olarak gösterilir). Sıra: fiyat SSL çıkış çizgisini (HMA 15) keser (Buy/Sell) → 1. teyit: Buy/Sell mumunda ya da sonrasında QQE MOD mavi (pembe) → 2. teyit: DynaRange yeşil (kırmızı). Hepsi Buy/Sell'den en fazla wait_bars mum içinde.",
+    "enabled": false,
     "wait_bars": 5,
     "max_per_scan": 20
   },
@@ -189,7 +189,7 @@
   "strategy": "supertrend",
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
   "signal_supertrend": {
-    "enabled": false,
+    "enabled": true,
     "_enabled_aciklama": "false: Supertrend dönüş sinyalleri gönderilmez, sadece SSL Hybrid sinyalleri gelir (Supertrend mesajda destek bilgisi olarak görünür).",
     "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, min_score_gap -100 = indikatör oylaması ters olsa da gelir, lider filtresi kapalı). Eski filtreli hal için min_score 90, min_score_gap 25 ve block_against_leader true yapın.",
     "min_score": 0,

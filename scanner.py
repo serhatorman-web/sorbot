@@ -1214,6 +1214,34 @@ def ssl_signal(f, i, s, wait=5):
     return ev
 
 
+def ssl_info_lines(res, direction, lookback=50):
+    """Supertrend sinyalinin altında SSL Hybrid stratejisinin durumu (bilgi amaçlı):
+    SSL çizgisinin tarafı ve son kesişim, 1. teyit QQE MOD rengi, 2. teyit DynaRange rengi."""
+    f, i = res["f"], res["i"]
+    ssl, qqe, dyn, c = f.get("ssl"), f.get("qqe"), f.get("dyna"), f["c"]
+    if not ssl or ssl[i] is None or not qqe or dyn is None or dyn[i] is None:
+        return []
+    s = 1 if direction == "long" else -1
+    side = 1 if c[i] > ssl[i] else -1
+    ago = None
+    for j in range(i, max(1, i - lookback) - 1, -1):
+        if ssl[j] is None or ssl[j - 1] is None:
+            break
+        if (c[j] - ssl[j]) * side > 0 and (c[j - 1] - ssl[j - 1]) * side <= 0:
+            ago = i - j
+            break
+    when = "" if ago is None else (" (bu mumda)" if ago == 0 else f" ({ago} mum önce)")
+    mark = lambda v: "✅" if v == s else ("❌" if v == -s else "⚪")
+    q = qqe[i]
+    d = 1 if dyn[i] > 0 else (-1 if dyn[i] < 0 else 0)
+    out = [f"🔷 SSL Hybrid: {'🟢 <b>AL</b>' if side == 1 else '🔴 <b>SAT</b>'}{when}",
+           f"{mark(q)} 1. teyit: QQE MOD {'mavi' if q == 1 else 'pembe' if q == -1 else 'gri'}",
+           f"{mark(d)} 2. teyit: DynaRange {'yeşil' if d == 1 else 'kırmızı' if d == -1 else 'nötr'}"]
+    out.append("→ SSL stratejisi sinyali onaylıyor" if side == s and q == s and d == s
+               else "⚠️ SSL stratejisi sinyali onaylamıyor")
+    return out
+
+
 def _pa_basic(f, i, s):
     """Sinyal mumu formasyonları (LONG için; SHORT'ta tersi): pa_engulf yutan mum (sinyal ya da önceki mum),
     pa_inside_break iç mum kırılımı, pa_strong_close güçlü kapanış."""
@@ -1533,6 +1561,9 @@ def build_message(res, direction, cfg, now_utc):
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        si = ssl_info_lines(res, direction)
+        if si:
+            lines += [""] + si
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
