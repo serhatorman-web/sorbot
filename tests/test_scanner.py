@@ -804,3 +804,25 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("OK", name)
+
+
+def test_tv_rating():
+    import math
+    n = 400
+    c = [100 + 10 * math.sin(k / 15) + k * 0.05 for k in range(n)]
+    h = [x + 1 for x in c]
+    l = [x - 1 for x in c]
+    v = [1000.0] * n
+    o = ta.tv_technical_rating(h, l, c, v)
+    last = o[-1]
+    assert len(last["votes"]) == 26 and last["ma_n"] == 15 and last["osc_n"] == 11
+    assert -1 <= last["all"] <= 1
+    assert ta.tv_technical_rating(h, l, c, v, last_only=True)[-1]["all"] == last["all"]
+    assert scanner.rating_label(0.6)[0] == "GÜÇLÜ AL" and scanner.rating_label(0.5)[0] == "AL"
+    assert scanner.rating_label(0.1)[0] == "NÖTR" and scanner.rating_label(-0.1)[0] == "NÖTR"
+    assert scanner.rating_label(-0.5)[0] == "SAT" and scanner.rating_label(-0.51)[0] == "GÜÇLÜ SAT"
+    f = {"h": h, "l": l, "c": c, "v": v, "bv": v}
+    r = scanner.tv_rating({"f": f, "i": n - 1})
+    assert r and r[0] in ("GÜÇLÜ AL", "AL", "NÖTR", "SAT", "GÜÇLÜ SAT")
+    line = scanner.technical_rating_line([], r)
+    assert line.startswith("<b>Teknik görünüm:</b>") and "AL %" in line and "SAT %" in line

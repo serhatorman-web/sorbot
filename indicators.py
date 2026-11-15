@@ -874,7 +874,7 @@ def fmt_volume(v):
 
 
 
-def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25):
+def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25, last_only=False):
     """TradingView 'Technical Ratings' (TechnicalRating kütüphanesi): 15 hareketli ortalama + 11 osilatör.
     Her biri AL +1 / Nötr 0 / SAT -1; MA puanı ve osilatör puanı ayrı ortalanır, toplam = ikisinin ortalaması.
     Döner: her mum için {'all', 'osc', 'ma', 'votes': [+1/0/-1 ... 26 adet]} ya da None."""
@@ -913,7 +913,7 @@ def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25):
             raw[i] = 0.0 if hh[i] == ll[i] else 100 * (close[i] - ll[i]) / (hh[i] - ll[i])
     sk = sma(raw, 3)
     sd = sma(sk, 3)
-    cc = cci(high, low, close, 20)
+    cc = cci(close, close, close, 20)               # TradingView: ta.cci(close, 20)
     ax, pdi, ndi = adx(high, low, close, 14)
     a5, a34 = sma(hl2, 5), sma(hl2, 34)
     ao = [None if a is None or b is None else a - b for a, b in zip(a5, a34)]
@@ -936,7 +936,7 @@ def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25):
     tma = ema_tv(close, 50) if trend == "ema50" else sma(close, 50)
 
     out = [None] * n
-    for i in range(2, n):
+    for i in range(max(2, n - 1) if last_only else 2, n):
         mv = [ma_vote(m, i) for m in mas]
         l1, l2 = at(lead1, i, ichi_shift), at(lead2, i, ichi_shift)
         if None in (l1, l2, base[i], conv[i]):

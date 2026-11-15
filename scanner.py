@@ -1599,6 +1599,37 @@ def tf_table_html(res):
     return "\n".join(["📊 <b>TREND TABLOSU</b>", ""] + rows)
 
 
+def rating_label(net):
+    """TradingView Technical Ratings eşikleri (net -1..+1)."""
+    if net > 0.5:
+        return "GÜÇLÜ AL", "🟢🟢"
+    if net > 0.1:
+        return "AL", "🟢"
+    if net >= -0.1:
+        return "NÖTR", "⚪"
+    if net >= -0.5:
+        return "SAT", "🔴"
+    return "GÜÇLÜ SAT", "🔴🔴"
+
+
+def tv_rating(res):
+    """TradingView 'Technical Ratings' göstergesinin birebir hesabı (15 MA + 11 osilatör) — son mum.
+    Döner: (etiket, ikon, AL %, SAT %, toplam puan) ya da None."""
+    f = res["f"]
+    i = res["i"]
+    try:
+        vol = f.get("bv") or f["v"]                   # TradingView VWMA adet cinsinden hacim kullanır
+        o = ta.tv_technical_rating(f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1], vol[:i + 1], last_only=True)[-1]
+    except Exception:  # noqa: BLE001
+        return None
+    if not o or o["all"] is None:
+        return None
+    vs = [x for x in o["votes"] if x is not None]
+    n = len(vs) or 1
+    label, icon = rating_label(o["all"])
+    return label, icon, sum(1 for x in vs if x == 1) / n * 100, sum(1 for x in vs if x == -1) / n * 100, o["all"]
+
+
 def technical_rating(votes):
     """Teknik görünüm – TradingView Technical Ratings eşikleri. Her indikatör AL +1 / Nötr 0 / SAT -1;
     net = ortalama (-1..+1, mesajda % olarak):
@@ -1662,8 +1693,8 @@ def own_tf_alignment_line(res, direction, cfg):
     return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
 
 
-def technical_rating_line(votes):
-    label, icon, buy, sell, net = technical_rating(votes)
+def technical_rating_line(votes, rating=None):
+    label, icon, buy, sell, net = rating or technical_rating(votes)
     # SAT / GÜÇLÜ SAT'ta önce SAT yüzdesi, diğerlerinde önce AL yüzdesi
     b, sl = round(buy), round(sell)
     parts = [f"AL %{b}", f"SAT %{sl}"]
@@ -1711,7 +1742,7 @@ def build_message(res, direction, cfg, now_utc):
     # teknik görünüm (Güçlü AL / AL / Nötr / SAT / Güçlü SAT, yüzdeli) + trend uyum satırları; güven skoru yok
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True):
-        align.insert(0, technical_rating_line(res["votes"]))
+        align.insert(0, technical_rating_line(res["votes"], tv_rating(res)))
     top = []
     for x in align:
         top += [x, ""]
