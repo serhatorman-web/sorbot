@@ -830,7 +830,7 @@ def test_tv_rating():
     r = scanner.tv_rating({"f": f, "i": n - 1})
     assert r and r[0] in ("GÜÇLÜ AL", "AL", "NÖTR", "SAT", "GÜÇLÜ SAT")
     line = scanner.technical_rating_line([], r)
-    assert line.startswith("<b>İşlem Skoru :</b>") and "AL %" in line and "SAT %" in line
+    assert line.startswith("<b>İŞLEM SKORU :</b>") and "AL %" in line and "SAT %" in line
 
 
 def test_rating_votes():

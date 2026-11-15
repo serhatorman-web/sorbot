@@ -1712,7 +1712,7 @@ def technical_rating_line(votes, rating=None):
     parts = [f"AL %{b}", f"SAT %{sl}"]
     if "SAT" in label:
         parts.reverse()
-    return f"<b>İşlem Skoru :</b> {icon} {label} · ({parts[0]} / {parts[1]})"
+    return f"<b>İŞLEM SKORU :</b> {icon} {label} · ({parts[0]} / {parts[1]})"
 
 
 def indicator_list_lines(res, direction):
@@ -1795,13 +1795,13 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", SEP, f"📌 Tetik: SSL Hybrid {'🟢 <b>AL</b>' if up else '🔴 <b>SAT</b>'}",
                   f"✅ 1. teyit: QQE MOD {'mavi' if up else 'pembe'} → {'alıcılar' if up else 'satıcılar'} güçlü",
                   f"✅ 2. teyit: DynaRange {'yeşil' if up else 'kırmızı'} → {'yükseliş' if up else 'düşüş'} teyit edildi",
-                  "", f"📌 {trigger_name(cfg)}: {st_txt}{st_note}"]
+                  "", f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}{st_note}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         if psig:
             lines += ["", SEP, f"📌 Tetik: Pivot {'üstünde' if direction == 'long' else 'altında'} kapanış "
                                f"+ Supertrend, DynaRange, QQE MOD onayı"]
-        lines += ([""] if psig else ["", SEP]) + [f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        lines += ([""] if psig else ["", SEP]) + [f"📌 <b>{trigger_name(cfg).upper()}</b>: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
         si = ssl_info_lines(res, direction) if cfg.get("ssl_info", {}).get("enabled", True) else []
         if si:
             lines += [""] + si
@@ -1861,7 +1861,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 {trigger_name(cfg)}: {st_txt}", ""] + indicator_list_lines(res, direction)
+        lines += ["", SEP, f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}", ""] + indicator_list_lines(res, direction)
     for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res),
                   ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                   divergence_lines(res), volume_lines(res, cfg)):
