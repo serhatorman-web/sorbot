@@ -1665,10 +1665,12 @@ def own_tf_alignment_line(res, direction, cfg):
 def technical_rating_line(votes):
     label, icon, buy, sell, net = technical_rating(votes)
     # SAT / GÜÇLÜ SAT'ta önce SAT yüzdesi, diğerlerinde önce AL yüzdesi
-    parts = [f"AL %{buy:.0f}", f"SAT %{sell:.0f}"]
+    b, sl = round(buy), round(sell)
+    parts = [f"AL %{b}", f"SAT %{sl}"]
     if "SAT" in label:
         parts.reverse()
-    return f"<b>Teknik görünüm:</b> {icon} {label} · {parts[0]} · {parts[1]}"
+    parts.append(f"Nötr %{max(0, 100 - b - sl)}")       # toplam %100
+    return f"<b>Teknik görünüm:</b> {icon} {label} · " + " · ".join(parts)
 
 
 def indicator_list_lines(res, direction):
