@@ -630,6 +630,7 @@ def indicator_votes(f, i, leader_bias, leader_name, trigger="trendflex"):
         ("EWO", sgn(f["ewo"][i]) if f["ewo"][i] is not None else 0),   # SMA5 - SMA35
         ("WaveTrend", sgn(f["wt1"][i] - f["wt2"][i]) if None not in (f["wt1"][i], f["wt2"][i]) else 0),  # WT1/WT2
         ("DynaRange", sgn(f["dyna"][i]) if f["dyna"][i] is not None else 0),   # EMA10(ohlc4) - EMA18(ohlc4)
+        ("QQE MOD", (f.get("qqe") or [0] * (i + 1))[i]),   # QQE MOD çubuğu: mavi AL, pembe SAT, gri nötr
         # tetik olmayan gösterge listede oy verir: tetik TrendFlex ise Supertrend, Supertrend ise TrendFlex
         (("Supertrend", f["st_dir"][i] or 0) if trigger == "trendflex"
          else ("TrendFlex", (f.get("tflex") or [0] * (i + 1))[i] or 0)),
