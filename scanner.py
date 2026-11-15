@@ -242,6 +242,8 @@ def compute_features(candles, cfg):
     f["dyna"] = ta.dynarange(f["o"], h, l, c, *p.get("dynarange", [10, 18]))
     f["tflex"], f["tflex_line"] = ta.trendflex(h, l, c, *p.get("trendflex", [4.0, 11]))
     f["sma13"] = ta.sma(c, 13)
+    f["ssl"] = ta.ssl_exit(h, l, c, 15)          # SSL Hybrid Advanced çıkış çizgisi (Buy/Sell)
+    f["qqe"] = ta.qqe_mod(c)                     # QQE MOD çubuk rengi: +1 mavi, -1 pembe, 0 gri
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
@@ -1174,6 +1176,43 @@ def ichimoku_lines(res, direction, cfg):
     return out
 
 
+def ssl_signal(f, i, s, wait=5, qqe_back=10):
+    """SSL Hybrid sinyali (kullanıcının kuralı, LONG için; SHORT'ta tersi):
+    1) Son `wait` mum içinde fiyat SSL çıkış çizgisini aşağıdan yukarı kesti (SSL Buy) ve hâlâ üstünde,
+    2) QQE MOD bu Buy'dan en fazla `qqe_back` mum önce ya da sonra maviye döndü ve şu an pembe değil,
+    3) DynaRange yeşil.
+    Üçü ilk kez birlikte sağlandığı mumda sinyal. Döner: SSL Buy/Sell mumunun indeksi ya da None."""
+    c, ssl, qqe, dyn = f["c"], f.get("ssl"), f.get("qqe"), f.get("dyna")
+    if not ssl or not qqe or not dyn:
+        return None
+
+    def cross(j, d):
+        if j < 1 or ssl[j] is None or ssl[j - 1] is None:
+            return False
+        return (c[j] - ssl[j]) * d > 0 and (c[j - 1] - ssl[j - 1]) * d <= 0
+
+    def cond(k):
+        if k < 1 or ssl[k] is None or dyn[k] is None:
+            return None
+        ev = None
+        for j in range(k, max(1, k - wait) - 1, -1):
+            if cross(j, s):
+                ev = j
+                break
+            if cross(j, -s):
+                return None
+        if ev is None or (c[k] - ssl[k]) * s <= 0 or dyn[k] * s <= 0 or qqe[k] == -s:
+            return None
+        if not any(qqe[j] == s for j in range(max(0, ev - qqe_back), k + 1)):
+            return None
+        return ev
+
+    ev = cond(i)
+    if ev is None or cond(i - 1) == ev:
+        return None
+    return ev
+
+
 def _pa_basic(f, i, s):
     """Sinyal mumu formasyonları (LONG için; SHORT'ta tersi): pa_engulf yutan mum (sinyal ya da önceki mum),
     pa_inside_break iç mum kırılımı, pa_strong_close güçlü kapanış."""
@@ -1448,6 +1487,9 @@ def build_message(res, direction, cfg, now_utc):
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
     head = "🟢 <b>LONG</b>" if direction == "long" else "🔴 <b>SHORT</b>"
+    ssl_sig = res.get("ssl_sig") if (res.get("ssl_sig") or {}).get("dir") == direction else None
+    if ssl_sig:
+        head = "🔷 <b>SSL</b> · " + head
     # teknik görünüm ve güven skoru mesajda yok (kullanıcı isteği); sadece trend uyum satırları
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     top = []
@@ -1478,7 +1520,16 @@ def build_message(res, direction, cfg, now_utc):
         extra.append(f"OI 4s {res['oi_chg']*100:+.1f}%")
     extra.append(f"24s {res['chg24']:+.1f}%")
 
-    if res.get("votes"):
+    if ssl_sig:
+        up = direction == "long"
+        st = f["st_dir"][i]
+        st_txt = ("🟢 <b>AL</b>" if st == 1 else "🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
+        st_note = "" if st == (1 if up else -1) else " (henüz dönmedi)"
+        lines += ["", SEP, f"📌 Tetik: SSL Hybrid {'🟢 <b>AL</b>' if up else '🔴 <b>SAT</b>'}",
+                  f"✅ QQE MOD {'mavi' if up else 'pembe'} → {'alıcılar' if up else 'satıcılar'} güçlü",
+                  f"✅ DynaRange {'yeşil' if up else 'kırmızı'} → {'yükseliş' if up else 'düşüş'} teyit edildi",
+                  "", f"📌 {trigger_name(cfg)}: {st_txt}{st_note}"]
+    elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
         lines += ["", SEP, f"📌 {trigger_name(cfg)}: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
     else:
@@ -1841,6 +1892,41 @@ def main():
             notifier.send("\n".join(lines))
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
+
+    # ---- SSL Hybrid sinyali (Supertrend'den bağımsız): SSL Buy/Sell + QQE MOD + DynaRange ----
+    scfg = cfg.get("ssl_signal", {})
+    ssl_n = 0
+    if scfg.get("enabled", False):
+        picked_st = {(r["meta"]["symbol"], d) for _, d, r in picks[:maxn]}
+        for r in results:
+            if ssl_n >= scfg.get("max_per_scan", 20):
+                break
+            f_, i_ = r["f"], r["i"]
+            for d, s_ in (("long", 1), ("short", -1)):
+                if (r["meta"]["symbol"], d) in picked_st:
+                    continue                  # aynı mumda Supertrend sinyali zaten gitti
+                ev = ssl_signal(f_, i_, s_, scfg.get("wait_bars", 5), scfg.get("qqe_lookback", 10))
+                if ev is None:
+                    continue
+                key = f"{r['meta']['symbol']}|ssl_{d}"
+                if state["signals"].get(key + "_ev") == f_["t"][ev]:
+                    continue                  # aynı SSL Buy/Sell için ikinci sinyal yok
+                r["ssl_sig"] = {"dir": d, "ev": ev}
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"])
+                compute_volume_profile(r, cfg)
+                msg = build_message(r, d, cfg, now_utc)
+                try:
+                    if notifier.send(msg):
+                        ssl_n += 1
+                        state["signals"][key] = now
+                        state["signals"][key + "_ev"] = f_["t"][ev]
+                        print(f"  → SSL sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Telegram hatası: {e}", file=sys.stderr)
+                r.pop("ssl_sig", None)
+                r.pop("_ichi", None)
+    if ssl_n:
+        print(f"SSL sinyali: {ssl_n}")
 
     # ---- Pump/Dump radarı (Supertrend'den bağımsız) ----
     rc = cfg.get("pump_radar", {})

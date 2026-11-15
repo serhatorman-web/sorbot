@@ -699,3 +699,87 @@ def level_retest(high, low, close, level, window=10, tol_atr=0.25, atr_len=14, o
             state = "confirmed"
             break
     return {"kind": "hold", "dir": d, "state": state, "bars_ago": n - 1 - touch}
+
+
+# --------------------------------------------------------------------------- #
+# SSL Hybrid (çıkış çizgisi) ve QQE MOD – kullanıcının TradingView göstergeleri
+# --------------------------------------------------------------------------- #
+def wma(values, n):
+    out = [None] * len(values)
+    w = n * (n + 1) / 2
+    for i in range(n - 1, len(values)):
+        seg = values[i - n + 1:i + 1]
+        if any(x is None for x in seg):
+            continue
+        out[i] = sum(x * (k + 1) for k, x in enumerate(seg)) / w
+    return out
+
+
+def hma(values, n):
+    """Hull hareketli ortalaması (TradingView ta.hma)."""
+    a, b = wma(values, n // 2), wma(values, n)
+    d = [None if x is None or y is None else 2 * x - y for x, y in zip(a, b)]
+    return wma(d, max(1, round(sqrt(n))))
+
+
+def ema_tv(values, n):
+    """TradingView ta.ema gibi ilk değerden başlayan EMA."""
+    out, k, prev = [None] * len(values), 2 / (n + 1), None
+    for i, x in enumerate(values):
+        if x is not None:
+            prev = x if prev is None else x * k + prev * (1 - k)
+        out[i] = prev
+    return out
+
+
+def ssl_exit(high, low, close, n=15):
+    """SSL Hybrid Advanced çıkış çizgisi (EXIT: HMA 15). Fiyat çizgiyi aşağıdan yukarı keserse Buy, tersi Sell."""
+    eh, el = hma(high, n), hma(low, n)
+    out, hl = [None] * len(close), 0
+    for i in range(len(close)):
+        if eh[i] is None or el[i] is None:
+            continue
+        hl = 1 if close[i] > eh[i] else (-1 if close[i] < el[i] else hl)
+        out[i] = eh[i] if hl < 0 else el[i]
+    return out
+
+
+def qqe_mod(close, rsi_len=6, smooth=5, factor=3.0, threshold=3.0, bb_len=50, bb_mult=0.35):
+    """QQE MOD (Mihkel00) çubuk rengi: +1 mavi (yükseliş), -1 pembe (düşüş), 0 gri."""
+    n = len(close)
+    rsima = ema_tv(rsi(close, rsi_len), smooth)
+    wil = rsi_len * 2 - 1
+    atr_r = [None] + [None if rsima[i] is None or rsima[i - 1] is None else abs(rsima[i - 1] - rsima[i])
+                      for i in range(1, n)]
+    dar = [None if x is None else x * factor for x in ema_tv(ema_tv(atr_r, wil), wil)]
+    tl = [None] * n
+    lb = sb = plb = psb = pplb = ppsb = 0.0
+    tr = 1
+    for i in range(n):
+        r = rsima[i]
+        if r is None or dar[i] is None:
+            continue
+        rp = rsima[i - 1] if i and rsima[i - 1] is not None else r
+        nlb, nsb = r - dar[i], r + dar[i]
+        lb = max(plb, nlb) if (rp > plb and r > plb) else nlb
+        sb = min(psb, nsb) if (rp < psb and r < psb) else nsb
+        d0, d1 = r - psb, rp - ppsb                 # cross(RSIndex, shortband[1])
+        e0, e1 = plb - r, pplb - rp                 # cross(longband[1], RSIndex)
+        if (d0 > 0) != (d1 > 0) and d0 != d1:
+            tr = 1
+        elif (e0 > 0) != (e1 > 0) and e0 != e1:
+            tr = -1
+        tl[i] = lb if tr == 1 else sb
+        pplb, ppsb, plb, psb = plb, psb, lb, sb
+    x = [None if t is None else t - 50 for t in tl]
+    bas, sd = sma(x, bb_len), stdev(x, bb_len)
+    out = [0] * n
+    for i in range(n):
+        if rsima[i] is None or bas[i] is None or sd[i] is None:
+            continue
+        v = rsima[i] - 50
+        if v > threshold and v > bas[i] + bb_mult * sd[i]:
+            out[i] = 1
+        elif v < -threshold and v < bas[i] - bb_mult * sd[i]:
+            out[i] = -1
+    return out

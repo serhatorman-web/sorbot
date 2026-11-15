@@ -684,6 +684,41 @@ def test_choch_label():
                for x in out), out
 
 
+def test_qqe_ssl_basic():
+    n = 300
+    rnd = random.Random(3)
+    c = [100.0]
+    for k in range(1, n):
+        c.append(c[-1] + (0.6 if k < 150 else -0.6) + rnd.uniform(-0.8, 0.8))
+    q = ta.qqe_mod(c)
+    h = [x + 0.3 for x in c]; l = [x - 0.3 for x in c]
+    assert 1 in q[60:150] and -1 in q[200:], (q[60:150], q[200:])
+    ssl = ta.ssl_exit(h, l, c, 15)
+    assert sum(ssl[k] < c[k] for k in range(100, 150)) > 30 and sum(ssl[k] > c[k] for k in range(250, 300)) > 20
+
+
+def test_ssl_signal():
+    n = 30
+    c = [100.0] * n
+    ssl = [101.0] * n
+    qqe = [0] * n
+    dyn = [-1.0] * n
+    qqe[22] = 1                                 # QQE MOD önce maviye döndü
+    for k in range(24, n): c[k] = 102.0         # 24: SSL Buy (fiyat çizgiyi yukarı kesti)
+    dyn[26] = dyn[27] = dyn[28] = dyn[29] = 1.0 # 26: DynaRange yeşile döndü → sinyal
+    f = {"c": c, "ssl": ssl, "qqe": qqe, "dyna": dyn}
+    assert scanner.ssl_signal(f, 25, 1) is None          # DynaRange henüz kırmızı
+    assert scanner.ssl_signal(f, 26, 1) == 24            # sinyal SSL Buy mumunu döndürür
+    assert scanner.ssl_signal(f, 27, 1) is None          # aynı Buy için ikinci sinyal yok
+    assert scanner.ssl_signal(f, 26, -1) is None
+    qqe2 = [0] * n
+    assert scanner.ssl_signal(dict(f, qqe=qqe2), 26, 1) is None   # QQE mavi olmadıysa sinyal yok
+    dyn2 = list(dyn); dyn2[26] = -1.0; dyn2[27] = -1.0; dyn2[28] = -1.0; dyn2[29] = -1.0
+    dyn2[29] = 1.0
+    assert scanner.ssl_signal(dict(f, dyna=dyn2), 29, 1) == 24           # Buy'dan 5 mum sonra: hâlâ geçerli
+    assert scanner.ssl_signal(dict(f, dyna=dyn2), 29, 1, wait=4) is None # bekleme süresi aşıldı → yok
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
