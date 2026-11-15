@@ -746,15 +746,15 @@ def test_pivot_lines():
     res = {"f": f, "i": n - 1, "meta": {"precision": 2}, "pivot": pv}
     out = scanner.pivot_lines(res, "long", {})
     assert out[0] == "📍 <b>Pivots</b> · günlük (Fibonacci)", out
-    assert out[4] == "⚪ P 867.94 · fiyat üstünde kapanış (2 mum önce kesti)", out
-    assert out[8] == "✅ P üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
-    assert out[9] == "✅ Pivot stratejisi onaylıyor → LONG girilebilir", out
-    assert out[10] == "TP1: R1 921.08 (+3.49%)" and out[13] == "Stop: S1 814.80 (-8.45%)", out
+    assert out[1] == "⚪ P 867.94 · fiyat üstünde kapanış (2 mum önce kesti)", out
+    assert out[2] == "✅ P üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
+    assert out[3] == "✅ Pivot stratejisi onaylıyor → LONG girilebilir", out
+    assert out[4] == "TP1: R1 921.08 (+3.49%)" and out[7] == "Stop: S1 814.80 (-8.45%)", out
     f["qqe"] = [0] * n
     out = scanner.pivot_lines(res, "long", {})
-    assert out[8].endswith("❌ QQE MOD gri") and out[-1] == "⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle", out
+    assert out[2].endswith("❌ QQE MOD gri") and out[-1] == "⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle", out
     out = scanner.pivot_lines(res, "short", {})
-    assert out[8].startswith("❌ P altında kapanış") and out[-1].startswith("⚠️"), out
+    assert out[2].startswith("❌ P altında kapanış") and out[-1].startswith("⚠️"), out
 
 
 if __name__ == "__main__":

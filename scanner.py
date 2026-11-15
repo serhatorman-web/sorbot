@@ -1371,11 +1371,7 @@ def pivot_lines(res, direction, cfg):
             break
     when = ("bu mumda kesti" if ago == 0 else f"{ago} mum önce kesti") if ago is not None else "dönem başından beri"
     out = [f"📍 <b>Pivots</b> · {span} (Fibonacci)"]
-    for name in ("R3", "R2", "R1"):
-        out.append(f"{name} {fp(pv[name])}")
     out.append(f"⚪ P {fp(P)} · fiyat {'üstünde' if side == 1 else 'altında'} kapanış ({when})")
-    for name in ("S1", "S2", "S3"):
-        out.append(f"{name} {fp(pv[name])}")
     st = f["st_dir"][i]
     d = f["dyna"][i] or 0
     q = (f.get("qqe") or [0] * (i + 1))[i]
