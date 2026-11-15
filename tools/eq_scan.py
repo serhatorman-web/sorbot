@@ -62,4 +62,10 @@ with ThreadPoolExecutor(6) as ex:
     rows = list(ex.map(run, [s["symbol"] for s in eq]))
 for r in rows:
     r["sub"] = sub[r["sym"]]
-print("JSON " + json.dumps(rows))
+for r in rows:
+    x = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in r.items() if k not in TFS}
+    for tf in TFS:
+        t = r.get(tf) or []
+        w = sum(v for v in t if v > 0); lo = -sum(v for v in t if v < 0)
+        x[tf] = [len(t), round(sum(t), 2), round(w, 2), round(lo, 2)]
+    print("ROW " + json.dumps(x))
