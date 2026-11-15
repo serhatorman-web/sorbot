@@ -832,6 +832,6 @@ def test_rating_votes():
     f = {"c": [100.0], "st_dir": [-1], "ssl": [99.0]}
     res = {"f": f, "i": 0, "votes": [("RSI", 1), ("TrendFlex", 1)], "pivot": {"P": 101.0}}
     v = dict(scanner.rating_votes(res))
-    assert v == {"RSI": 1, "TrendFlex": 1, "Supertrend": -1, "SSL Hybrid": 1, "Pivot": -1}
+    assert v == {"RSI": 1, "TrendFlex": 1, "Supertrend": -1, "Pivot": -1}
     res["votes"].append(("Supertrend", -1))
     assert [n for n, _ in scanner.rating_votes(res)].count("Supertrend") == 1

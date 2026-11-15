@@ -1631,7 +1631,7 @@ def tv_rating(res):
 
 
 def rating_votes(res):
-    """Teknik görünüm için kullanılan tüm indikatörler: mesajdaki indikatör listesi + Supertrend + SSL Hybrid +
+    """Teknik görünüm için kullanılan tüm indikatörler: mesajdaki indikatör listesi + Supertrend +
     Pivot (fiyat pivotun üstünde/altında). Listede zaten olanlar tekrar sayılmaz."""
     f, i = res["f"], res["i"]
     votes = list(res.get("votes") or [])
@@ -1640,9 +1640,6 @@ def rating_votes(res):
     sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
     if "Supertrend" not in names and f.get("st_dir"):
         votes.append(("Supertrend", f["st_dir"][i] or 0))
-    ssl = (f.get("ssl") or [None] * (i + 1))[i]
-    if ssl is not None:
-        votes.append(("SSL Hybrid", sgn(c - ssl)))
     pv = res.get("pivot")
     if pv:
         votes.append(("Pivot", sgn(c - pv["P"])))
