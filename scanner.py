@@ -1607,10 +1607,9 @@ def market_lines(res, cfg, now_utc):
     if ms:
         row = icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
                                        "weekend": "🔴 Kapalı (hafta sonu)"}[ms])
-        # Nasdaq 100 (QQQ) fiyatı – hisselerde QQQ yönü satırında zaten yazıyor
-        if meta["type"] != "EQUITY" or res.get("leader_name") != "QQQ":
-            tag = price_tag((res.get("mkt") or {}).get("QQQ"))
-            row += tag.replace("(Fiyat", "(Nasdaq QQQ") if tag else ""
+        # Nasdaq 100 (QQQ) fiyatı – kripto ve hisse sinyallerinde
+        tag = price_tag((res.get("mkt") or {}).get("QQQ"))
+        row += tag.replace("(Fiyat", "(Nasdaq QQQ") if tag else ""
         out.append(row)
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
     qv = res.get("qv24")
