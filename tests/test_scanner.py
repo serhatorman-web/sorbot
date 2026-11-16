@@ -897,3 +897,16 @@ def test_send_telegram_retries(monkeypatch):
         assert False, "hata bekleniyordu"
     except RuntimeError as e:
         assert "6 deneme" in str(e)
+
+
+def test_dominance_line():
+    base = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "mkt": {"BTC": {"last": 1, "chg": 1.2}}}
+    up = scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
+    assert up == "🔴 BTC Dominance · %57.30 (🟢▲ 0.42 puan) → para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler geride kalabilir"
+    dn = scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
+    assert dn.startswith("🟢 BTC Dominance · %56.10 (🔴▼ 0.35 puan) → para altcoinlere akıyor")
+    base["mkt"]["BTC"]["chg"] = -2.0
+    assert "riskten kaçış" in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
+    assert "görece güçlü" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
+    assert "yatay" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": 0.01}))
+    assert scanner.dominance_line(base) is None

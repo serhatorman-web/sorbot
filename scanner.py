@@ -741,6 +741,7 @@ def analyze_symbol(meta, candles, ctx, cfg):
     # piyasa satırları için anlık fiyat / 24s değişim (BTC, ETH, QQQ)
     out["mkt"] = {k: ctx["tickers"].get(k + "USDT") for k in ("BTC", "ETH", "QQQ")}
     out["eth_bias"] = ctx.get("eth_bias")
+    out["btc_dom"] = ctx.get("btc_dom")
     return out
 
 
@@ -1589,6 +1590,48 @@ def leader_line(res, name=None, bias=None):
     return row + price_tag((res.get("mkt") or {}).get(name))
 
 
+def btc_dominance(btc_chg24):
+    """BTC Dominance (CoinGecko /global): {'dom': %, 'chg': 24s puan değişimi}. Hata olursa None.
+    24s değişim: dün = bugün × (1 + toplam piyasa değeri değişimi) / (1 + BTC değişimi)."""
+    try:
+        req = urllib.request.Request("https://api.coingecko.com/api/v3/global",
+                                     headers={"User-Agent": "Mozilla/5.0 (SorBot)", "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            g = json.loads(r.read().decode())["data"]
+        dom = float(g["market_cap_percentage"]["btc"])
+        tot = g.get("market_cap_change_percentage_24h_usd")
+        chg = None
+        if tot is not None and btc_chg24 is not None:
+            prev = dom * (1 + tot / 100) / (1 + btc_chg24 / 100)
+            chg = dom - prev
+        return {"dom": dom, "chg": chg}
+    except Exception as e:  # noqa: BLE001
+        print(f"  [uyarı] BTC dominance alınamadı: {e}")
+        return None
+
+
+def dominance_line(res):
+    """⚪ BTC Dominance · %57.30 (🟢▲ 0.42 puan) → açıklama (BTC yönüyle birlikte yorum)."""
+    d = res.get("btc_dom")
+    if not d:
+        return None
+    chg = d.get("chg")
+    btc = ((res.get("mkt") or {}).get("BTC") or {}).get("chg")
+    if chg is None or abs(chg) < 0.05:
+        return f"⚪ BTC Dominance · %{d['dom']:.2f} (⚪▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
+    tag = f"(🟢▲ {chg:.2f} puan)" if chg > 0 else f"(🔴▼ {abs(chg):.2f} puan)"
+    up_btc = btc is not None and btc > 0
+    if chg > 0:
+        why = ("para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler geride kalabilir" if up_btc else
+               "altcoinler BTC'den sert düşüyor (riskten kaçış) → altcoin LONG'ları riskli")
+        icon = "🔴"
+    else:
+        why = ("para altcoinlere akıyor (altcoin sezonu belirtisi) → altcoin LONG'ları için olumlu" if up_btc else
+               "BTC altcoinlerden sert düşüyor → altcoinler görece güçlü")
+        icon = "🟢"
+    return f"{icon} BTC Dominance · %{d['dom']:.2f} {tag} → {why}"
+
+
 def leader_block(res):
     """BTC (kriptoda altına ETH) / QQQ yönü satırları."""
     out = []
@@ -1596,6 +1639,8 @@ def leader_block(res):
         out.append(leader_line(res))
     if res["meta"]["type"] == "COIN" and res["meta"]["symbol"] != "ETHUSDT" and res.get("eth_bias") is not None:
         out.append(leader_line(res, "ETH", res["eth_bias"]))
+    if res["meta"]["type"] == "COIN":
+        out.append(dominance_line(res))
     return [x for x in out if x]
 
 
@@ -2124,7 +2169,8 @@ def main():
     eth_bias = None
     if "ETHUSDT" in candles and len(candles["ETHUSDT"]) >= cfg["min_candles"]:
         eth_bias = trend_bias(compute_features(candles["ETHUSDT"], cfg))
-    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": eth_bias}
+    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": eth_bias,
+           "btc_dom": btc_dominance(tickers.get("BTCUSDT", {}).get("chg"))}
     results = []
     for sym, meta in symbols.items():
         if meta.get("leader_only") or sym not in candles:
