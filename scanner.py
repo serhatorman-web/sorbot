@@ -1573,11 +1573,11 @@ def fmt_usd(v):
 
 
 def price_tag(t):
-    """'(Fiyat 78,500.00 ⬇️ %1.40)' – 24 saatlik değişim; yükselişte ⬆️."""
+    """'(Fiyat 78,500.00 🔴▼ %1.40)' – 24 saatlik değişim; yükselişte 🟢▲."""
     if not t or not t.get("last"):
         return ""
     chg = t.get("chg", 0.0)
-    arrow = "⬆️" if chg > 0 else ("⬇️" if chg < 0 else "➡️")
+    arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
     return f" (Fiyat {fmt_price(t['last'], 2)} {arrow} %{abs(chg):.2f})"
 
 
