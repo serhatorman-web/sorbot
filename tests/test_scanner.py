@@ -849,8 +849,8 @@ def test_market_rows():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": -1.0,
            "eth_bias": 1.0, "mkt": mkt, "qv24": 4_235_000}
     lb = scanner.leader_block(res)
-    assert lb[0] == "🔴 BTC yönü · Düşüş (Fiyat 78,500.00 🔴▼ %1.40)", lb
-    assert lb[1] == "🟢 ETH yönü · Yükseliş (Fiyat 2,650.50 🟢▲ %0.80)", lb
+    assert lb[0] == "🔴 BTC yönü · Düşüşte (Fiyat 78,500.00 🔴▼ %1.40)", lb
+    assert lb[1] == "🟢 ETH yönü · Yükselişte (Fiyat 2,650.50 🟢▲ %0.80)", lb
     now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
     ml = scanner.market_lines(res, {}, now)
     assert ml[0] == "🟢 ABD borsası · Açık · Yükselişte (Nasdaq QQQ 612.40 🟢▲ %0.85)", ml
@@ -864,7 +864,7 @@ def test_market_rows_equity():
     mkt = {"QQQ": {"last": 665.62, "chg": -0.92}}
     res = {"meta": {"symbol": "TSMUSDT", "type": "EQUITY"}, "leader_name": "QQQ", "leader_bias": -1.0,
            "mkt": mkt, "qv24": 25_200_000}
-    assert scanner.leader_block(res) == ["🔴 QQQ yönü · Düşüş (Fiyat 665.62 🔴▼ %0.92)"]
+    assert scanner.leader_block(res) == ["🔴 QQQ yönü · Düşüşte (Fiyat 665.62 🔴▼ %0.92)"]
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
     assert ml == ["🟢 ABD borsası · Açık · Düşüşte (Nasdaq QQQ 665.62 🔴▼ %0.92)",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
@@ -902,10 +902,10 @@ def test_send_telegram_retries(monkeypatch):
 def test_dominance_line():
     base = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "mkt": {"BTC": {"last": 1, "chg": 1.2}}}
     up = scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
-    assert up == ("🔴 BTC Dominance · Yükseliş · %57.30 (▲ 0.42 puan) → para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler "
+    assert up == ("🔴 BTC Dominance · Yükselişte · %57.30 (▲ 0.42 puan) → para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler "
                   "geride kalabilir → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü")
     dn = scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
-    assert dn.startswith("🟢 BTC Dominance · Düşüş · %56.10 (▼ 0.35 puan) → para altcoinlere akıyor")
+    assert dn.startswith("🟢 BTC Dominance · Düşüşte · %56.10 (▼ 0.35 puan) → para altcoinlere akıyor")
     base["mkt"]["BTC"]["chg"] = -2.0
     assert "riskten kaçış" in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
     assert "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))

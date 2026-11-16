@@ -1586,7 +1586,8 @@ def leader_line(res, name=None, bias=None):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) + anlık fiyat ve 24s değişim."""
     name = name or res["leader_name"]
     lb_ = res["leader_bias"] if bias is None else bias
-    row = icon_row(f"{name} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
+    lbl = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay"}       # BTC / ETH / QQQ yönü
+    row = icon_row(f"{name} yönü", lbl[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
     return row + price_tag((res.get("mkt") or {}).get(name))
 
 
@@ -1635,7 +1636,7 @@ def dominance_line(res):
                "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü"
                " → Sonuç: altcoin SHORT'larında temkinli ol, altcoinler daha az düşebilir")
         icon = "🟢"
-    word = "Yükseliş" if chg > 0 else "Düşüş"
+    word = "Yükselişte" if chg > 0 else "Düşüşte"
     return f"{icon} BTC Dominance · {word} · %{d['dom']:.2f} {tag} → {why}"
 
 
