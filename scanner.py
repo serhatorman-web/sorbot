@@ -88,6 +88,14 @@ def with_header_line(block):
     return block
 
 
+def put_st_line(lines, gi, st_line):
+    """SUPERTREND satırı Giriş bölümünün çizgisinin üstüne (başlık gibi: satır, altında çizgi, Giriş)."""
+    if gi > 0 and lines[gi - 1] == SEP:
+        lines[gi - 1:gi - 1] = [st_line]
+    else:
+        lines[gi:gi] = [st_line, SEP]
+
+
 def section(block):
     """Başlıklı bölüm: üstünde çizgi yok, başlığın altında kalın çizgi. Başlıksız blok: üstünde çizgi."""
     if block and block[0].startswith(HEADERS):
@@ -1957,7 +1965,7 @@ def build_message(res, direction, cfg, now_utc):
             # Supertrend satırı Giriş'in üstünde; indikatör listesi kendi çizgisiyle aşağıda
             gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
             if gi is not None:
-                lines[gi:gi] = [st_line, ""]
+                put_st_line(lines, gi, st_line)
                 lines += ["", IND_HEADER, SEP]
             else:
                 lines += ["", SEP, st_line]
@@ -2032,7 +2040,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}"
         gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
         if gi is not None:                       # Supertrend satırı Giriş'in üstünde
-            lines[gi:gi] = [st_line, ""]
+            put_st_line(lines, gi, st_line)
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
