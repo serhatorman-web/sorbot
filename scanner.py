@@ -1685,7 +1685,9 @@ def tf_table_html(res):
     rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in res.get("tf_rows", TF_ROWS)]
     # Telegram alıntı kutusu: satırlar sol kenarı çizgili bir kutu içinde (yazı tipi aynı kalır)
     # satırlar arasında ince yatay çizgi (tablo görünümü)
-    return "📊 <b>TREND TABLOSU</b>\n<blockquote>" + "\n────────────────\n".join(rows) + "</blockquote>"
+    # başlığın altında kalın çizgi
+    return ("📊 <b>TREND TABLOSU</b>\n" + SEP + "\n<blockquote>" + "\n────────────────\n".join(rows)
+            + "</blockquote>")
 
 
 def rating_label(net):
