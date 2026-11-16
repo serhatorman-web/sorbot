@@ -96,6 +96,15 @@ def put_st_line(lines, gi, st_line):
         lines[gi:gi] = [st_line, SEP]
 
 
+MARKET_HEADER = "🌍 <b>PİYASA DURUMU</b>"
+
+
+def market_section(lb, ml):
+    """🌍 PİYASA DURUMU: BTC / ETH yönü, BTC Dominance, ABD borsası, likidite."""
+    rows = list(lb or []) + list(ml or [])
+    return (["", MARKET_HEADER, SEP] + rows) if rows else []
+
+
 def section(block):
     """Başlıklı bölüm: üstünde çizgi yok, başlığın altında kalın çizgi. Başlıksız blok: üstünde çizgi."""
     if block and block[0].startswith(HEADERS):
@@ -1934,8 +1943,6 @@ def build_message(res, direction, cfg, now_utc):
 
     trend_line = tf_table_html(res)
     lb = leader_block(res, cfg)
-    if lb:
-        trend_line += "\n\n" + SEP + "\n" + "\n".join(lb)
     vr = res["pd"]["vol_ratio"]
     ind_line = (f"RSI {f['rsi'][i]:.0f} · StochRSI {f['srsi_k'][i]:.0f} · ADX {f['adx'][i]:.0f} · "
                 f"CCI {f['cci'][i]:.0f} · Hacim {vr:.1f}x")
@@ -1980,7 +1987,7 @@ def build_message(res, direction, cfg, now_utc):
                       volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += section(block)
-    lines += ["", trend_line] + market_lines(res, cfg, now_utc)
+    lines += (["", trend_line] if trend_line else []) + market_section(lb, market_lines(res, cfg, now_utc))
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
 
@@ -2052,10 +2059,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
-    lb = leader_block(res, cfg)
-    if lb:
-        lines += ["", SEP] + lb
-    lines += market_lines(res, cfg, now_utc)
+    lines += market_section(leader_block(res, cfg), market_lines(res, cfg, now_utc))
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     put_time_top(lines, t_close)
     lines += ["", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]

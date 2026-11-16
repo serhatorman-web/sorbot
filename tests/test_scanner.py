@@ -942,3 +942,8 @@ def test_with_header_line():
 def test_section():
     assert scanner.section(["📍 <b>PIVOTS</b> · 4 saat", "x"]) == ["", "📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "x"]
     assert scanner.section(["🔊 Hacim"]) == ["", scanner.SEP, "🔊 Hacim"]
+
+
+def test_market_section():
+    assert scanner.market_section(["a"], ["b"]) == ["", "🌍 <b>PİYASA DURUMU</b>", scanner.SEP, "a", "b"]
+    assert scanner.market_section([], []) == []
