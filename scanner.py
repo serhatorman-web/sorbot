@@ -1619,7 +1619,7 @@ def dominance_line(res):
     chg = d.get("chg")
     btc = ((res.get("mkt") or {}).get("BTC") or {}).get("chg")
     if chg is None or abs(chg) < 0.05:
-        return (f"⚪ BTC Dominance · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
+        return (f"⚪ BTC Dominance · Yatay · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
                 " → Sonuç: dominance bu işlem için belirleyici değil")
     tag = f"(▲ {chg:.2f} puan)" if chg > 0 else f"(▼ {abs(chg):.2f} puan)"   # renk sadece satır başında
     up_btc = btc is not None and btc > 0
@@ -1635,7 +1635,8 @@ def dominance_line(res):
                "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü"
                " → Sonuç: altcoin SHORT'larında temkinli ol, altcoinler daha az düşebilir")
         icon = "🟢"
-    return f"{icon} BTC Dominance · %{d['dom']:.2f} {tag} → {why}"
+    word = "Yükseliş" if chg > 0 else "Düşüş"
+    return f"{icon} BTC Dominance · {word} · %{d['dom']:.2f} {tag} → {why}"
 
 
 def leader_block(res):
