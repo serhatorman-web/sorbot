@@ -1,0 +1,12 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -c "import scanner; print('NDX', scanner.nasdaq_index())" || true
