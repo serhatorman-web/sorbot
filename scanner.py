@@ -78,7 +78,7 @@ TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 IND_HEADER = "📋 <b>İNDİKATÖRLER</b>"
 HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "📊 <b>HACİM PROFİLİ",
-           "🧱 <b>ORDER BLOCK", "〽️ <b>RSI UYUMSUZLUK")
+           "🧱 <b>ORDER BLOCK", "〽️ <b>RSI UYUMSUZLUK", "🔊 <b>HACİM</b>")
 
 
 def with_header_line(block):
@@ -1062,7 +1062,7 @@ def volume_lines(res, cfg):
     ratio = lambda k: f["v"][k] / f["vol_ma"][k] if f["vol_ma"][k] else 0
     vr = ratio(i)
     high = vr >= vc.get("high_ratio", 1.0)
-    out = ["🔊 Hacim: " + ("🟢 Yüksek" if high else "🔴 Düşük") + f" ({vr:.1f}x ortalama) → "
+    out = [("🟢 Hacim yüksek" if high else "🔴 Hacim düşük") + f" ({vr:.1f}x ortalama) → "
            + ("hareket hacimle destekleniyor" if high else "hareket zayıf, teyit için hacim artışı beklenmeli")]
     # Son N mumdaki en büyük gövdeli hareket (ATR'ye göre)
     big = None
@@ -1086,7 +1086,7 @@ def volume_lines(res, cfg):
         pk_up = f["c"][peak] >= f["o"][peak]
         out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when}) → "
                    + ("güçlü alım, yükseliş ilgisi" if pk_up else "güçlü satış, düşüş baskısı"))
-    return out
+    return ["🔊 <b>HACİM</b>"] + out
 
 
 VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı",

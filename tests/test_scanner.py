@@ -323,10 +323,10 @@ def test_volume_lines():
     f = {"o": [100.0] * n, "c": [100.5] * n, "v": [1.0] * n, "vol_ma": [1.0] * n, "atr": [1.0] * n}
     f["c"][-1], f["v"][-1] = 103.0, 4.2
     out = scanner.volume_lines({"f": f, "i": n - 1}, cfg)
-    assert "Yüksek" in out[0] and any("Büyük yükseliş" in x for x in out) and any("patlaması" in x for x in out)
+    assert out[0] == "🔊 <b>HACİM</b>" and out[1].startswith("🟢 Hacim yüksek") and any("Büyük yükseliş" in x for x in out) and any("patlaması" in x for x in out)
     f["c"][-1], f["v"][-1] = 100.2, 0.6
     out = scanner.volume_lines({"f": f, "i": n - 1}, cfg)
-    assert "Düşük" in out[0] and len(out) == 1
+    assert out[1].startswith("🔴 Hacim düşük") and len(out) == 2
 
 
 def test_technical_rating():
