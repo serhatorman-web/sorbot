@@ -856,7 +856,7 @@ def confidence_label(score):
 
 SEP = "━━━━━━━━━━━━━━━━"   # bölümler arası yatay çizgi
 
-TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Yatay", None: "⚫ Veri yok"}
+TREND_LABEL = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay", None: "⚫ Veri yok"}
 
 
 def icon_row(label, value):
@@ -1683,7 +1683,8 @@ def tf_table_html(res):
     if not tf:
         return ""
     rows = [icon_row(f"<b>{name}</b>", TREND_LABEL[tf.get(key)]) for key, name in res.get("tf_rows", TF_ROWS)]
-    return "\n".join(["📊 <b>TREND TABLOSU</b>", ""] + rows)
+    # Telegram alıntı kutusu: satırlar sol kenarı çizgili bir kutu içinde (yazı tipi aynı kalır)
+    return "📊 <b>TREND TABLOSU</b>\n<blockquote>" + "\n".join(rows) + "</blockquote>"
 
 
 def rating_label(net):
