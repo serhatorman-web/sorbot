@@ -1622,7 +1622,7 @@ def btc_dominance(btc_chg24):
 
 def dominance_line(res):
     """⚪ BTC Dominance · %57.30 (▲ 0.42 puan) → durum → Sonuç (BTC yönüyle birlikte yorum).
-    Satır başı rengi altcoinler için etkiyi gösterir (🟢 olumlu / 🔴 olumsuz)."""
+    Satır başı rengi dominance yönünü gösterir (yükselişte 🟢, düşüşte 🔴); altcoin etkisi Sonuç'ta."""
     d = res.get("btc_dom")
     if not d:
         return None
@@ -1638,13 +1638,13 @@ def dominance_line(res):
                " → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü" if up_btc else
                "altcoinler BTC'den daha sert düşüyor (riskten kaçış)"
                " → Sonuç: altcoin LONG'ları riskli, altcoin SHORT'ları öne çıkar")
-        icon = "🔴"
+        icon = "🟢"                 # ikon dominance yönünü gösterir (yükselişte 🟢)
     else:
         why = ("para altcoinlere akıyor (altcoin sezonu belirtisi)"
                " → Sonuç: altcoin LONG'ları için olumlu" if up_btc else
                "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü"
                " → Sonuç: altcoin SHORT'larında temkinli ol, altcoinler daha az düşebilir")
-        icon = "🟢"
+        icon = "🔴"                 # düşüşte 🔴; altcoin etkisi Sonuç kısmında
     word = "Yükselişte" if chg > 0 else "Düşüşte"
     return f"{icon} BTC Dominance · {word} · %{d['dom']:.2f} {tag} → {why}"
 
