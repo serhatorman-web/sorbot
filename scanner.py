@@ -1627,7 +1627,7 @@ def dominance_line(res):
         icon = "🔴"
     else:
         why = ("para altcoinlere akıyor (altcoin sezonu belirtisi) → altcoin LONG'ları için olumlu" if up_btc else
-               "BTC altcoinlerden sert düşüyor → altcoinler görece güçlü")
+               "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü")
         icon = "🟢"
     return f"{icon} BTC Dominance · %{d['dom']:.2f} {tag} → {why}"
 
