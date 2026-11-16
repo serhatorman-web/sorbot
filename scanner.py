@@ -1949,14 +1949,24 @@ def build_message(res, direction, cfg, now_utc):
         if psig:
             lines += ["", SEP, f"📌 Tetik: Pivot {'üstünde' if direction == 'long' else 'altında'} kapanış "
                                f"+ Supertrend, DynaRange, QQE MOD onayı"]
-        lines += ([""] if psig else ["", SEP]) + [f"📌 <b>{trigger_name(cfg).upper()}</b>: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"]
+        st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"
+        if psig:
+            lines += ["", st_line]
+        else:
+            # Supertrend satırı Giriş'in üstünde; indikatör listesi kendi çizgisiyle aşağıda
+            gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
+            if gi is not None:
+                lines[gi:gi] = [st_line, ""]
+                lines += ["", SEP]
+            else:
+                lines += ["", SEP, st_line]
         si = ssl_info_lines(res, direction) if cfg.get("ssl_info", {}).get("enabled", True) else []
         if si:
             lines += [""] + si
     else:
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
-        lines += [""] + indicator_list_lines(res, direction)
+        lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
         for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
                       volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
@@ -2018,7 +2028,13 @@ def build_radar_message(res, rd, cfg, now_utc):
     if res.get("votes"):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
-        lines += ["", SEP, f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}", ""] + indicator_list_lines(res, direction)
+        st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}"
+        gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
+        if gi is not None:                       # Supertrend satırı Giriş'in üstünde
+            lines[gi:gi] = [st_line, ""]
+            lines += ["", SEP] + indicator_list_lines(res, direction)
+        else:
+            lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
     for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
                   trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                   divergence_lines(res), volume_lines(res, cfg)):
