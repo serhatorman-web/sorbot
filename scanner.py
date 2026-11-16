@@ -1596,8 +1596,15 @@ def leader_line(res, name=None, bias=None):
     name = name or res["leader_name"]
     lb_ = res["leader_bias"] if bias is None else bias
     lbl = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay"}       # BTC / ETH / QQQ yönü
-    row = icon_row(f"{name} yönü", lbl[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
-    return row + price_tag((res.get("mkt") or {}).get(name))
+    icon, word = lbl[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)].split(" ", 1)
+    # baştaki ikon trendi gösterir; 24s kısmı fiyat değişimi (ayrı ayrı etiketli)
+    row = f"{icon} {name} yönü · Trend: {word}"
+    t = (res.get("mkt") or {}).get(name)
+    if t and t.get("last"):
+        chg = t.get("chg", 0.0)
+        arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
+        row += f" · 24s: {fmt_price(t['last'], 2)} {arrow} %{abs(chg):.2f}"
+    return row
 
 
 def btc_dominance(btc_chg24):
