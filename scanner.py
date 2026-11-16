@@ -77,10 +77,10 @@ TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 
 def put_time_top(lines, t_close):
-    """Mum kapanış saati mesajın en üst satırının sağına (bant satırının yanına) yazılır."""
+    """Mum kapanış tarihi ve saati bandın hemen altına yazılır (bant yoksa en üste)."""
     tag = f"🕒 {t_close}"
-    if lines and lines[0] and lines[0][0] in "🟩🟥🟧🟦":
-        lines[0] = f"{lines[0]}  {tag}"
+    if len(lines) >= 3 and lines[0] and lines[0][0] in "🟩🟥🟧🟦" and lines[2] == lines[0]:
+        lines.insert(3, tag)
     else:
         lines.insert(0, tag)
 
