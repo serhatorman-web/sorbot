@@ -1663,7 +1663,7 @@ def market_lines(res, cfg, now_utc):
         q = (res.get("mkt") or {}).get("QQQ")
         tag = price_tag(q)
         if tag:
-            word = "Yükseliş" if q.get("chg", 0) > 0 else ("Düşüş" if q.get("chg", 0) < 0 else "Yatay")
+            word = "Yükselişte" if q.get("chg", 0) > 0 else ("Düşüşte" if q.get("chg", 0) < 0 else "Yatay")
             row += f" · {word}" + tag.replace("(Fiyat", "(Nasdaq QQQ")
         out.append(row)
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
