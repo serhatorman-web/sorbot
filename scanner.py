@@ -1611,23 +1611,29 @@ def btc_dominance(btc_chg24):
 
 
 def dominance_line(res):
-    """⚪ BTC Dominance · %57.30 (🟢▲ 0.42 puan) → açıklama (BTC yönüyle birlikte yorum)."""
+    """⚪ BTC Dominance · %57.30 (▲ 0.42 puan) → durum → Sonuç (BTC yönüyle birlikte yorum).
+    Satır başı rengi altcoinler için etkiyi gösterir (🟢 olumlu / 🔴 olumsuz)."""
     d = res.get("btc_dom")
     if not d:
         return None
     chg = d.get("chg")
     btc = ((res.get("mkt") or {}).get("BTC") or {}).get("chg")
     if chg is None or abs(chg) < 0.05:
-        return f"⚪ BTC Dominance · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
+        return (f"⚪ BTC Dominance · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
+                " → Sonuç: dominance bu işlem için belirleyici değil")
     tag = f"(▲ {chg:.2f} puan)" if chg > 0 else f"(▼ {abs(chg):.2f} puan)"   # renk sadece satır başında
     up_btc = btc is not None and btc > 0
     if chg > 0:
-        why = ("para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler geride kalabilir" if up_btc else
-               "altcoinler BTC'den sert düşüyor (riskten kaçış) → altcoin LONG'ları riskli")
+        why = ("para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler geride kalabilir"
+               " → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü" if up_btc else
+               "altcoinler BTC'den daha sert düşüyor (riskten kaçış)"
+               " → Sonuç: altcoin LONG'ları riskli, altcoin SHORT'ları öne çıkar")
         icon = "🔴"
     else:
-        why = ("para altcoinlere akıyor (altcoin sezonu belirtisi) → altcoin LONG'ları için olumlu" if up_btc else
-               "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü")
+        why = ("para altcoinlere akıyor (altcoin sezonu belirtisi)"
+               " → Sonuç: altcoin LONG'ları için olumlu" if up_btc else
+               "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü"
+               " → Sonuç: altcoin SHORT'larında temkinli ol, altcoinler daha az düşebilir")
         icon = "🟢"
     return f"{icon} BTC Dominance · %{d['dom']:.2f} {tag} → {why}"
 
