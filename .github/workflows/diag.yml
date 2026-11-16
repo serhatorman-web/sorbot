@@ -1,0 +1,20 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -c "
+          import report, scanner as sc
+          q = report.collect_markets(sc.Binance())
+          print('RATES', q.get('_rates'))
+          print('=====')
+          print(chr(10).join(report.markets_block(q)))
+          print('=====')
+          print(report.market_summary(q))
+          "
