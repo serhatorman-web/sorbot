@@ -161,7 +161,7 @@ def test_tf_trend_table():
     assert scanner.tf_trend(down) == -1
     assert scanner.tf_trend(up[:30]) is None
     html = scanner.tf_table_html({"tf": {"15m": 1, "1h": -1, "4h": 0, "1d": None}})
-    for word in ("15dk", "1 saat", "4 saat", "1 gün", "Yükseliş", "Düşüş", "Nötr", "Veri yok"):
+    for word in ("15dk", "1 saat", "4 saat", "1 gün", "Yükseliş", "Düşüş", "Yatay", "Veri yok"):
         assert word in html
 
 
@@ -356,7 +356,7 @@ def test_trend_alignment():
 def test_own_tf_alignment():
     o = scanner.own_tf_alignment_line
     c15 = {"timeframe": "15m"}
-    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ İşlem kendi zaman diliminde (15dk) nötr"
+    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ İşlem kendi zaman diliminde (15dk) yatay"
     assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 İşlem kendi zaman dilimiyle (15dk) uyumlu"
     assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 İşlem kendi zaman dilimiyle (15dk) uyumlu"
     assert o({"tf": {"15m": -1}}, "long", c15).startswith("🔴 <b>Uyarı")

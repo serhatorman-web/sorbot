@@ -856,7 +856,7 @@ def confidence_label(score):
 
 SEP = "━━━━━━━━━━━━━━━━"   # bölümler arası yatay çizgi
 
-TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Nötr", None: "⚫ Veri yok"}
+TREND_LABEL = {1: "🟢 Yükseliş", -1: "🔴 Düşüş", 0: "⚪ Yatay", None: "⚫ Veri yok"}
 
 
 def icon_row(label, value):
@@ -1786,7 +1786,7 @@ def own_tf_alignment_line(res, direction, cfg):
         return f"{icon} İşlem kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"🔴 <b>Uyarı: İşlem kendi zaman dilimiyle ({name}) uyumsuz</b>"
-    return f"{icon} İşlem kendi zaman diliminde ({name}) nötr"
+    return f"{icon} İşlem kendi zaman diliminde ({name}) yatay"
 
 
 def technical_rating_line(votes, rating=None):
