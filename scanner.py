@@ -78,7 +78,7 @@ TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 IND_HEADER = "📋 <b>İNDİKATÖRLER</b>"
 HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "📊 <b>HACİM PROFİLİ",
-           "🧱 <b>ORDER BLOCK")
+           "🧱 <b>ORDER BLOCK", "〽️ <b>RSI UYUMSUZLUK")
 
 
 def with_header_line(block):
@@ -1602,10 +1602,10 @@ def divergence_lines(res):
     d = res.get("div") or {}
     out = []
     if d.get("pos"):
-        out.append("🟢 RSI pozitif uyumsuzluk: " + ", ".join(d["pos"]) + " → düşüş zayıflıyor, yükseliş dönüşü beklenebilir")
+        out.append("🟢 Pozitif uyumsuzluk: " + ", ".join(d["pos"]) + " → düşüş zayıflıyor, yükseliş dönüşü beklenebilir")
     if d.get("neg"):
-        out.append("🔴 RSI negatif uyumsuzluk: " + ", ".join(d["neg"]) + " → yükseliş zayıflıyor, düşüş dönüşü beklenebilir")
-    return out
+        out.append("🔴 Negatif uyumsuzluk: " + ", ".join(d["neg"]) + " → yükseliş zayıflıyor, düşüş dönüşü beklenebilir")
+    return (["〽️ <b>RSI UYUMSUZLUK</b>"] + out) if out else []
 
 
 def fmt_usd(v):

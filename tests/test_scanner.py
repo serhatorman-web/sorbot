@@ -305,7 +305,7 @@ def test_rsi_divergence():
     assert ta.rsi_divergence(hi, lo, c) == (True, False)
     c2 = [300 - x for x in c]
     assert ta.rsi_divergence([x + 0.2 for x in c2], [x - 0.2 for x in c2], c2) == (False, True)
-    assert scanner.divergence_lines({"div": {"pos": ["4 saat"], "neg": []}}) == ["🟢 RSI pozitif uyumsuzluk: 4 saat → düşüş zayıflıyor, yükseliş dönüşü beklenebilir"]
+    assert scanner.divergence_lines({"div": {"pos": ["4 saat"], "neg": []}}) == ["〽️ <b>RSI UYUMSUZLUK</b>", "🟢 Pozitif uyumsuzluk: 4 saat → düşüş zayıflıyor, yükseliş dönüşü beklenebilir"]
     assert scanner.divergence_lines({"div": {"pos": [], "neg": []}}) == []
 
 
