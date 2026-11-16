@@ -1939,15 +1939,15 @@ def build_radar_message(res, rd, cfg, now_utc):
     direction = rd["dir"]
     long_ = direction == "long"
     tf_s = TF_SHORT.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    # sinyallerdeki gibi bant: 🟩 PUMP / 🟥 DUMP (erken uyarılar dahil)
+    bar = ("🟩" if long_ else "🟥") * 10
+    mk = " / ABD (NASDAQ)" if meta.get("type") == "EQUITY" else ""
     if rd["kind"] == "start":
-        # BITCOIN SİNYALİ gibi bant: 🟩 PUMP / 🟥 DUMP
-        bar = ("🟩" if long_ else "🟥") * 10
-        mk = " / ABD (NASDAQ)" if meta.get("type") == "EQUITY" else ""
-        banner = [bar, f"{'🚀 <b>PUMP SİNYALİ</b>' if long_ else '💥 <b>DUMP SİNYALİ</b>'} · {tf_s}{mk}", bar, ""]
-        head = "🟢 <b>LONG</b>" if long_ else "🔴 <b>SHORT</b>"
+        title = "🚀 <b>PUMP SİNYALİ</b>" if long_ else "💥 <b>DUMP SİNYALİ</b>"
     else:
-        banner = banner_lines(meta, cfg)
-        head = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
+        title = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
+    banner = [bar, f"{title} · {tf_s}{mk}", bar, ""]
+    head = "🟢 <b>LONG</b>" if long_ else "🔴 <b>SHORT</b>"
     score = ([technical_rating_line(rating_votes(res)), ""]
              if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True) else [])
     lines = banner + [f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}", SEP] + score + [
