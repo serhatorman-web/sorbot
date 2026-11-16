@@ -1729,12 +1729,12 @@ def own_tf_alignment_line(res, direction, cfg):
         higher = rows[rows.index(tf_key) + 1:] if tf_key in rows else []
         against = [names[k] for k in higher if (res.get("tf") or {}).get(k) == -s]
         if against:
-            return (f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumlu ama üst zaman dilimleriyle "
+            return (f"🔴 <b>Uyarı: İşlem kendi zaman dilimiyle ({name}) uyumlu ama üst zaman dilimleriyle "
                     f"({', '.join(against)}) uyumsuz</b>")
-        return f"{icon} Sinyal kendi zaman dilimiyle ({name}) uyumlu"
+        return f"{icon} İşlem kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
-        return f"🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle ({name}) uyumsuz</b>"
-    return f"{icon} Sinyal kendi zaman diliminde ({name}) nötr"
+        return f"🔴 <b>Uyarı: İşlem kendi zaman dilimiyle ({name}) uyumsuz</b>"
+    return f"{icon} İşlem kendi zaman diliminde ({name}) nötr"
 
 
 def technical_rating_line(votes, rating=None):

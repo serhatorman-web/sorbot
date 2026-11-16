@@ -356,16 +356,16 @@ def test_trend_alignment():
 def test_own_tf_alignment():
     o = scanner.own_tf_alignment_line
     c15 = {"timeframe": "15m"}
-    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ Sinyal kendi zaman diliminde (15dk) nötr"
-    assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 Sinyal kendi zaman dilimiyle (15dk) uyumlu"
-    assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 Sinyal kendi zaman dilimiyle (15dk) uyumlu"
+    assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ İşlem kendi zaman diliminde (15dk) nötr"
+    assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 İşlem kendi zaman dilimiyle (15dk) uyumlu"
+    assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 İşlem kendi zaman dilimiyle (15dk) uyumlu"
     assert o({"tf": {"15m": -1}}, "long", c15).startswith("🔴 <b>Uyarı")
     assert o({"tf": {"15m": 1}}, "short", c15).startswith("🔴 <b>Uyarı")
     assert o({}, "long", {"timeframe": "1h"}) is None
     up = o({"tf": {"15m": 1, "1h": -1, "4h": -1, "1d": 1}}, "long", c15)
-    assert up == ("🔴 <b>Uyarı: Sinyal kendi zaman dilimiyle (15dk) uyumlu ama üst zaman dilimleriyle "
+    assert up == ("🔴 <b>Uyarı: İşlem kendi zaman dilimiyle (15dk) uyumlu ama üst zaman dilimleriyle "
                   "(1 saat, 4 saat) uyumsuz</b>")
-    assert o({"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1}}, "long", c15).startswith("🟢 Sinyal kendi")
+    assert o({"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1}}, "long", c15).startswith("🟢 İşlem kendi")
     assert "1 gün" in o({"tf": {"1h": -1, "4h": -1, "1d": 1}}, "short", {"timeframe": "1h"})
 
 
