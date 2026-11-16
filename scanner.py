@@ -1695,8 +1695,8 @@ def tf_table_html(res):
     # satırlar arasında ince yatay çizgi (tablo görünümü)
     # başlığın altında kalın çizgi
     # kutu (blockquote) yok: arka plan renksiz, alıntı işareti yok; satırlar arasında ince çizgi
-    # başlığın altında daha kalın çizgi (▬), satırlar arasında ince çizgi
-    return "📊 <b>TREND TABLOSU</b>\n<b>" + "▬" * 12 + "</b>\n" + "\n────────────────\n".join(rows)
+    # başlığın altında bölüm aralarındaki kalın çizgi (━), satırlar arasında ince çizgi
+    return "📊 <b>TREND TABLOSU</b>\n" + SEP + "\n" + "\n────────────────\n".join(rows)
 
 
 def rating_label(net):
