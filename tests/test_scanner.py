@@ -163,7 +163,7 @@ def test_tf_trend_table():
     html = scanner.tf_table_html({"tf": {"15m": 1, "1h": -1, "4h": 0, "1d": None}})
     for word in ("15dk", "1 saat", "4 saat", "1 gün", "Yükseliş", "Düşüş", "Yatay", "Veri yok"):
         assert word in html
-    assert "<blockquote>" in html and html.endswith("</blockquote>") and "Düşüşte" in html and "Yükselişte" in html
+    assert "<blockquote>" not in html and "Düşüşte" in html and "Yükselişte" in html and "────" in html
 
 
 def test_report_parsers_and_messages():
