@@ -594,24 +594,29 @@ POLICY_RATES = [
 ]
 
 
-def fetch_policy_rates(days=240):
-    """Her merkez bankasının son faiz kararı: {ticker: {'rate', 'prev', 'dt'}}."""
+def fetch_policy_rates(days=240, step=30):
+    """Her merkez bankasının son faiz kararı: {ticker: {'rate', 'prev', 'dt'}}.
+    Takvim uzun aralıkta sonuçları kısıtladığı için ülke ülke, bugünden geriye 30 günlük parçalarla aranır."""
     now = datetime.now(timezone.utc)
-    frm = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    to = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    countries = ",".join(sorted({c for _, _, c in POLICY_RATES}))
-    req = urllib.request.Request(
-        f"https://economic-calendar.tradingview.com/events?from={frm}&to={to}&countries={countries}",
-        headers={"User-Agent": UA, "Origin": "https://tr.tradingview.com", "Referer": "https://tr.tradingview.com/"})
-    data = json.loads(urllib.request.urlopen(req, timeout=20).read())
     out = {}
-    for e in data.get("result", []):
-        tk = (e.get("ticker") or "").replace("ECONOMICS:", "")
-        if tk not in {t for _, t, _ in POLICY_RATES} or e.get("actual") is None:
-            continue
-        dt = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
-        if tk not in out or dt > out[tk]["dt"]:
-            out[tk] = {"rate": float(e["actual"]), "prev": e.get("previous"), "dt": dt}
+    for country in sorted({c for _, _, c in POLICY_RATES}):
+        want = {t for _, t, c in POLICY_RATES if c == country}
+        end = now
+        while want - set(out) and end > now - timedelta(days=days):
+            start = end - timedelta(days=step)
+            url = ("https://economic-calendar.tradingview.com/events?"
+                   f"from={start:%Y-%m-%dT%H:%M:%S.000Z}&to={end:%Y-%m-%dT%H:%M:%S.000Z}&countries={country}")
+            req = urllib.request.Request(url, headers={"User-Agent": UA, "Origin": "https://tr.tradingview.com",
+                                                       "Referer": "https://tr.tradingview.com/"})
+            data = json.loads(urllib.request.urlopen(req, timeout=20).read())
+            for e in data.get("result", []):
+                tk = (e.get("ticker") or "").replace("ECONOMICS:", "")
+                if tk not in want or e.get("actual") is None:
+                    continue
+                dt = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
+                if dt <= now and (tk not in out or dt > out[tk]["dt"]):
+                    out[tk] = {"rate": float(e["actual"]), "prev": e.get("previous"), "dt": dt}
+            end = start
     return out
 
 

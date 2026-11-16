@@ -1,0 +1,17 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -c "
+          import report
+          r = report.fetch_policy_rates()
+          print('RATES', {k: (v['rate'], v['prev'], str(v['dt'])) for k, v in r.items()})
+          print(chr(10).join(report.rates_block(r)))
+          "
