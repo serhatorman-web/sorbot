@@ -209,16 +209,26 @@ def daily_status():
     save_health(h)
 
 
-def report():
-    """Saat başı bülten (haberler + ekonomik veriler); config.json -> report ayarları."""
-    t0 = time.time()
+def report_start():
+    """Saat başı bülteni arka planda başlatır (taramalarla aynı anda çalışır, saat başında gelir)."""
+    return time.time(), subprocess.Popen([sys.executable, "report.py"], cwd=BASE, env=dict(os.environ))
+
+
+def report_wait(job, timeout=300):
+    t0, p = job
     try:
-        r = subprocess.run([sys.executable, "report.py"], cwd=BASE, env=dict(os.environ), timeout=300)
-        log(f"bülten bitti (kod {r.returncode}, {time.time() - t0:.0f}s)")
-        record("bülten", r.returncode == 0, why=f"çıkış kodu {r.returncode}")
+        rc = p.wait(timeout=max(1, timeout - (time.time() - t0)))
+        log(f"bülten bitti (kod {rc}, {time.time() - t0:.0f}s)")
+        record("bülten", rc == 0, why=f"çıkış kodu {rc}")
     except subprocess.TimeoutExpired:
+        p.kill()
         log("bülten zaman aşımına uğradı")
         record("bülten", False, why="zaman aşımı")
+
+
+def report():
+    """Saat başı bülten (haberler + ekonomik veriler); config.json -> report ayarları."""
+    report_wait(report_start())
 
 
 def release_check():
@@ -269,6 +279,8 @@ def main():
         boundary = int(time.time() - OFFSET) // STEP * STEP
         minute = datetime.fromtimestamp(boundary, timezone.utc).minute
         git_pull()
+        # saat başı bülten taramalarla aynı anda başlar → taramalar ne kadar sürerse sürsün saat başında gelir
+        bulletin = report_start() if minute == 0 else None
         if minute % 15 == 0:
             scan("15m")
         if minute == 0:
@@ -276,7 +288,7 @@ def main():
             hour = datetime.fromtimestamp(boundary, timezone.utc).hour
             if hour % 4 == 0:
                 scan("4h")      # 4 saatlik – tüm semboller
-            report()
+            report_wait(bulletin)
             daily_status()
         if ENABLE_5M:
             scan("5m")          # 5 dakikalık tarama – sadece BTC ve ETH

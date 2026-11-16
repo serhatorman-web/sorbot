@@ -868,3 +868,32 @@ def test_market_rows_equity():
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
     assert ml == ["🟢 ABD borsası · Açık · Düşüş (Nasdaq QQQ 665.62 🔴▼ %0.92)",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
+
+
+def test_send_telegram_retries(monkeypatch):
+    import io
+    import urllib.error
+    calls = {"n": 0}
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=0):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise urllib.error.URLError(ConnectionResetError(104, "Connection reset by peer"))
+        return Resp(b'{"ok": true}')
+    monkeypatch.setattr(scanner.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(scanner.time, "sleep", lambda s: None)
+    assert scanner.send_telegram("x", "t", "c") is True and calls["n"] == 3
+
+    calls["n"] = -100                                   # hiç düzelmez → 6 denemeden sonra hata
+    try:
+        scanner.send_telegram("x", "t", "c")
+        assert False, "hata bekleniyordu"
+    except RuntimeError as e:
+        assert "6 deneme" in str(e)

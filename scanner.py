@@ -1927,13 +1927,16 @@ def build_radar_message(res, rd, cfg, now_utc):
 # --------------------------------------------------------------------------- #
 # Telegram
 # --------------------------------------------------------------------------- #
-def send_telegram(text, token, chat_id):
-    for attempt in range(6):
+def send_telegram(text, token, chat_id, attempts=6):
+    """Telegram'a gönderir. Hız sınırı (429), bağlantı kopması ve zaman aşımında bekleyip yeniden dener
+    (2, 4, 8, 16, 30 sn). Kalıcı hatada (400 vb.) RuntimeError fırlatır."""
+    last_err = None
+    for attempt in range(attempts):
         data = urllib.parse.urlencode({"chat_id": chat_id, "text": text[:4096], "parse_mode": "HTML",
                                        "disable_web_page_preview": "true"}).encode()
         req = urllib.request.Request(TELEGRAM_API.format(token=token), data=data)
         try:
-            with urllib.request.urlopen(req, timeout=20) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 if json.loads(r.read().decode()).get("ok"):
                     return True
         except urllib.error.HTTPError as e:
@@ -1946,8 +1949,20 @@ def send_telegram(text, token, chat_id):
                     wait = 5
                 time.sleep(min(wait + 1, 60))
                 continue
+            if e.code >= 500:                          # Telegram sunucu hatası → tekrar dene
+                last_err = f"{e.code}"
+                time.sleep(min(2 ** (attempt + 1), 30))
+                continue
             raise RuntimeError(f"Telegram hatası {e.code}: {body}") from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            # bağlantı koptu / zaman aşımı → bekle ve tekrar dene
+            last_err = e
+            print(f"  Telegram bağlantı sorunu ({e}), {attempt + 1}. deneme – tekrar denenecek", file=sys.stderr)
+            time.sleep(min(2 ** (attempt + 1), 30))
+            continue
         time.sleep(2)
+    if last_err is not None:
+        raise RuntimeError(f"Telegram'a ulaşılamadı ({attempts} deneme): {last_err}")
     return False
 
 
