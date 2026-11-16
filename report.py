@@ -689,6 +689,14 @@ def pct_tr(chg):
     return ("+" if chg > 0 else ("-" if chg < 0 else "")) + "%" + tr_num(abs(chg))
 
 
+def pct_arrow(chg):
+    """Renkli ok + yüzde: 🟢▲ %0,14 · 🔴▼ %1,21 · ⚪▶ %0,00"""
+    if chg is None:
+        return "–"
+    arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
+    return f"{arrow} %{tr_num(abs(chg))}"
+
+
 def chg_icon(chg):
     return "🟢" if chg and chg > 0 else ("🔴" if chg and chg < 0 else "⚪")
 
@@ -708,12 +716,12 @@ def markets_block(quotes):
             if cur == "%":                      # tahvil getirisi: %4,25 · +3 bp
                 chg = q.get("chg")
                 bp = None if chg is None else round(q["price"] * chg / (100 + chg) * 100)
-                bp_s = "–" if bp is None else (f"+{bp}" if bp > 0 else str(bp)) + " bp"
+                bp_s = "–" if bp is None else (("🟢▲ " if bp > 0 else ("🔴▼ " if bp < 0 else "⚪▶ ")) + f"{abs(bp)} bp")
                 rows.append(f"{chg_icon(bp)} {name}: <b>%{tr_num(q['price'], 2)}</b> · {bp_s} · <i>{status}</i>")
                 continue
             dec = 4 if sym in ("TRY=X", "EURTRY=X") else (3 if q["price"] < 10 else 2)
             rows.append(f"{chg_icon(q.get('chg'))} {name}: <b>{cur}{tr_num(q['price'], dec)}</b> · "
-                        f"{pct_tr(q.get('chg'))} · <i>{status}</i>")
+                        f"{pct_arrow(q.get('chg'))} · <i>{status}</i>")
         if rows:
             # gruplar arasında yatay çizgi (ilk grup başlığın hemen altında)
             L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + rows
