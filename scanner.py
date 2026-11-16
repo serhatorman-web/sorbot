@@ -1591,14 +1591,22 @@ def price_tag(t):
     return f" (Fiyat {fmt_price(t['last'], 2)} {arrow} %{abs(chg):.2f})"
 
 
-def leader_line(res, name=None, bias=None):
+def bias_tf_label(cfg):
+    """Yön hesabının baktığı grafikler: sinyalin zaman dilimi + 4 katı (15dk → '15dk + 1s', 1s → '1s + 4s')."""
+    base = tf_ms(cfg) if cfg else HOUR_MS
+    names = {5 * 60_000: "5dk", 15 * 60_000: "15dk", 20 * 60_000: "20dk", HOUR_MS: "1s", 4 * HOUR_MS: "4s",
+             16 * HOUR_MS: "16s"}
+    return f"{names.get(base, '?')} + {names.get(4 * base, '?')}"
+
+
+def leader_line(res, name=None, bias=None, cfg=None):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) + anlık fiyat ve 24s değişim."""
     name = name or res["leader_name"]
     lb_ = res["leader_bias"] if bias is None else bias
     lbl = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay"}       # BTC / ETH / QQQ yönü
     icon, word = lbl[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)].split(" ", 1)
     # baştaki ikon trendi gösterir; 24s kısmı fiyat değişimi (ayrı ayrı etiketli)
-    row = f"{icon} {name} yönü · Trend: {word}"
+    row = f"{icon} {name} yönü ({bias_tf_label(cfg)}) · Trend: {word}" if cfg else f"{icon} {name} yönü · Trend: {word}"
     t = (res.get("mkt") or {}).get(name)
     if t and t.get("last"):
         chg = t.get("chg", 0.0)
@@ -1656,13 +1664,13 @@ def dominance_line(res):
     return f"{icon} BTC Dominance · {word} · %{d['dom']:.2f} {tag} → {why}"
 
 
-def leader_block(res):
+def leader_block(res, cfg=None):
     """BTC (kriptoda altına ETH) / QQQ yönü satırları."""
     out = []
     if res.get("leader_name") and res["leader_name"] != "4s trend":
-        out.append(leader_line(res))
+        out.append(leader_line(res, cfg=cfg))
     if res["meta"]["type"] == "COIN" and res["meta"]["symbol"] != "ETHUSDT" and res.get("eth_bias") is not None:
-        out.append(leader_line(res, "ETH", res["eth_bias"]))
+        out.append(leader_line(res, "ETH", res["eth_bias"], cfg=cfg))
     if res["meta"]["type"] == "COIN":
         out.append(dominance_line(res))
     return [x for x in out if x]
@@ -1890,7 +1898,7 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
     trend_line = tf_table_html(res)
-    lb = leader_block(res)
+    lb = leader_block(res, cfg)
     if lb:
         trend_line += "\n\n" + SEP + "\n" + "\n".join(lb)
     vr = res["pd"]["vol_ratio"]
@@ -1993,7 +2001,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", SEP, trend]
-    lb = leader_block(res)
+    lb = leader_block(res, cfg)
     if lb:
         lines += ["", SEP] + lb
     lines += market_lines(res, cfg, now_utc)

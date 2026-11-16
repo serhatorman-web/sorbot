@@ -912,3 +912,13 @@ def test_dominance_line():
     assert "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
     assert "yatay" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": 0.01}))
     assert scanner.dominance_line(base) is None
+
+
+def test_bias_tf_label():
+    assert scanner.bias_tf_label({"timeframe": "15m"}) == "15dk + 1s"
+    assert scanner.bias_tf_label({"timeframe": "1h"}) == "1s + 4s"
+    assert scanner.bias_tf_label({"timeframe": "4h"}) == "4s + 16s"
+    res = {"meta": {"symbol": "BEATUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": 0.8,
+           "mkt": {"BTC": {"last": 64760.4, "chg": -0.32}}}
+    assert scanner.leader_block(res, {"timeframe": "15m"})[0] == \
+        "🟢 BTC yönü (15dk + 1s) · Trend: Yükselişte · 24s: 64,760.40 🔴▼ %0.32"
