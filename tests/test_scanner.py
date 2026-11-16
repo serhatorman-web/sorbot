@@ -947,3 +947,11 @@ def test_section():
 def test_market_section():
     assert scanner.market_section(["a"], ["b"]) == ["", "🌍 <b>PİYASA DURUMU</b>", scanner.SEP, "a", "b"]
     assert scanner.market_section([], []) == []
+
+
+def test_market_rows_ndx():
+    from datetime import datetime, timezone
+    res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "ndx": {"last": 27277.73, "chg": -2.38},
+           "mkt": {"QQQ": {"last": 665.62, "chg": -0.92}}, "qv24": None}
+    ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
+    assert ml == ["🔴 ABD borsası · Açık · Düşüşte · Günlük: Nasdaq 100 27,277.73 🔴▼ %2.38"], ml

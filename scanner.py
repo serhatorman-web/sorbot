@@ -796,6 +796,7 @@ def analyze_symbol(meta, candles, ctx, cfg):
     out["mkt"] = {k: ctx["tickers"].get(k + "USDT") for k in ("BTC", "ETH", "QQQ")}
     out["eth_bias"] = ctx.get("eth_bias")
     out["btc_dom"] = ctx.get("btc_dom")
+    out["ndx"] = ctx.get("ndx")
     return out
 
 
@@ -1659,6 +1660,22 @@ def leader_line(res, name=None, bias=None, cfg=None):
     return row
 
 
+def nasdaq_index():
+    """Nasdaq 100 endeksi (Yahoo ^NDX): {'last', 'chg'} – günlük değişim (önceki kapanışa göre). Hata → None."""
+    try:
+        req = urllib.request.Request("https://query1.finance.yahoo.com/v8/finance/chart/%5ENDX?interval=1d&range=1d",
+                                     headers={"User-Agent": "Mozilla/5.0 (SorBot)"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            m = json.loads(r.read().decode())["chart"]["result"][0]["meta"]
+        price, prev = m.get("regularMarketPrice"), m.get("chartPreviousClose") or m.get("previousClose")
+        if not price or not prev:
+            return None
+        return {"last": float(price), "chg": (price / prev - 1) * 100}
+    except Exception as e:  # noqa: BLE001
+        print(f"  [uyarı] Nasdaq 100 alınamadı: {e}")
+        return None
+
+
 def btc_dominance(btc_chg24):
     """BTC Dominance (CoinGecko /global): {'dom': %, 'chg': 24s puan değişimi}. Hata olursa None.
     24s değişim: dün = bugün × (1 + toplam piyasa değeri değişimi) / (1 + BTC değişimi)."""
@@ -1728,12 +1745,15 @@ def market_lines(res, cfg, now_utc):
     if ms:
         status = {"open": "Açık", "closed": "Kapalı (seans dışı)", "weekend": "Kapalı (hafta sonu)"}[ms]
         # baştaki ikon Nasdaq (QQQ) yönünü gösterir; açık/kapalı yazıyla, 24s değişim etiketli
-        q = (res.get("mkt") or {}).get("QQQ")
+        # Nasdaq 100 endeksinin kendisi (Yahoo); alınamazsa Binance QQQ fiyatı
+        q, lbl = res.get("ndx"), "Günlük: Nasdaq 100"
+        if not q or not q.get("last"):
+            q, lbl = (res.get("mkt") or {}).get("QQQ"), "24s: Nasdaq QQQ"
         if q and q.get("last"):
             chg = q.get("chg", 0.0)
             icon, word = ("🟢", "Yükselişte") if chg > 0 else (("🔴", "Düşüşte") if chg < 0 else ("⚪", "Yatay"))
             arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
-            out.append(f"{icon} ABD borsası · {status} · {word} · 24s: Nasdaq QQQ {fmt_price(q['last'], 2)} "
+            out.append(f"{icon} ABD borsası · {status} · {word} · {lbl} {fmt_price(q['last'], 2)} "
                        f"{arrow} %{abs(chg):.2f}")
         else:
             out.append(f"⚪ ABD borsası · {status}")
@@ -2267,7 +2287,7 @@ def main():
     if "ETHUSDT" in candles and len(candles["ETHUSDT"]) >= cfg["min_candles"]:
         eth_bias = trend_bias(compute_features(candles["ETHUSDT"], cfg))
     ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": eth_bias,
-           "btc_dom": btc_dominance(tickers.get("BTCUSDT", {}).get("chg"))}
+           "btc_dom": btc_dominance(tickers.get("BTCUSDT", {}).get("chg")), "ndx": nasdaq_index()}
     results = []
     for sym, meta in symbols.items():
         if meta.get("leader_only") or sym not in candles:
