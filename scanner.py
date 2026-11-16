@@ -76,6 +76,7 @@ BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("�
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 
+IND_HEADER = "📋 <b>İNDİKATÖRLER</b>"
 HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "📊 <b>HACİM PROFİLİ",
            "🧱 <b>ORDER BLOCK")
 
@@ -1957,7 +1958,7 @@ def build_message(res, direction, cfg, now_utc):
             gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
             if gi is not None:
                 lines[gi:gi] = [st_line, ""]
-                lines += ["", SEP]
+                lines += ["", IND_HEADER, SEP]
             else:
                 lines += ["", SEP, st_line]
         si = ssl_info_lines(res, direction) if cfg.get("ssl_info", {}).get("enabled", True) else []
@@ -2032,7 +2033,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
         if gi is not None:                       # Supertrend satırı Giriş'in üstünde
             lines[gi:gi] = [st_line, ""]
-            lines += ["", SEP] + indicator_list_lines(res, direction)
+            lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
     for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
