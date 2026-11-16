@@ -931,3 +931,9 @@ def test_upper_resample():
     assert len(d) == 2 and d[0]["t"] == 0 and d[0]["c"] == 6 and d[1]["c"] == 12
     c15 = [{"t": k * 15 * 60_000, "o": 1, "h": 2, "l": 0.5, "c": k, "v": 1} for k in range(9)]
     assert [x["c"] for x in scanner.resample_4h(c15, 15 * 60_000)] == [3, 7]   # 15dk → 1s
+
+
+def test_with_header_line():
+    b = ["📍 <b>PIVOTS</b> · 4 saat", "Pivot 1"]
+    assert scanner.with_header_line(b) == ["📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "Pivot 1"]
+    assert scanner.with_header_line(["🔊 Hacim: x"]) == ["🔊 Hacim: x"]
