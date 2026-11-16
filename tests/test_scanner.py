@@ -937,3 +937,8 @@ def test_with_header_line():
     b = ["📍 <b>PIVOTS</b> · 4 saat", "Pivot 1"]
     assert scanner.with_header_line(b) == ["📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "Pivot 1"]
     assert scanner.with_header_line(["🔊 Hacim: x"]) == ["🔊 Hacim: x"]
+
+
+def test_section():
+    assert scanner.section(["📍 <b>PIVOTS</b> · 4 saat", "x"]) == ["", "📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "x"]
+    assert scanner.section(["🔊 Hacim"]) == ["", scanner.SEP, "🔊 Hacim"]

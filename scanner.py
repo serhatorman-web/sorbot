@@ -87,6 +87,13 @@ def with_header_line(block):
     return block
 
 
+def section(block):
+    """Başlıklı bölüm: üstünde çizgi yok, başlığın altında kalın çizgi. Başlıksız blok: üstünde çizgi."""
+    if block and block[0].startswith(HEADERS):
+        return [""] + with_header_line(block)
+    return ["", SEP] + block
+
+
 def put_time_top(lines, t_close):
     """Mum kapanış tarihi ve saati bandın hemen altına yazılır (bant yoksa en üste)."""
     tag = f"🕒 {t_close} Mum Kapanışı"
@@ -1953,8 +1960,8 @@ def build_message(res, direction, cfg, now_utc):
         for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
                       volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
             if block:
-                lines += ["", SEP] + with_header_line(block)
-    lines += ["", SEP, trend_line] + market_lines(res, cfg, now_utc)
+                lines += section(block)
+    lines += ["", trend_line] + market_lines(res, cfg, now_utc)
     if not res.get("votes"):      # eski 'score' stratejisinde indikatör değerleri gösterilir
         lines += ["", ind_line, " · ".join(extra)]
 
@@ -2016,10 +2023,10 @@ def build_radar_message(res, rd, cfg, now_utc):
                   trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
                   divergence_lines(res), volume_lines(res, cfg)):
         if block:
-            lines += ["", SEP] + with_header_line(block)
+            lines += section(block)
     trend = tf_table_html(res)
     if trend:
-        lines += ["", SEP, trend]
+        lines += ["", trend]
     lb = leader_block(res, cfg)
     if lb:
         lines += ["", SEP] + lb
