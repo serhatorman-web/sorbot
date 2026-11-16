@@ -917,8 +917,17 @@ def test_dominance_line():
 def test_bias_tf_label():
     assert scanner.bias_tf_label({"timeframe": "15m"}) == "15dk + 1s"
     assert scanner.bias_tf_label({"timeframe": "1h"}) == "1s + 4s"
-    assert scanner.bias_tf_label({"timeframe": "4h"}) == "4s + 16s"
+    assert scanner.bias_tf_label({"timeframe": "4h"}) == "4s + 1g"
     res = {"meta": {"symbol": "BEATUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": 0.8,
            "mkt": {"BTC": {"last": 64760.4, "chg": -0.32}}}
     assert scanner.leader_block(res, {"timeframe": "15m"})[0] == \
         "🟢 BTC yönü (15dk + 1s) · Trend: Yükselişte · 24s: 64,760.40 🔴▼ %0.32"
+
+
+def test_upper_resample():
+    H = scanner.HOUR_MS
+    c4h = [{"t": k * 4 * H, "o": 1, "h": 2, "l": 0.5, "c": 1 + k, "v": 1} for k in range(13)]
+    d = scanner.resample_4h(c4h, 4 * H)               # 4s → 1 gün (6 mum)
+    assert len(d) == 2 and d[0]["t"] == 0 and d[0]["c"] == 6 and d[1]["c"] == 12
+    c15 = [{"t": k * 15 * 60_000, "o": 1, "h": 2, "l": 0.5, "c": k, "v": 1} for k in range(9)]
+    assert [x["c"] for x in scanner.resample_4h(c15, 15 * 60_000)] == [3, 7]   # 15dk → 1s

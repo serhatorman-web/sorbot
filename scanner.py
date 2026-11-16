@@ -200,16 +200,25 @@ def us_market_status(now_utc):
 # --------------------------------------------------------------------------- #
 # Özellik (indikatör) hesaplama
 # --------------------------------------------------------------------------- #
+# Bir üst zaman dilimi: sinyalin zaman dilimi kaç katı (5dk→15dk, 15dk→1s, 1s→4s, 4s→1g)
+UPPER_FACTOR = {5 * 60_000: 3, 15 * 60_000: 4, HOUR_MS: 4, 4 * HOUR_MS: 6}
+
+
+def upper_factor(base_ms):
+    return UPPER_FACTOR.get(base_ms, 4)
+
+
 def resample_4h(candles, base_ms=HOUR_MS):
-    """1 saatlik mumlardan tamamlanmış 4 saatlik mumlar üretir."""
+    """Tamamlanmış bir üst zaman dilimi mumları üretir (ad tarihsel: 1s → 4s; 15dk → 1s; 4s → 1g)."""
+    k_ = upper_factor(base_ms)
     groups = {}
     for c in candles:
-        key = c["t"] // (4 * base_ms)
+        key = c["t"] // (k_ * base_ms)
         groups.setdefault(key, []).append(c)
     out = []
     for key in sorted(groups):
         g = groups[key]
-        if len(g) != 4:
+        if len(g) != k_:
             continue
         out.append({"t": g[0]["t"], "o": g[0]["o"], "h": max(x["h"] for x in g),
                     "l": min(x["l"] for x in g), "c": g[-1]["c"], "v": sum(x["v"] for x in g),
@@ -256,7 +265,7 @@ def compute_features(candles, cfg):
     f["hh20"] = ta.highest(h, cfg["pump_dump"]["breakout_lookback"])
     f["ll20"] = ta.lowest(l, cfg["pump_dump"]["breakout_lookback"])
 
-    # 4 saatlik trend: her 1s mum için, o ana kadar TAMAMLANMIŞ son 4s mumun durumu
+    # bir üst zaman dilimi trendi (15dk→1s, 1s→4s, 4s→1g): o ana kadar TAMAMLANMIŞ son üst mumun durumu
     # (geçmişe dönük testte geleceği görmemek için mum bazında hesaplanır)
     n = len(candles)
     f["h4_ema"], f["h4_st"] = [0] * n, [0] * n
@@ -269,7 +278,7 @@ def compute_features(candles, cfg):
         k = -1
         for i in range(n):
             close_t = t[i] + base_ms
-            while k + 1 < len(c4) and c4[k + 1]["t"] + 4 * base_ms <= close_t:
+            while k + 1 < len(c4) and c4[k + 1]["t"] + upper_factor(base_ms) * base_ms <= close_t:
                 k += 1
             if k >= 0 and e50[k] is not None:
                 f["h4_ema"][i] = 1 if e20[k] > e50[k] else -1
@@ -1592,11 +1601,10 @@ def price_tag(t):
 
 
 def bias_tf_label(cfg):
-    """Yön hesabının baktığı grafikler: sinyalin zaman dilimi + 4 katı (15dk → '15dk + 1s', 1s → '1s + 4s')."""
+    """Yön hesabının baktığı grafikler: sinyalin zaman dilimi + bir üstü (15dk+1s, 1s+4s, 4s+1g)."""
     base = tf_ms(cfg) if cfg else HOUR_MS
-    names = {5 * 60_000: "5dk", 15 * 60_000: "15dk", 20 * 60_000: "20dk", HOUR_MS: "1s", 4 * HOUR_MS: "4s",
-             16 * HOUR_MS: "16s"}
-    return f"{names.get(base, '?')} + {names.get(4 * base, '?')}"
+    names = {5 * 60_000: "5dk", 15 * 60_000: "15dk", HOUR_MS: "1s", 4 * HOUR_MS: "4s", 24 * HOUR_MS: "1g"}
+    return f"{names.get(base, '?')} + {names.get(upper_factor(base) * base, '?')}"
 
 
 def leader_line(res, name=None, bias=None, cfg=None):
