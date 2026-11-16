@@ -567,15 +567,73 @@ MARKET_GROUPS = [
     ]),
     ("🥇 Değerli Metaller & Emtia", [
         ("Spot Altın (ons)", "GC=F", "XAUUSDT", "$"), ("Gram Altın", "GRAM", None, "₺"),
-        ("Gümüş (ons)", "SI=F", "XAGUSDT", "$"), ("Platin (ons)", "PL=F", "XPTUSDT", "$"),
+        ("Spot Gümüş (ons)", "SI=F", "XAGUSDT", "$"), ("Platin (ons)", "PL=F", "XPTUSDT", "$"),
         ("Paladyum (ons)", "PA=F", "XPDUSDT", "$"), ("Brent Petrol", "BZ=F", None, "$"),
-        ("WTI Petrol", "CL=F", None, "$"), ("Doğalgaz", "NG=F", None, "$"), ("Bakır", "HG=F", None, "$"),
+        ("WTI Petrol (NYMEX)", "CL=F", None, "$"), ("Doğalgaz (NYMEX)", "NG=F", None, "$"), ("Bakır", "HG=F", None, "$"),
+    ]),
+    # Tahvil getirileri: fiyat yüzde (%4,25), değişim baz puan (bp)
+    ("🏛️ ABD Tahvil Faizleri", [
+        ("ABD 2 Yıllık", "2YY=F", None, "%"), ("ABD 5 Yıllık", "^FVX", None, "%"),
+        ("ABD 10 Yıllık", "^TNX", None, "%"), ("ABD 30 Yıllık", "^TYX", None, "%"),
     ]),
     ("💵 Döviz", [
         ("Dolar Endeksi (DXY)", "DX-Y.NYB", None, ""), ("USD/TRY", "TRY=X", None, "₺"), ("EUR/TRY", "EURTRY=X", None, "₺"),
     ]),
 ]
 GRAM_PER_OUNCE = 31.1034768
+
+# Merkez bankası politika faizleri – TradingView ekonomik takvimindeki son karar (otomatik güncellenir)
+# (ad, TradingView ECONOMICS ticker, ülke kodu)
+POLICY_RATES = [
+    ("🇺🇸 Fed (ABD)", "USINTR", "US"),
+    ("🇹🇷 TCMB (Türkiye)", "TRINTR", "TR"),
+    ("🇪🇺 ECB (Euro Bölgesi) – mevduat", "EUDIR", "EU"),
+    ("🇪🇺 ECB (Euro Bölgesi) – refinansman", "EUINTR", "EU"),
+    ("🇬🇧 BoE (İngiltere)", "GBINTR", "GB"),
+    ("🇨🇭 SNB (İsviçre)", "CHINTR", "CH"),
+]
+
+
+def fetch_policy_rates(days=240):
+    """Her merkez bankasının son faiz kararı: {ticker: {'rate', 'prev', 'dt'}}."""
+    now = datetime.now(timezone.utc)
+    frm = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    to = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    countries = ",".join(sorted({c for _, _, c in POLICY_RATES}))
+    req = urllib.request.Request(
+        f"https://economic-calendar.tradingview.com/events?from={frm}&to={to}&countries={countries}",
+        headers={"User-Agent": UA, "Origin": "https://tr.tradingview.com", "Referer": "https://tr.tradingview.com/"})
+    data = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    out = {}
+    for e in data.get("result", []):
+        tk = (e.get("ticker") or "").replace("ECONOMICS:", "")
+        if tk not in {t for _, t, _ in POLICY_RATES} or e.get("actual") is None:
+            continue
+        dt = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
+        if tk not in out or dt > out[tk]["dt"]:
+            out[tk] = {"rate": float(e["actual"]), "prev": e.get("previous"), "dt": dt}
+    return out
+
+
+def rates_block(rates):
+    """🏦 Merkez Bankası Faizleri: oran + son kararın tarihi ve değişimi."""
+    rows = []
+    for name, tk, _ in POLICY_RATES:
+        r = (rates or {}).get(tk)
+        if not r:
+            continue
+        d = r["dt"].astimezone(TR_TZ)
+        when = f"{d.day} {TR_MONTH_NAMES[d.month - 1][:3]}"
+        prev = r.get("prev")
+        if prev is None or float(prev) == r["rate"]:
+            move = f"{when}: sabit"
+            icon = "⚪"
+        else:
+            bp = round((r["rate"] - float(prev)) * 100)
+            move = f"{when}: {'▲' if bp > 0 else '▼'} {abs(bp)} bp"
+            icon = "🔴" if bp > 0 else "🟢"
+        rows.append(f"{icon} {name}: <b>%{tr_num(r['rate'])}</b> · son karar {move}")
+    return rows
 
 
 def yahoo_quote(symbol):
@@ -602,8 +660,10 @@ def collect_markets(api):
         fq = {s_: ex.submit(safe, yahoo_quote, s_) for s_ in syms}
         fs = {b: ex.submit(safe, lambda b=b: float(api.get("/fapi/v1/premiumIndex", {"symbol": b})["indexPrice"]))
               for b in spot}
+        fr = ex.submit(safe, fetch_policy_rates)
         quotes = {s_: f_.result() for s_, f_ in fq.items()}
         spots = {b: f_.result() for b, f_ in fs.items()}
+        quotes["_rates"] = fr.result()
     # Spot metaller: fiyat Binance spot endeksinden, değişim ve açık/kapalı vadeli kontrattan
     for _, items in MARKET_GROUPS:
         for _, sym, bsym, _ in items:
@@ -639,19 +699,28 @@ def markets_block(quotes):
             q = quotes.get(sym)
             if not q or q.get("price") is None:
                 continue
-            dec = 4 if sym in ("TRY=X", "EURTRY=X") else (3 if q["price"] < 10 else 2)
             status = "Açık" if q.get("open") else "Kapalı"
+            if cur == "%":                      # tahvil getirisi: %4,25 · +3 bp
+                chg = q.get("chg")
+                bp = None if chg is None else round(q["price"] * chg / (100 + chg) * 100)
+                bp_s = "–" if bp is None else (f"+{bp}" if bp > 0 else str(bp)) + " bp"
+                rows.append(f"{chg_icon(bp)} {name}: <b>%{tr_num(q['price'], 2)}</b> · {bp_s} · <i>{status}</i>")
+                continue
+            dec = 4 if sym in ("TRY=X", "EURTRY=X") else (3 if q["price"] < 10 else 2)
             rows.append(f"{chg_icon(q.get('chg'))} {name}: <b>{cur}{tr_num(q['price'], dec)}</b> · "
                         f"{pct_tr(q.get('chg'))} · <i>{status}</i>")
         if rows:
             # gruplar arasında yatay çizgi (ilk grup başlığın hemen altında)
             L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + rows
+    rr = rates_block(quotes.get("_rates"))
+    if rr:
+        L += ["", sc.SEP, "<b>🏦 Merkez Bankası Faizleri</b>"] + rr
     return L
 
 
 def market_summary(quotes):
     """Kısa özet: yükselen/düşen sayısı ve öne çıkanlar."""
-    vals = [q for q in quotes.values() if q and q.get("chg") is not None]
+    vals = [q for k, q in quotes.items() if not k.startswith("_") and q and q.get("chg") is not None]
     if not vals:
         return None
     up = sum(1 for q in vals if q["chg"] > 0)
