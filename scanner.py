@@ -1845,7 +1845,8 @@ def build_message(res, direction, cfg, now_utc):
     banner = banner_lines(meta, cfg)
     if not banner:
         bar = ("🟩" if direction == "long" else "🟥") * 10
-        title = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
+        mk = "ABD (NASDAQ) " if meta.get("type") == "EQUITY" else ""      # hisse sinyallerini ayırmak için
+        title = f"📈 <b>{mk}LONG SİNYALİ</b>" if direction == "long" else f"📉 <b>{mk}SHORT SİNYALİ</b>"
         banner = [bar, f"{title} · {TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}", bar, ""]
     lines = banner + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
@@ -1926,7 +1927,8 @@ def build_radar_message(res, rd, cfg, now_utc):
     if rd["kind"] == "start":
         # BITCOIN SİNYALİ gibi bant: 🟩 PUMP / 🟥 DUMP
         bar = ("🟩" if long_ else "🟥") * 10
-        banner = [bar, f"{'🚀 <b>PUMP SİNYALİ</b>' if long_ else '💥 <b>DUMP SİNYALİ</b>'} · {tf_s}", bar, ""]
+        mk = "ABD (NASDAQ) " if meta.get("type") == "EQUITY" else ""
+        banner = [bar, f"{f'🚀 <b>{mk}PUMP SİNYALİ</b>' if long_ else f'💥 <b>{mk}DUMP SİNYALİ</b>'} · {tf_s}", bar, ""]
         head = "🟢 <b>LONG</b>" if long_ else "🔴 <b>SHORT</b>"
     else:
         banner = banner_lines(meta, cfg)
