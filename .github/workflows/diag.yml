@@ -1,0 +1,15 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for tf in 15m 1h; do
+            echo "##### TF $tf"
+            SORBOT_TF=$tf DRY_RUN=1 python3 scanner.py 2>&1 || echo "##### ÇIKIŞ KODU $?"
+          done
