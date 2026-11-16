@@ -1756,7 +1756,13 @@ def build_message(res, direction, cfg, now_utc):
     top = []
     for x in align:
         top += [x, ""]
-    lines = banner_lines(meta, cfg) + [
+    # bant: BTC / ETH kendi bandı; diğerleri LONG 🟩 / SHORT 🟥 (PUMP / DUMP SİNYALİ gibi)
+    banner = banner_lines(meta, cfg)
+    if not banner:
+        bar = ("🟩" if direction == "long" else "🟥") * 10
+        title = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
+        banner = [bar, f"{title} · {TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}", bar, ""]
+    lines = banner + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         SEP] + top + ([SEP] if top else []) + [
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
