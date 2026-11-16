@@ -738,6 +738,9 @@ def analyze_symbol(meta, candles, ctx, cfg):
     chg24 = ctx["tickers"].get(sym, {}).get("chg", 0.0)
     out = evaluate_at(meta, f, i, leader_bias, leader_name, funding, chg24, ctx["now_utc"], cfg, leader_ret24)
     out["qv24"] = ctx["tickers"].get(sym, {}).get("qv")
+    # piyasa satırları için anlık fiyat / 24s değişim (BTC, ETH, QQQ)
+    out["mkt"] = {k: ctx["tickers"].get(k + "USDT") for k in ("BTC", "ETH", "QQQ")}
+    out["eth_bias"] = ctx.get("eth_bias")
     return out
 
 
@@ -1559,17 +1562,40 @@ def divergence_lines(res):
     return out
 
 
-def leader_line(res):
-    """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) – aynı hesap ve format."""
-    lb_ = res["leader_bias"]
-    return icon_row(f"{res['leader_name']} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
+def fmt_usd(v):
+    """4_235_000 -> '4.2M $', 1_250_000_000 -> '1.25B $'."""
+    t = lambda x, d: f"{x:.{d}f}".rstrip("0").rstrip(".")
+    if v >= 1e9:
+        return f"{t(v / 1e9, 2)}B $"
+    if v >= 1e6:
+        return f"{t(v / 1e6, 1)}M $"
+    return f"{v / 1e3:.0f}K $"
+
+
+def price_tag(t):
+    """'(Fiyat 78,500.00 ⬇️ %1.40)' – 24 saatlik değişim; yükselişte ⬆️."""
+    if not t or not t.get("last"):
+        return ""
+    chg = t.get("chg", 0.0)
+    arrow = "⬆️" if chg > 0 else ("⬇️" if chg < 0 else "➡️")
+    return f" (Fiyat {fmt_price(t['last'], 2)} {arrow} %{abs(chg):.2f})"
+
+
+def leader_line(res, name=None, bias=None):
+    """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) + anlık fiyat ve 24s değişim."""
+    name = name or res["leader_name"]
+    lb_ = res["leader_bias"] if bias is None else bias
+    row = icon_row(f"{name} yönü", TREND_LABEL[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)])
+    return row + price_tag((res.get("mkt") or {}).get(name))
 
 
 def leader_block(res):
-    """BTC/QQQ yönü satırı."""
+    """BTC (kriptoda altına ETH) / QQQ yönü satırları."""
     out = []
     if res.get("leader_name") and res["leader_name"] != "4s trend":
         out.append(leader_line(res))
+    if res["meta"]["type"] == "COIN" and res["meta"]["symbol"] != "ETHUSDT" and res.get("eth_bias") is not None:
+        out.append(leader_line(res, "ETH", res["eth_bias"]))
     return [x for x in out if x]
 
 
@@ -1579,14 +1605,20 @@ def market_lines(res, cfg, now_utc):
     out = []
     ms = us_market_status(now_utc)
     if ms:
-        out.append(icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
-                                            "weekend": "🔴 Kapalı (hafta sonu)"}[ms]))
+        row = icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
+                                       "weekend": "🔴 Kapalı (hafta sonu)"}[ms])
+        # Nasdaq 100 (QQQ) fiyatı – hisselerde QQQ yönü satırında zaten yazıyor
+        if meta["type"] != "EQUITY" or res.get("leader_name") != "QQQ":
+            tag = price_tag((res.get("mkt") or {}).get("QQQ"))
+            row += tag.replace("(Fiyat", "(Nasdaq QQQ") if tag else ""
+        out.append(row)
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
     qv = res.get("qv24")
     if qv is not None:
         # hisselerde borsa kapalıyken likidite her zaman düşük
         high = qv >= lq.get(meta["type"], lq.get("COIN", 50_000_000)) and (meta["type"] != "EQUITY" or ms == "open")
-        out.append(icon_row("Likidite", "🟢 Yüksek" if high else "🔴 Düşük"))
+        out.append(icon_row("Likidite", "🟢 Yüksek" if high else "🔴 Düşük")
+                   + f" (24s hacim {fmt_usd(qv)} · yüksek eşiği {fmt_usd(lq.get(meta['type'], lq.get('COIN', 50_000_000)))})")
     return out
 
 
@@ -1953,7 +1985,8 @@ def build_universe(api, cfg):
     include, exclude = set(ucfg["include_types"]), set(ucfg["exclude_symbols"])
     tickers = {}
     for t in api.get("/fapi/v1/ticker/24hr"):
-        tickers[t["symbol"]] = {"qv": float(t["quoteVolume"]), "chg": float(t["priceChangePercent"])}
+        tickers[t["symbol"]] = {"qv": float(t["quoteVolume"]), "chg": float(t["priceChangePercent"]),
+                                "last": float(t.get("lastPrice") or 0)}
     funding = {}
     for p in api.get("/fapi/v1/premiumIndex"):
         try:
@@ -2070,7 +2103,11 @@ def main():
     for typ, ld in leaders.items():
         print(f"Piyasa lideri {typ}: {ld['symbol']} eğilim {ld['bias']:+.1f}")
 
-    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc}
+    # ETH yönü (kripto sinyallerinde BTC yönünün altında gösterilir)
+    eth_bias = None
+    if "ETHUSDT" in candles and len(candles["ETHUSDT"]) >= cfg["min_candles"]:
+        eth_bias = trend_bias(compute_features(candles["ETHUSDT"], cfg))
+    ctx = {"leaders": leaders, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": eth_bias}
     results = []
     for sym, meta in symbols.items():
         if meta.get("leader_only") or sym not in candles:

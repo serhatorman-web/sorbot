@@ -841,3 +841,19 @@ def test_rating_votes():
     assert v == {"RSI": 1, "TrendFlex": 1, "Supertrend": -1}
     res["votes"].append(("Supertrend", -1))
     assert [n for n, _ in scanner.rating_votes(res)].count("Supertrend") == 1
+
+
+def test_market_rows():
+    from datetime import datetime, timezone
+    mkt = {"BTC": {"last": 78500.0, "chg": -1.4}, "ETH": {"last": 2650.5, "chg": 0.8}, "QQQ": {"last": 612.4, "chg": 0.85}}
+    res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": -1.0,
+           "eth_bias": 1.0, "mkt": mkt, "qv24": 4_235_000}
+    lb = scanner.leader_block(res)
+    assert lb[0] == "🔴 BTC yönü · Düşüş (Fiyat 78,500.00 ⬇️ %1.40)", lb
+    assert lb[1] == "🟢 ETH yönü · Yükseliş (Fiyat 2,650.50 ⬆️ %0.80)", lb
+    now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
+    ml = scanner.market_lines(res, {}, now)
+    assert ml[0] == "🟢 ABD borsası · Açık (Nasdaq QQQ 612.40 ⬆️ %0.85)", ml
+    assert ml[1] == "🔴 Likidite · Düşük (24s hacim 4.2M $ · yüksek eşiği 50M $)", ml
+    res["meta"] = {"symbol": "ETHUSDT", "type": "COIN"}
+    assert len(scanner.leader_block(res)) == 1
