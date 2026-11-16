@@ -346,8 +346,8 @@ def test_trend_alignment():
     t = lambda a, b, c, d: {"tf": {"15m": a, "1h": b, "4h": c, "1d": d}}
     al = scanner.trend_alignment_line
     assert al(t(-1, -1, -1, -1), "long") == "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
-    assert al(t(1, 1, 1, 1), "long") == "🟢 <b>Bu işlem trend ile uyumlu</b>"
-    assert al(t(-1, -1, -1, -1), "short") == "🔴 <b>Bu işlem trend ile uyumlu</b>"
+    assert al(t(1, 1, 1, 1), "long") == "✅ <b>Bu işlem trend ile uyumlu</b>"
+    assert al(t(-1, -1, -1, -1), "short") == "✅ <b>Bu işlem trend ile uyumlu</b>"
     assert al(t(1, 1, 1, 1), "short") == "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
     assert al(t(1, -1, -1, -1), "long") is None
     assert al(t(-1, -1, -1, None), "long") is not None
@@ -358,15 +358,15 @@ def test_own_tf_alignment():
     o = scanner.own_tf_alignment_line
     c15 = {"timeframe": "15m"}
     assert o({"tf": {"15m": 0}}, "long", c15) == "⚪ İşlem kendi zaman diliminde (15dk) yatay"
-    assert o({"tf": {"15m": 1}}, "long", c15) == "🟢 İşlem kendi zaman dilimiyle (15dk) uyumlu"
-    assert o({"tf": {"15m": -1}}, "short", c15) == "🔴 İşlem kendi zaman dilimiyle (15dk) uyumlu"
+    assert o({"tf": {"15m": 1}}, "long", c15) == "✅ İşlem kendi zaman dilimiyle (15dk) uyumlu"
+    assert o({"tf": {"15m": -1}}, "short", c15) == "✅ İşlem kendi zaman dilimiyle (15dk) uyumlu"
     assert o({"tf": {"15m": -1}}, "long", c15).startswith("🔴 <b>Uyarı")
     assert o({"tf": {"15m": 1}}, "short", c15).startswith("🔴 <b>Uyarı")
     assert o({}, "long", {"timeframe": "1h"}) is None
     up = o({"tf": {"15m": 1, "1h": -1, "4h": -1, "1d": 1}}, "long", c15)
     assert up == ("🔴 <b>Uyarı: İşlem kendi zaman dilimiyle (15dk) uyumlu ama üst zaman dilimleriyle "
                   "(1 saat, 4 saat) uyumsuz</b>")
-    assert o({"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1}}, "long", c15).startswith("🟢 İşlem kendi")
+    assert o({"tf": {"15m": 1, "1h": 1, "4h": 0, "1d": 1}}, "long", c15).startswith("✅ İşlem kendi")
     assert "1 gün" in o({"tf": {"1h": -1, "4h": -1, "1d": 1}}, "short", {"timeframe": "1h"})
 
 
@@ -854,7 +854,7 @@ def test_market_rows():
     assert lb[1] == "🟢 ETH yönü · Trend: Yükselişte · 24s: 2,650.50 🟢▲ %0.80", lb
     now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
     ml = scanner.market_lines(res, {}, now)
-    assert ml[0] == "🟢 ABD borsası · Açık · Yükselişte (Nasdaq QQQ 612.40 🟢▲ %0.85)", ml
+    assert ml[0] == "🟢 ABD borsası · Açık · Yükselişte · 24s: Nasdaq QQQ 612.40 🟢▲ %0.85", ml
     assert ml[1] == "🔴 Likidite · Düşük (24s hacim 4.2M $ · yüksek eşiği 50M $)", ml
     res["meta"] = {"symbol": "ETHUSDT", "type": "COIN"}
     assert len(scanner.leader_block(res)) == 1
@@ -867,7 +867,7 @@ def test_market_rows_equity():
            "mkt": mkt, "qv24": 25_200_000}
     assert scanner.leader_block(res) == ["🔴 QQQ yönü · Trend: Düşüşte · 24s: 665.62 🔴▼ %0.92"]
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🟢 ABD borsası · Açık · Düşüşte (Nasdaq QQQ 665.62 🔴▼ %0.92)",
+    assert ml == ["🔴 ABD borsası · Açık · Düşüşte · 24s: Nasdaq QQQ 665.62 🔴▼ %0.92",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
 
 

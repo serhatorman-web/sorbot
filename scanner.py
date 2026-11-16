@@ -1674,15 +1674,17 @@ def market_lines(res, cfg, now_utc):
     out = []
     ms = us_market_status(now_utc)
     if ms:
-        row = icon_row("ABD borsası", {"open": "🟢 Açık", "closed": "🔴 Kapalı (seans dışı)",
-                                       "weekend": "🔴 Kapalı (hafta sonu)"}[ms])
-        # Nasdaq 100 (QQQ) fiyatı – kripto ve hisse sinyallerinde
+        status = {"open": "Açık", "closed": "Kapalı (seans dışı)", "weekend": "Kapalı (hafta sonu)"}[ms]
+        # baştaki ikon Nasdaq (QQQ) yönünü gösterir; açık/kapalı yazıyla, 24s değişim etiketli
         q = (res.get("mkt") or {}).get("QQQ")
-        tag = price_tag(q)
-        if tag:
-            word = "Yükselişte" if q.get("chg", 0) > 0 else ("Düşüşte" if q.get("chg", 0) < 0 else "Yatay")
-            row += f" · {word}" + tag.replace("(Fiyat", "(Nasdaq QQQ")
-        out.append(row)
+        if q and q.get("last"):
+            chg = q.get("chg", 0.0)
+            icon, word = ("🟢", "Yükselişte") if chg > 0 else (("🔴", "Düşüşte") if chg < 0 else ("⚪", "Yatay"))
+            arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
+            out.append(f"{icon} ABD borsası · {status} · {word} · 24s: Nasdaq QQQ {fmt_price(q['last'], 2)} "
+                       f"{arrow} %{abs(chg):.2f}")
+        else:
+            out.append(f"⚪ ABD borsası · {status}")
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
     qv = res.get("qv24")
     if qv is not None:
@@ -1779,7 +1781,7 @@ def trend_alignment_line(res, direction):
     s = 1 if direction == "long" else -1
     icon = "🟢" if s == 1 else "🔴"
     if all(d == s for d in dirs):
-        return f"{icon} <b>Bu işlem trend ile uyumlu</b>"
+        return "✅ <b>Bu işlem trend ile uyumlu</b>"
     if all(d == -s for d in dirs):
         return "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
     return None
@@ -1804,10 +1806,10 @@ def own_tf_alignment_line(res, direction, cfg):
         if against:
             return (f"🔴 <b>Uyarı: İşlem kendi zaman dilimiyle ({name}) uyumlu ama üst zaman dilimleriyle "
                     f"({', '.join(against)}) uyumsuz</b>")
-        return f"{icon} İşlem kendi zaman dilimiyle ({name}) uyumlu"
+        return f"✅ İşlem kendi zaman dilimiyle ({name}) uyumlu"
     if t == -s:
         return f"🔴 <b>Uyarı: İşlem kendi zaman dilimiyle ({name}) uyumsuz</b>"
-    return f"{icon} İşlem kendi zaman diliminde ({name}) yatay"
+    return f"⚪ İşlem kendi zaman diliminde ({name}) yatay"
 
 
 def technical_rating_line(votes, rating=None):
