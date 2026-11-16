@@ -635,7 +635,7 @@ def rates_block(rates):
             icon = "⚪"
         else:
             bp = round((r["rate"] - float(prev)) * 100)
-            move = f"{when}: {'▲' if bp > 0 else '▼'} {abs(bp)} bp"
+            move = f"{when}: {'🟢▲' if bp > 0 else '🔴▼'} {abs(bp)} bp"
             icon = "🟢" if bp > 0 else "🔴"      # renk yöne göre: artırım 🟢, indirim 🔴
         rows.append(f"{icon} {name}: <b>%{tr_num(r['rate'])}</b> · son karar {move}")
     return rows
