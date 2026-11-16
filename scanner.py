@@ -76,6 +76,15 @@ BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("�
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 
+def put_time_top(lines, t_close):
+    """Mum kapanış saati mesajın en üst satırının sağına (bant satırının yanına) yazılır."""
+    tag = f"🕒 {t_close} TSİ"
+    if lines and lines[0] and lines[0][0] in "🟩🟥🟧🟦":
+        lines[0] = f"{lines[0]}  {tag}"
+    else:
+        lines.insert(0, tag)
+
+
 def banner_lines(meta, cfg):
     b = BANNERS.get(meta["symbol"])
     if not b:
@@ -1917,7 +1926,8 @@ def build_message(res, direction, cfg, now_utc):
         lines += [""] + notes
 
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
-    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Yatırım tavsiyesi değildir."]
+    put_time_top(lines, t_close)
+    lines += ["", "Yatırım tavsiyesi değildir."]
     return plain_font("\n".join(lines))
 
 
@@ -1978,7 +1988,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         lines += ["", SEP] + lb
     lines += market_lines(res, cfg, now_utc)
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
-    lines += ["", f"🕒 {t_close} TSİ mum kapanışı", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
+    put_time_top(lines, t_close)
+    lines += ["", "Pump/dump hareketleri çok oynaktır. Yatırım tavsiyesi değildir."]
     return plain_font("\n".join(lines))
 
 
