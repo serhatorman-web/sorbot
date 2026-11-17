@@ -1010,3 +1010,11 @@ def test_major_banner_direction():
     assert b[1] == "🔺 <b>AVAX</b> · 📉 <b>SHORT SİNYALİ</b> · 15dk"
     b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "1h"}, "long")
     assert b[0] == "🟩" * 10 and b[1] == "₿ <b>BITCOIN</b> · 📈 <b>LONG SİNYALİ</b> · 1s"
+
+
+def test_banner_name():
+    assert scanner.banner_name({"symbol": "NVDAUSDT", "type": "EQUITY"}) == "🇺🇸 <b>NVDA</b>"
+    assert scanner.banner_name({"symbol": "SAMSUNGUSDT", "type": "KR_EQUITY"}) == "🇰🇷 <b>SAMSUNG</b>"
+    assert scanner.banner_name({"symbol": "SUIUSDT", "type": "COIN"}) == "🪙 <b>SUI</b>"
+    assert scanner.banner_name({"symbol": "XAUUSDT", "type": "COMMODITY"}) == "🥇 <b>ALTIN</b>"
+    assert scanner.banner_name({"symbol": "NATGASUSDT", "type": "COMMODITY"}) == "🔥 <b>DOĞAL GAZ</b>"

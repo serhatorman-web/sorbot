@@ -162,6 +162,24 @@ def put_time_top(lines, t_close):
 
 
 EQUITY_FLAGS = {"EQUITY": "🇺🇸", "KR_EQUITY": "🇰🇷", "HK_EQUITY": "🇭🇰"}
+COMMODITY_ICONS = {"XAUUSDT": "🥇", "XAGUSDT": "🥈", "XPTUSDT": "⚪", "XPDUSDT": "⚪", "CLUSDT": "🛢️",
+                   "BZUSDT": "🛢️", "NATGASUSDT": "🔥", "COPPERUSDT": "🟤"}
+
+
+def tr_up(t):
+    return t.replace("i", "İ").replace("ı", "I").upper()
+
+
+def banner_name(meta):
+    """Banner başlığındaki ad: 🇺🇸 NVDA / 🪙 SUI / 🥇 ALTIN."""
+    sym, typ = meta["symbol"], meta.get("type")
+    if typ in EQUITY_FLAGS:
+        return f"{EQUITY_FLAGS[typ]} <b>{sym.removesuffix('USDT')}</b>"
+    if typ == "COMMODITY":
+        return f"{COMMODITY_ICONS.get(sym, '🛢️')} <b>{tr_up(COMMODITY_NAMES.get(sym, sym.removesuffix('USDT')))}</b>"
+    if typ == "COIN":
+        return f"🪙 <b>{sym.removesuffix('USDT')}</b>"
+    return None
 
 
 def banner_lines(meta, cfg, direction=None):
@@ -1994,9 +2012,9 @@ def build_message(res, direction, cfg, now_utc):
         bar = ("🟩" if direction == "long" else "🟥") * 10
         title = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
         tf_s = TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))
-        flag = EQUITY_FLAGS.get(meta.get("type"))
-        if flag:      # hisse (Sorbot Nasdaq): 🟥… / 🇺🇸 NVDA · 📉 SHORT SİNYALİ · 15dk / 🟥…
-            title = f"{flag} <b>{meta['symbol'].removesuffix('USDT')}</b> · {title}"
+        name = banner_name(meta)
+        if name:      # 🟥… / 🇺🇸 NVDA · 📉 SHORT SİNYALİ · 15dk / 🟥…  (hisse, altcoin, emtia)
+            title = f"{name} · {title}"
         banner = [bar, f"{title} · {tf_s}", bar, ""]
     lines = banner + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
