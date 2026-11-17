@@ -2205,7 +2205,7 @@ class Notifier:
     def __init__(self):
         self.token = os.environ.get("TELEGRAM_TOKEN", "").strip()
         self.chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-        # Majör coin sinyalleri ayrı kanala ("Sorbot Majör"); diğer her şey ana kanala
+        # Majör coin sinyalleri ayrı kanala ("Sorbot Majör Coinler"); diğer her şey ana kanala
         tg = {}
         try:
             with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8") as fh:
@@ -2236,7 +2236,7 @@ class Notifier:
     def send(self, text, symbol=None, typ=None):
         chat = self.chat_for(symbol, typ)
         if self.dry:
-            where = (" → Sorbot Majör kanalı" if chat == self.major_chat else
+            where = (" → Sorbot Majör Coinler kanalı" if chat == self.major_chat else
                      " → Sorbot Nasdaq kanalı" if chat == self.equity_chat else
                      " → Sorbot Emtia kanalı" if chat == self.commodity_chat else "")
             print(f"\n----- TELEGRAM MESAJI (gönderilmedi{where}) -----\n" + text + "\n" + "-" * 42)
