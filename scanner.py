@@ -2083,9 +2083,12 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
-        # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
-        for block in (order_block_lines(res, cfg),     # PRICE ACTION ve TREND ÇİZGİSİ kaldırıldı (kullanıcı isteği)
-                      divergence_lines(res), volume_lines(res, cfg)):
+        # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → HACİM → RSI UYUMSUZLUK → PİYASA DURUMU
+        # PIVOTS, ICHIMOKU, HACİM PROFİLİ, PRICE ACTION ve TREND ÇİZGİSİ kullanıcı isteğiyle kaldırıldı
+        if trend_line:
+            lines += ["", trend_line]
+            trend_line = None
+        for block in (volume_lines(res, cfg), divergence_lines(res), order_block_lines(res, cfg)):
             if block:
                 lines += section(block)
     lines += (["", trend_line] if trend_line else []) + market_section(lb, market_lines(res, cfg, now_utc))
@@ -2152,14 +2155,13 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
-    # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
-    for block in (order_block_lines(res, cfg),     # PRICE ACTION kaldırıldı (kullanıcı isteği)
-                  divergence_lines(res), volume_lines(res, cfg)):     # TREND ÇİZGİSİ kaldırıldı
-        if block:
-            lines += section(block)
+    # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → HACİM → RSI UYUMSUZLUK → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
+    for block in (volume_lines(res, cfg), divergence_lines(res), order_block_lines(res, cfg)):
+        if block:
+            lines += section(block)
     lines += market_section(leader_block(res, cfg), market_lines(res, cfg, now_utc))
     t_close = datetime.fromtimestamp((f["t"][i] + tf_ms(cfg)) / 1000, TR_TZ).strftime("%d.%m.%Y %H:%M")
     put_time_top(lines, t_close)
