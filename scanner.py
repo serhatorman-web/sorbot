@@ -2084,7 +2084,7 @@ def build_message(res, direction, cfg, now_utc):
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
         # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
-        for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res),
+        for block in (order_block_lines(res, cfg), trendline_lines(res),     # PRICE ACTION kaldırıldı (kullanıcı isteği)
                       divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += section(block)
@@ -2153,7 +2153,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
     # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
-    for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
+    for block in (order_block_lines(res, cfg),     # PRICE ACTION kaldırıldı (kullanıcı isteği)
                   trendline_lines(res), divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += section(block)
