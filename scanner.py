@@ -72,7 +72,11 @@ COMMODITY_NAMES = {**PRECIOUS_METALS, "CLUSDT": "WTI Petrol", "BZUSDT": "Brent P
 
 
 # BTC ve ETH sinyalleri renkli bantla ayrışır (Telegram'da arka plan rengi değiştirilemiyor)
-BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("🟦", "Ξ <b>ETHEREUM SİNYALİ</b>")}
+BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("🟦", "Ξ <b>ETHEREUM SİNYALİ</b>"),
+           # kırmızı/yeşil LONG-SHORT'a ayrıldığı için diğer renkler kullanıldı
+           "XRPUSDT": ("⬛", "✕ <b>XRP SİNYALİ</b>"), "BNBUSDT": ("🟨", "🔶 <b>BNB SİNYALİ</b>"),
+           "SOLUSDT": ("🟪", "◎ <b>SOLANA SİNYALİ</b>"), "DOGEUSDT": ("🟫", "🐕 <b>DOGECOIN SİNYALİ</b>"),
+           "AVAXUSDT": ("⬜", "🔺 <b>AVALANCHE SİNYALİ</b>")}
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 
