@@ -79,7 +79,9 @@ BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("�
            "AVAXUSDT": ("♦️", "🔺 <b>AVAX SİNYALİ</b>"),
            "HYPEUSDT": ("🟦", "⚡ <b>HYPE SİNYALİ</b>"), "LINKUSDT": ("🟦", "🔗 <b>CHAINLINK SİNYALİ</b>"),
            "SUIUSDT": ("🟦", "💧 <b>SUI SİNYALİ</b>"), "ADAUSDT": ("🟦", "₳ <b>CARDANO SİNYALİ</b>"),
-           "ZECUSDT": ("🟨", "ⓩ <b>ZCASH SİNYALİ</b>")}
+           "ZECUSDT": ("🟨", "ⓩ <b>ZCASH SİNYALİ</b>"),
+           "LTCUSDT": ("⬜", "Ł <b>LITECOIN SİNYALİ</b>"), "BCHUSDT": ("🟩", "Ƀ <b>BITCOIN CASH SİNYALİ</b>"),
+           "NEARUSDT": ("⬛", "Ⓝ <b>NEAR SİNYALİ</b>"), "UNIUSDT": ("🟪", "🦄 <b>UNISWAP SİNYALİ</b>")}
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 

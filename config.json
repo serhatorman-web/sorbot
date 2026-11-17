@@ -394,9 +394,9 @@
   "signal_trigger": "supertrend",
   "_signal_trigger_aciklama": "Sinyal tetiği: 'supertrend' = Supertrend 10/3 dönüşü (trendi erken yakalar; TrendFlex listede oy verir), 'trendflex' = TrendFlex_Algo _BUY/SELL etiketi (Supertrend listede oy verir).",
   "telegram": {
-    "_aciklama": "BTC, ETH, XRP, BNB, SOL, DOGE, AVAX, HYPE, LINK, SUI, ADA ve ZEC sinyalleri ayrı kanala (Sorbot Majör Coinler) gider; hisse sinyallerinin hepsi (SAMSUNG dahil) Sorbot Nasdaq kanalına gider; emtia sinyalleri Sorbot Emtia kanalına gider; saatlik bülten, ekonomik takvim ve anlık veriler Sorbot Piyasa Bülteni kanalına gider; diğer kripto sinyalleri ana kanalda (SorBot Altcoinler) kalır. Kanal numarası token olmadan işe yaramaz.",
+    "_aciklama": "BTC, ETH, XRP, BNB, SOL, DOGE, AVAX, HYPE, LINK, SUI, ADA, ZEC, LTC, BCH, NEAR ve UNI sinyalleri ayrı kanala (Sorbot Majör Coinler) gider; hisse sinyallerinin hepsi (SAMSUNG dahil) Sorbot Nasdaq kanalına gider; emtia sinyalleri Sorbot Emtia kanalına gider; saatlik bülten, ekonomik takvim ve anlık veriler Sorbot Piyasa Bülteni kanalına gider; diğer kripto sinyalleri ana kanalda (SorBot Altcoinler) kalır. Kanal numarası token olmadan işe yaramaz.",
     "major_chat_id": "-1003824728969",
-    "major_symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT", "AVAXUSDT", "HYPEUSDT", "LINKUSDT", "SUIUSDT", "ADAUSDT", "ZECUSDT"],
+    "major_symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT", "AVAXUSDT", "HYPEUSDT", "LINKUSDT", "SUIUSDT", "ADAUSDT", "ZECUSDT", "LTCUSDT", "BCHUSDT", "NEARUSDT", "UNIUSDT"],
     "equity_chat_id": "-1003365238459",
     "equity_types": ["EQUITY", "KR_EQUITY", "HK_EQUITY"],
     "commodity_chat_id": "-1004440589259",
