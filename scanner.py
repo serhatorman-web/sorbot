@@ -1553,8 +1553,8 @@ def pivot_lines(res, direction, cfg):
             out.append(f"✅ Pivot stratejisi onaylandı → {'LONG' if up else 'SHORT'} girilebilir")
             out.append(f"Giriş: Pivot {fp(P)}")
             for k, (n, v) in enumerate(tgt, 1):
-                out.append(f"TP{k}: {n} {fp(v)} ({arr(pct(v, P))})")
-            out.append(f"Stop: {stop_n} {fp(stop)} ({arr(pct(stop, P))})")
+                out.append(f"TP{k}: {n} {fp(v)} ({pct(v, P):+.2f}%)")
+            out.append(f"Stop: {stop_n} {fp(stop)} ({pct(stop, P):+.2f}%)")
     else:
         out.append("⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle")
     return out
@@ -1969,7 +1969,7 @@ def build_message(res, direction, cfg, now_utc):
         SEP] + top + ([SEP] if top else []) + [
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
         "",
-        f"<b>Stop:</b> {fmt_price(sl, prec)} ({arr(pct(sl, entry))}) · {sl_label}",
+        f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
     ]
     psig = res.get("pivot_sig") if (res.get("pivot_sig") or {}).get("dir") == direction else None
     for n, tp in enumerate(tps, 1):
@@ -1977,7 +1977,7 @@ def build_message(res, direction, cfg, now_utc):
             lab = psig["tps"][n - 1][0]
         else:
             lab = f"{cfg['risk']['tp_r_multiples'][n - 1]:g}R"
-        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({arr(pct(tp, entry))}) · {lab}"]
+        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {lab}"]
     if cfg["risk"].get("show_breakeven_note", True):
         lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
@@ -2070,10 +2070,10 @@ def build_radar_message(res, rd, cfg, now_utc):
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
-                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({arr(pct(sl, entry))}) · {sl_label}"]
+                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({arr(pct(tp, entry))}) · {r:g}R"]
+            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
     else:

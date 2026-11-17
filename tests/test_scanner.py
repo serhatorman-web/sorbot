@@ -750,8 +750,8 @@ def test_pivot_lines():
     assert out[1] == "Pivot 867.94 · fiyat üstünde kapanış (2 mum önce kapanış yaptı)", out
     assert out[2] == "✅ Pivot üstünde kapanış · ✅ Supertrend AL · ✅ DynaRange yeşil · ✅ QQE MOD mavi", out
     assert out[3] == "✅ Pivot stratejisi onaylandı → LONG girilebilir", out
-    assert out[4] == "Giriş: Pivot 867.94" and out[5] == "TP1: R1 921.08 (🟢▲ %6.12)", out
-    assert out[8] == "Stop: S1 814.80 (🔴▼ %6.12)", out
+    assert out[4] == "Giriş: Pivot 867.94" and out[5] == "TP1: R1 921.08 (+6.12%)", out
+    assert out[8] == "Stop: S1 814.80 (-6.12%)", out
     f["c"] = c[:-1] + [925.0]                        # fiyat R1'i (921.08) geçti → geç kalındı
     out = scanner.pivot_lines(res, "long", {"timeframe": "15m"})
     assert out[-1] == "⚠️ Pivot stratejisi onaylandı ama fiyat R1'i geçmiş → geç kalındı, bekle", out
