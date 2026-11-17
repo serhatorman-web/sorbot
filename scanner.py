@@ -175,6 +175,14 @@ def tr_up(t):
     return t.replace("i", "İ").replace("ı", "I").upper()
 
 
+def display_name(meta):
+    """Banner'daki ad: majörlerde kendi simgesiyle (⚡ HYPE), diğerlerinde 🪙 SUI / 🇺🇸 NVDA / 🥇 ALTIN."""
+    b = BANNERS.get(meta["symbol"])
+    if b:
+        return b[1].replace(" SİNYALİ</b>", "</b>")
+    return banner_name(meta)
+
+
 def banner_name(meta):
     """Banner başlığındaki ad: 🇺🇸 NVDA / 🪙 SUI / 🥇 ALTIN."""
     sym, typ = meta["symbol"], meta.get("type")
@@ -2115,12 +2123,12 @@ def build_radar_message(res, rd, cfg, now_utc):
     tf_s = TF_SHORT.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     # sinyallerdeki gibi bant: 🟩 PUMP / 🟥 DUMP (erken uyarılar dahil)
     bar = ("🟩" if long_ else "🟥") * 10
-    mk = " / NASDAQ" if meta.get("type") == "EQUITY" else ""
     if rd["kind"] == "start":
         title = "🚀 <b>PUMP SİNYALİ</b>" if long_ else "💥 <b>DUMP SİNYALİ</b>"
     else:
         title = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
-    banner = [bar, f"{title} · {tf_s}{mk}", bar, ""]
+    name = display_name(meta)      # sinyallerdeki gibi: 🟩… / ⚡ HYPE · 🚀 PUMP SİNYALİ · 1s / 🟩…
+    banner = [bar, f"{name + ' · ' if name else ''}{title} · {tf_s}", bar, ""]
     head = "🟢 <b>LONG</b>" if long_ else "🔴 <b>SHORT</b>"
     score = ([technical_rating_line(rating_votes(res)), ""]
              if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True) else [])

@@ -1030,3 +1030,9 @@ def test_daily_weekly_upper():
     w = scanner.resample_4h(cs, day)
     assert len(w) == 2 and w[0]["t"] == mon and w[0]["c"] == 7
     assert scanner.bias_tf_label({"timeframe": "1d"}) == "1g + 1 hafta"
+
+
+def test_display_name():
+    assert scanner.display_name({"symbol": "HYPEUSDT", "type": "COIN"}) == "⚡ <b>HYPE</b>"
+    assert scanner.display_name({"symbol": "STXUSDT", "type": "COIN"}) == "🪙 <b>STX</b>"
+    assert scanner.display_name({"symbol": "NVDAUSDT", "type": "EQUITY"}) == "🇺🇸 <b>NVDA</b>"
