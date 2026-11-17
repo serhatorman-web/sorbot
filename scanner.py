@@ -2181,7 +2181,7 @@ class Notifier:
     def __init__(self):
         self.token = os.environ.get("TELEGRAM_TOKEN", "").strip()
         self.chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-        # BTC/ETH sinyalleri ayrı kanala ("Sorbot BTC-ETH"); diğer her şey ana kanala
+        # Majör coin sinyalleri ayrı kanala ("Sorbot Majör"); diğer her şey ana kanala
         tg = {}
         try:
             with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8") as fh:
@@ -2203,7 +2203,7 @@ class Notifier:
     def send(self, text, symbol=None):
         chat = self.chat_for(symbol)
         if self.dry:
-            where = " → BTC-ETH kanalı" if chat != self.chat_id else ""
+            where = " → Sorbot Majör kanalı" if chat != self.chat_id else ""
             print(f"\n----- TELEGRAM MESAJI (gönderilmedi{where}) -----\n" + text + "\n" + "-" * 42)
             return True
         ok = send_telegram(text, self.token, chat)
