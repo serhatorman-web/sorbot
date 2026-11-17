@@ -924,7 +924,7 @@ def run_release_alerts(cfg, rcfg, notifier, state):
         text = "🧪 <b>TEST · ÖNİZLEME</b>\n\n" + text
     ok = True
     for part in split_message(text):
-        ok = notifier.send(part) and ok
+        ok = notifier.send(part, None, "BULLETIN") and ok
     if ok:
         state["alerted_events"] = (list(alerted) + [e["id"] for e in new])[-500:]
     print(f"Anlık veri: {len(new)} veri gönderildi: " + ", ".join(f"{e['country']} {e['title']}" for e in new))
@@ -975,7 +975,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
             text = "🧪 <b>TEST · ÖNİZLEME</b>\n\n" + text
         for part in split_message(text):
             try:
-                ok = notifier.send(part) and ok
+                ok = notifier.send(part, None, "BULLETIN") and ok
             except Exception as e:  # noqa: BLE001
                 ok = False
                 print(f"  Telegram hatası ({kind}): {e}", file=sys.stderr)
@@ -1106,7 +1106,7 @@ def main():
     for kind, text in messages:
         for part in split_message(text):
             try:
-                if not notifier.send(part):
+                if not notifier.send(part, None, "BULLETIN"):
                     sent_ok = False
             except Exception as e:  # noqa: BLE001
                 sent_ok = False

@@ -2219,6 +2219,8 @@ class Notifier:
         self.equity_types = set(tg.get("equity_types", ["EQUITY", "KR_EQUITY", "HK_EQUITY"]))
         # Emtia sinyalleri ayrı kanala ("Sorbot Emtia")
         self.commodity_chat = (os.environ.get("TELEGRAM_CHAT_ID_COMMODITY") or str(tg.get("commodity_chat_id") or "")).strip()
+        # Piyasa/haber bülteni, ekonomik takvim ve anlık veriler ayrı kanala ("Sorbot Piyasa Bülteni")
+        self.bulletin_chat = (os.environ.get("TELEGRAM_CHAT_ID_BULLETIN") or str(tg.get("bulletin_chat_id") or "")).strip()
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
@@ -2231,6 +2233,8 @@ class Notifier:
             return self.equity_chat
         if typ == "COMMODITY" and self.commodity_chat:
             return self.commodity_chat
+        if typ == "BULLETIN" and self.bulletin_chat:
+            return self.bulletin_chat
         return self.chat_id
 
     def send(self, text, symbol=None, typ=None):
@@ -2238,7 +2242,8 @@ class Notifier:
         if self.dry:
             where = (" → Sorbot Majör Coinler kanalı" if chat == self.major_chat else
                      " → Sorbot Nasdaq kanalı" if chat == self.equity_chat else
-                     " → Sorbot Emtia kanalı" if chat == self.commodity_chat else "")
+                     " → Sorbot Emtia kanalı" if chat == self.commodity_chat else
+                     " → Sorbot Piyasa Bülteni kanalı" if chat == self.bulletin_chat else "")
             print(f"\n----- TELEGRAM MESAJI (gönderilmedi{where}) -----\n" + text + "\n" + "-" * 42)
             return True
         ok = send_telegram(text, self.token, chat)
