@@ -2282,6 +2282,8 @@ def build_universe(api, cfg):
             need = min_qv.get("EQUITY_closed", need)
         if qv < need:
             continue
+        if typ == "COIN" and ucfg.get("crypto_exclude_non_ascii") and not s["symbol"].isascii():
+            continue                                  # Çince vb. isimli coinler (龙虾, 牛来 …) taranmaz
         if typ == "COIN" and top is not None and coin_base(s["symbol"]) not in top:
             continue
         if typ == "COIN" and spot is not None and coin_base(s["symbol"]) not in spot \
