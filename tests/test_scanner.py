@@ -988,3 +988,13 @@ def test_notifier_major_channel(monkeypatch):
     assert n.chat_for("SOLUSDT") == "-1003824728969"
     assert n.chat_for("ADAUSDT") == "-100main"
     assert n.chat_for(None) == "-100main"
+
+
+def test_time_under_new_banners():
+    for sym in ("BTCUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT", "AVAXUSDT"):
+        L = scanner.banner_lines({"symbol": sym}, {"timeframe": "15m"}) + ["🔴 SHORT"]
+        scanner.put_time_top(L, "17.11.2026 18:45")
+        assert L[3] == "🕒 17.11.2026 18:45 Mum Kapanışı", sym
+    L = ["🔴 SHORT · X"]
+    scanner.put_time_top(L, "t")
+    assert L[0] == "🕒 t Mum Kapanışı"

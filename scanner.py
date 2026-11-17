@@ -154,7 +154,8 @@ def section(block):
 def put_time_top(lines, t_close):
     """Mum kapanış tarihi ve saati bandın hemen altına yazılır (bant yoksa en üste)."""
     tag = f"🕒 {t_close} Mum Kapanışı"
-    if len(lines) >= 3 and lines[0] and lines[0][0] in "🟩🟥🟧🟦" and lines[2] == lines[0]:
+    # bant: aynı renkli simge satırı üstte ve altta (🟩🟥🟧🟦⬛🟨🟪🟫♦️ …)
+    if len(lines) >= 3 and lines[0] and lines[2] == lines[0] and not any(ch.isalnum() for ch in lines[0]):
         lines.insert(3, tag)
     else:
         lines.insert(0, tag)
