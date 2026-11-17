@@ -74,11 +74,11 @@
     "min_quote_volume_24h": {
       "COIN": 3000000,
       "EQUITY": 3000000,
-      "EQUITY_closed": 100000,
+      "EQUITY_closed": 3000000,
       "COMMODITY": 1000000,
       "default": 1000000
     },
-    "_equity_closed_aciklama": "24s hacim eşikleri: kripto ve hisse en az 3 milyon $, emtia en az 1 milyon $. scan_equity_when_closed=false: ABD borsası kapalıyken ve hafta sonu hisseler taranmaz (boş/dar mumlar sahte sinyal üretir). true yapılırsa kapalıyken EQUITY_closed eşiği kullanılır.",
+    "_equity_closed_aciklama": "24s hacim eşikleri: kripto ve hisse en az 3 milyon $, emtia en az 1 milyon $. scan_equity_when_closed=false: ABD borsası kapalıyken ve hafta sonu hisseler taranmaz (boş/dar mumlar sahte sinyal üretir). true yapılırsa kapalıyken EQUITY_closed eşiği kullanılır. Kullanıcı isteğiyle EQUITY_closed da 3M $: hisseler her saatte aynı eşikle taranır.",
     "equity_whitelist_eski": [
       "NVDA",
       "MSFT",
