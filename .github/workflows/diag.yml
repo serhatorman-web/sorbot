@@ -1,0 +1,13 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          SORBOT_TF=1d DRY_RUN=1 python3 scanner.py > out.txt 2>&1 || true
+          grep -E "Analiz edilen|yetersiz|Bitti|Gönderildi|Telegram hatası|Traceback|Error|radarı|Mum verisi" out.txt | head -40 || true
+          awk '/----- TELEGRAM MESAJI/{p=1} p{print} /^------------------------------------------$/{if(p){exit}}' out.txt
+          tail -3 out.txt

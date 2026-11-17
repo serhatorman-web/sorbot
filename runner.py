@@ -65,7 +65,7 @@ FAIL_ALERT = 3        # üst üste bu kadar hata -> Telegram uyarısı
 FAIL_RESTART = 6      # üst üste bu kadar hata -> döngü temiz bir makinede yeniden başlar
 GAP_ALERT_MIN = 30    # taramalar arasında bundan uzun boşluk -> kesinti bildirimi
 KIND_NAMES = {"5m": "5dk taraması (BTC/ETH)", "15m": "15dk taraması", "1h": "1 saatlik tarama",
-              "4h": "4 saatlik tarama", "bülten": "Saatlik bülten"}
+              "4h": "4 saatlik tarama", "1d": "Günlük tarama", "bülten": "Saatlik bülten"}
 
 
 def load_health():
@@ -124,7 +124,7 @@ def record(kind, ok, signals=0, why=""):
 def run_scanner(tf):
     """scanner.py'yi çalıştırır; (başarılı mı, sinyal sayısı, sebep) döner."""
     env = dict(os.environ)
-    if tf in ("5m", "15m", "4h"):
+    if tf in ("5m", "15m", "4h", "1d"):
         env["SORBOT_TF"] = tf
     else:
         env.pop("SORBOT_TF", None)
@@ -183,7 +183,7 @@ def daily_status():
     if h.get("status_day") == day_key or now_tr.hour != 9:
         return
     yday = (now_tr - timedelta(days=1)).strftime("%Y-%m-%d")
-    names = {"5m": "5dk (BTC/ETH)", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "bülten": "Bülten"}
+    names = {"5m": "5dk (BTC/ETH)", "15m": "15dk", "1h": "1 saat", "4h": "4 saat", "1d": "1 gün", "bülten": "Bülten"}
     tot = {}
     for d in (yday, day_key):
         for k, v in h.get("days", {}).get(d, {}).items():
@@ -192,7 +192,7 @@ def daily_status():
                 t[f] += v.get(f, 0)
     lines = ["🩺 <b>SorBot günlük durum</b>", ""]
     any_fail = False
-    for k in ("5m", "15m", "1h", "4h", "bülten"):
+    for k in ("5m", "15m", "1h", "4h", "1d", "bülten"):
         if k in tot:
             t = tot[k]
             any_fail |= t["fail"] > 0
@@ -288,6 +288,8 @@ def main():
             hour = datetime.fromtimestamp(boundary, timezone.utc).hour
             if hour % 4 == 0:
                 scan("4h")      # 4 saatlik – tüm semboller
+            if hour == 0:
+                scan("1d")      # günlük – günlük mum 00:00 UTC (03:00 TSİ) kapanınca
             report_wait(bulletin)
             daily_status()
         if ENABLE_5M:

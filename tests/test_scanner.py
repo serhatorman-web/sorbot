@@ -1021,3 +1021,12 @@ def test_banner_name():
     assert scanner.banner_name({"symbol": "SUIUSDT", "type": "COIN"}) == "🪙 <b>SUI</b>"
     assert scanner.banner_name({"symbol": "XAUUSDT", "type": "COMMODITY"}) == "🥇 <b>ALTIN</b>"
     assert scanner.banner_name({"symbol": "NATGASUSDT", "type": "COMMODITY"}) == "🔥 <b>DOĞAL GAZ</b>"
+
+
+def test_daily_weekly_upper():
+    day = 86_400_000
+    mon = 1763337600000            # 2025-11-17 pazartesi 00:00 UTC
+    cs = [{"t": mon + k * day, "o": 1, "h": 2, "l": 0.5, "c": 1 + k, "v": 1} for k in range(14)]
+    w = scanner.resample_4h(cs, day)
+    assert len(w) == 2 and w[0]["t"] == mon and w[0]["c"] == 7
+    assert scanner.bias_tf_label({"timeframe": "1d"}) == "1g + 1 hafta"

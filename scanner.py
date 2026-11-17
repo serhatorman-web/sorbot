@@ -311,7 +311,8 @@ def us_market_status(now_utc):
 # Özellik (indikatör) hesaplama
 # --------------------------------------------------------------------------- #
 # Bir üst zaman dilimi: sinyalin zaman dilimi kaç katı (5dk→15dk, 15dk→1s, 1s→4s, 4s→1g)
-UPPER_FACTOR = {5 * 60_000: 3, 15 * 60_000: 4, HOUR_MS: 4, 4 * HOUR_MS: 6}
+UPPER_FACTOR = {5 * 60_000: 3, 15 * 60_000: 4, HOUR_MS: 4, 4 * HOUR_MS: 6, 24 * HOUR_MS: 7}   # 1g → 1 hafta
+WEEK_SHIFT = 4 * 24 * HOUR_MS   # Binance haftalık mumu pazartesi 00:00 UTC başlar (1970-01-01 perşembe)
 
 
 def upper_factor(base_ms):
@@ -321,9 +322,10 @@ def upper_factor(base_ms):
 def resample_4h(candles, base_ms=HOUR_MS):
     """Tamamlanmış bir üst zaman dilimi mumları üretir (ad tarihsel: 1s → 4s; 15dk → 1s; 4s → 1g)."""
     k_ = upper_factor(base_ms)
+    shift = WEEK_SHIFT if k_ * base_ms == 7 * 24 * HOUR_MS else 0
     groups = {}
     for c in candles:
-        key = c["t"] // (k_ * base_ms)
+        key = (c["t"] - shift) // (k_ * base_ms)
         groups.setdefault(key, []).append(c)
     out = []
     for key in sorted(groups):
@@ -1714,7 +1716,8 @@ def price_tag(t):
 def bias_tf_label(cfg):
     """Yön hesabının baktığı grafikler: sinyalin zaman dilimi + bir üstü (15dk+1s, 1s+4s, 4s+1g)."""
     base = tf_ms(cfg) if cfg else HOUR_MS
-    names = {5 * 60_000: "5dk", 15 * 60_000: "15dk", HOUR_MS: "1s", 4 * HOUR_MS: "4s", 24 * HOUR_MS: "1g"}
+    names = {5 * 60_000: "5dk", 15 * 60_000: "15dk", HOUR_MS: "1s", 4 * HOUR_MS: "4s", 24 * HOUR_MS: "1g",
+             7 * 24 * HOUR_MS: "1 hafta"}
     return f"{names.get(base, '?')} + {names.get(upper_factor(base) * base, '?')}"
 
 
