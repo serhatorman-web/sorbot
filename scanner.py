@@ -2568,14 +2568,19 @@ def main():
 
     rest = picks[maxn:]
     if rest:
-        lines = ["📋 <b>Diğer sinyaller</b> (limit nedeniyle özet):"]
+        # özet liste de her sembolün kendi kanalına gider (Majör / Nasdaq / Emtia / Altcoin)
+        groups = {}
         for score, d, r in rest[:40]:
-            lines.append(f"{'🟢' if d == 'long' else '🔴'} {r['meta']['symbol']} – {d.upper()} {score}")
+            key = (r["meta"]["symbol"], r["meta"]["type"])
+            chat = notifier.chat_for(*key)
+            g = groups.setdefault(chat, {"key": key, "lines": ["📋 <b>Diğer sinyaller</b> (limit nedeniyle özet):"]})
+            g["lines"].append(f"{'🟢' if d == 'long' else '🔴'} {r['meta']['symbol']} – {d.upper()} {score}")
             state["signals"][f"{r['meta']['symbol']}|{d}"] = now
-        try:
-            notifier.send("\n".join(lines))
-        except Exception as e:  # noqa: BLE001
-            print(f"  Telegram hatası: {e}", file=sys.stderr)
+        for g in groups.values():
+            try:
+                notifier.send("\n".join(g["lines"]), *g["key"])
+            except Exception as e:  # noqa: BLE001
+                print(f"  Telegram hatası: {e}", file=sys.stderr)
 
     # ---- Pivot sinyali (Supertrend'den ayrı): pivot üstünde/altında kapanış + Supertrend + DynaRange + QQE MOD ----
     pcfg = cfg.get("pivot_signal", {})
