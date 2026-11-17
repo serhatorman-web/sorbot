@@ -936,11 +936,14 @@ def test_upper_resample():
 def test_with_header_line():
     b = ["📍 <b>PIVOTS</b> · 4 saat", "Pivot 1"]
     assert scanner.with_header_line(b) == ["📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "Pivot 1"]
+    b = ["📍 <b>PIVOTS</b> · 4 saat", "Pivot 1", "✅ onay", "Giriş: Pivot 1", "TP1: R1", "TP2: R2", "Stop: S1"]
+    assert scanner.with_header_line(b)[2:] == ["Pivot 1", scanner.THIN, "✅ onay", scanner.THIN, "Giriş: Pivot 1",
+                                               "TP1: R1", "TP2: R2", "Stop: S1"]
     assert scanner.with_header_line(["🔊 Hacim: x"]) == ["🔊 Hacim: x"]
 
 
 def test_section():
-    assert scanner.section(["📍 <b>PIVOTS</b> · 4 saat", "x"]) == ["", "📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "x"]
+    assert scanner.section(["📍 <b>PIVOTS</b> · 4 saat", "x", "y"]) == ["", "📍 <b>PIVOTS</b> · 4 saat", scanner.SEP, "x", scanner.THIN, "y"]
     assert scanner.section(["🔊 Hacim"]) == ["", scanner.SEP, "🔊 Hacim"]
 
 

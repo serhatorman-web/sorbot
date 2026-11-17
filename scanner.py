@@ -84,7 +84,13 @@ HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİS
 def with_header_line(block):
     """Bölüm başlığının (PIVOTS, ICHIMOKU …) altına kalın yatay çizgi (TREND TABLOSU gibi)."""
     if block and block[0].startswith(HEADERS):
-        return [block[0], SEP] + block[1:]
+        body = []
+        for r in block[1:]:
+            # satırlar arasında ince çizgi; pivot hedef grubu (Giriş/TP/Stop) bir arada kalır
+            if body and not r.startswith(("TP", "Stop:")):
+                body.append(THIN)
+            body.append(r)
+        return [block[0], SEP] + body
     return block
 
 
@@ -1102,10 +1108,7 @@ def volume_lines(res, cfg):
         pk_up = f["c"][peak] >= f["o"][peak]
         out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when}) → "
                    + ("güçlü alım, yükseliş ilgisi" if pk_up else "güçlü satış, düşüş baskısı"))
-    body = []
-    for k, r in enumerate(out):                  # satırlar arasında ince çizgi
-        body += ([THIN] if k else []) + [r]
-    return ["🔊 <b>HACİM</b>"] + body
+    return ["🔊 <b>HACİM</b>"] + out
 
 
 VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı",
