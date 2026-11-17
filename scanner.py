@@ -72,16 +72,16 @@ COMMODITY_NAMES = {**PRECIOUS_METALS, "CLUSDT": "WTI Petrol", "BZUSDT": "Brent P
 
 
 # BTC ve ETH sinyalleri renkli bantla ayrışır (Telegram'da arka plan rengi değiştirilemiyor)
-BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("🟦", "Ξ <b>ETHEREUM SİNYALİ</b>"),
+BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BTC SİNYALİ</b>"), "ETHUSDT": ("🟦", "Ξ <b>ETH SİNYALİ</b>"),
            # kırmızı/yeşil LONG-SHORT'a ayrıldığı için diğer renkler kullanıldı
            "XRPUSDT": ("⬛", "✕ <b>XRP SİNYALİ</b>"), "BNBUSDT": ("🟨", "🔶 <b>BNB SİNYALİ</b>"),
-           "SOLUSDT": ("🟪", "◎ <b>SOLANA SİNYALİ</b>"), "DOGEUSDT": ("🟫", "🐕 <b>DOGECOIN SİNYALİ</b>"),
+           "SOLUSDT": ("🟪", "◎ <b>SOL SİNYALİ</b>"), "DOGEUSDT": ("🟫", "🐕 <b>DOGE SİNYALİ</b>"),
            "AVAXUSDT": ("♦️", "🔺 <b>AVAX SİNYALİ</b>"),
-           "HYPEUSDT": ("🟦", "⚡ <b>HYPE SİNYALİ</b>"), "LINKUSDT": ("🟦", "🔗 <b>CHAINLINK SİNYALİ</b>"),
-           "SUIUSDT": ("🟦", "💧 <b>SUI SİNYALİ</b>"), "ADAUSDT": ("🟦", "₳ <b>CARDANO SİNYALİ</b>"),
-           "ZECUSDT": ("🟨", "ⓩ <b>ZCASH SİNYALİ</b>"),
-           "LTCUSDT": ("⬜", "Ł <b>LITECOIN SİNYALİ</b>"), "BCHUSDT": ("🟩", "Ƀ <b>BITCOIN CASH SİNYALİ</b>"),
-           "NEARUSDT": ("⬛", "Ⓝ <b>NEAR SİNYALİ</b>"), "UNIUSDT": ("🟪", "🦄 <b>UNISWAP SİNYALİ</b>")}
+           "HYPEUSDT": ("🟦", "⚡ <b>HYPE SİNYALİ</b>"), "LINKUSDT": ("🟦", "🔗 <b>LINK SİNYALİ</b>"),
+           "SUIUSDT": ("🟦", "💧 <b>SUI SİNYALİ</b>"), "ADAUSDT": ("🟦", "₳ <b>ADA SİNYALİ</b>"),
+           "ZECUSDT": ("🟨", "ⓩ <b>ZEC SİNYALİ</b>"),
+           "LTCUSDT": ("⬜", "Ł <b>LTC SİNYALİ</b>"), "BCHUSDT": ("🟩", "Ƀ <b>BCH SİNYALİ</b>"),
+           "NEARUSDT": ("⬛", "Ⓝ <b>NEAR SİNYALİ</b>"), "UNIUSDT": ("🟪", "🦄 <b>UNI SİNYALİ</b>")}
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 

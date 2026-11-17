@@ -290,7 +290,7 @@ def test_btc_eth_profiles():
             if os.path.exists(pth):
                 os.remove(pth)
     b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "5m"})
-    assert b[0] == "🟧" * 10 and "BITCOIN SİNYALİ" in b[1] and "5dk" in b[1]
+    assert b[0] == "🟧" * 10 and "BTC SİNYALİ" in b[1] and "5dk" in b[1]
     assert scanner.banner_lines({"symbol": "ETHUSDT"}, {"timeframe": "4h"})[0] == "🟦" * 10
     assert scanner.banner_lines({"symbol": "SOLUSDT"}, {"timeframe": "1h"})[0] == "🟪" * 10
     assert scanner.banner_lines({"symbol": "ARBUSDT"}, {"timeframe": "1h"}) == []
@@ -1012,7 +1012,7 @@ def test_major_banner_direction():
     assert b[0] == b[2] == "🟥" * 10
     assert b[1] == "🔺 <b>AVAX</b> · 📉 <b>SHORT SİNYALİ</b> · 15dk"
     b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "1h"}, "long")
-    assert b[0] == "🟩" * 10 and b[1] == "₿ <b>BITCOIN</b> · 📈 <b>LONG SİNYALİ</b> · 1s"
+    assert b[0] == "🟩" * 10 and b[1] == "₿ <b>BTC</b> · 📈 <b>LONG SİNYALİ</b> · 1s"
 
 
 def test_banner_name():
