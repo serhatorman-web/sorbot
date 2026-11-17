@@ -48,7 +48,7 @@
     },
     "1d": {
       "timeframe": "1d",
-      "state_file": "state_1d.json",
+      "state_file": "state_1d.json", "min_candles": 210,
       "signal_supertrend": {
         "cooldown_hours": 24
       },
