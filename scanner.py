@@ -1102,7 +1102,10 @@ def volume_lines(res, cfg):
         pk_up = f["c"][peak] >= f["o"][peak]
         out.append(f"💥 Hacim patlaması: {ratio(peak):.1f}x ortalama ({when}) → "
                    + ("güçlü alım, yükseliş ilgisi" if pk_up else "güçlü satış, düşüş baskısı"))
-    return ["🔊 <b>HACİM</b>"] + out
+    body = []
+    for k, r in enumerate(out):                  # satırlar arasında ince çizgi
+        body += ([THIN] if k else []) + [r]
+    return ["🔊 <b>HACİM</b>"] + body
 
 
 VP_EXPECT = {("VAH", "down"): "düşüş", ("VAH", "up"): "yükselişin devamı",
