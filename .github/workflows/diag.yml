@@ -1,0 +1,23 @@
+name: Teşhis (geçici)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -c "
+          import json, scanner as sc
+          cfg = json.load(open('config.json'))
+          u, meta, tick, _ = sc.build_universe(sc.Binance(), cfg)
+          for typ in ('COIN', 'EQUITY', 'COMMODITY'):
+              L = sorted((m['symbol'] for m in u if m['type'] == typ), key=lambda x: -tick.get(x, {}).get('qv', 0))
+              print('LISTE', typ, len(L), ' '.join(x.removesuffix('USDT') for x in L))
+          wl = cfg['universe']['equity_whitelist']
+          eq = {m['symbol'].removesuffix('USDT') for m in u if m['type'] == 'EQUITY'}
+          print('HISSE_DISARIDA', ' '.join(x for x in wl if x not in eq))
+          " || true
