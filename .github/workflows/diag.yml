@@ -1,9 +1,0 @@
-name: diag
-on: workflow_dispatch
-jobs:
-  d:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - run: PYTHONPATH=. python3 tools/coin_quality.py || true
