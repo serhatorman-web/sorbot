@@ -2190,20 +2190,26 @@ class Notifier:
             pass
         self.major_chat = (os.environ.get("TELEGRAM_CHAT_ID_MAJOR") or str(tg.get("major_chat_id") or "")).strip()
         self.major_symbols = set(tg.get("major_symbols", ["BTCUSDT", "ETHUSDT"]))
+        # Hisse sinyalleri ayrı kanala ("Sorbot Nasdaq")
+        self.equity_chat = (os.environ.get("TELEGRAM_CHAT_ID_EQUITY") or str(tg.get("equity_chat_id") or "")).strip()
+        self.equity_types = set(tg.get("equity_types", ["EQUITY", "KR_EQUITY", "HK_EQUITY"]))
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
             print(f"ℹ️  Mesajlar sadece log'a yazılacak ({why}).")
 
-    def chat_for(self, symbol=None):
+    def chat_for(self, symbol=None, typ=None):
         if symbol and self.major_chat and symbol in self.major_symbols:
             return self.major_chat
+        if typ and self.equity_chat and typ in self.equity_types:
+            return self.equity_chat
         return self.chat_id
 
-    def send(self, text, symbol=None):
-        chat = self.chat_for(symbol)
+    def send(self, text, symbol=None, typ=None):
+        chat = self.chat_for(symbol, typ)
         if self.dry:
-            where = " → Sorbot Majör kanalı" if chat != self.chat_id else ""
+            where = (" → Sorbot Majör kanalı" if chat == self.major_chat else
+                     " → Sorbot Nasdaq kanalı" if chat == self.equity_chat else "")
             print(f"\n----- TELEGRAM MESAJI (gönderilmedi{where}) -----\n" + text + "\n" + "-" * 42)
             return True
         ok = send_telegram(text, self.token, chat)
@@ -2524,7 +2530,7 @@ def main():
         compute_volume_profile(r, cfg)
         msg = build_message(r, d, cfg, now_utc)
         try:
-            if notifier.send(msg, r["meta"]["symbol"]):
+            if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                 sent += 1
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
                 print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
@@ -2567,7 +2573,7 @@ def main():
                 compute_volume_profile(r, cfg)
                 msg = build_message(r, d, cfg, now_utc)
                 try:
-                    if notifier.send(msg, r["meta"]["symbol"]):
+                    if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         piv_n += 1
                         state["signals"][key] = now
                         state["signals"][key + "_period"] = pv["start"]
@@ -2602,7 +2608,7 @@ def main():
                 compute_volume_profile(r, cfg)
                 msg = build_message(r, d, cfg, now_utc)
                 try:
-                    if notifier.send(msg, r["meta"]["symbol"]):
+                    if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         ssl_n += 1
                         state["signals"][key] = now
                         state["signals"][key + "_ev"] = f_["t"][ev]
@@ -2638,7 +2644,7 @@ def main():
             if "vp" not in r:
                 compute_volume_profile(r, cfg)
             try:
-                if notifier.send(build_radar_message(r, rd, cfg, now_utc), r["meta"]["symbol"]):
+                if notifier.send(build_radar_message(r, rd, cfg, now_utc), r["meta"]["symbol"], r["meta"]["type"]):
                     sent += 1
                     state["signals"][key] = now
             except Exception as e:  # noqa: BLE001
