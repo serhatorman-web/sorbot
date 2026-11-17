@@ -161,12 +161,20 @@ def put_time_top(lines, t_close):
         lines.insert(0, tag)
 
 
-def banner_lines(meta, cfg):
+def banner_lines(meta, cfg, direction=None):
+    """Majör coin bandı. Yön verilirse bant yöne göre 🟩 LONG / 🟥 SHORT olur, coin adı başlıkta kalır:
+    🟥… / 🔺 AVAX · 📉 SHORT SİNYALİ · 15dk / 🟥…"""
     b = BANNERS.get(meta["symbol"])
     if not b:
         return []
+    tf = TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))
+    if direction in ("long", "short"):
+        bar = ("🟩" if direction == "long" else "🟥") * 10
+        name = b[1].replace(" SİNYALİ</b>", "</b>")
+        dtitle = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
+        return [bar, f"{name} · {dtitle} · {tf}", bar, ""]
     bar = b[0] * 10
-    return [bar, f"{b[1]} · {TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}", bar, ""]
+    return [bar, f"{b[1]} · {tf}", bar, ""]
 
 
 def type_label(meta):
@@ -1978,7 +1986,7 @@ def build_message(res, direction, cfg, now_utc):
     for x in align:
         top += [x, ""]
     # bant: BTC / ETH kendi bandı; diğerleri LONG 🟩 / SHORT 🟥 (PUMP / DUMP SİNYALİ gibi)
-    banner = banner_lines(meta, cfg)
+    banner = banner_lines(meta, cfg, direction)
     if not banner:
         bar = ("🟩" if direction == "long" else "🟥") * 10
         mk = " / NASDAQ" if meta.get("type") == "EQUITY" else ""      # hisse sinyallerini ayırmak için

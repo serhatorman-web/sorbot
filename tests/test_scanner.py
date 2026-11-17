@@ -998,3 +998,11 @@ def test_time_under_new_banners():
     L = ["🔴 SHORT · X"]
     scanner.put_time_top(L, "t")
     assert L[0] == "🕒 t Mum Kapanışı"
+
+
+def test_major_banner_direction():
+    b = scanner.banner_lines({"symbol": "AVAXUSDT"}, {"timeframe": "15m"}, "short")
+    assert b[0] == b[2] == "🟥" * 10
+    assert b[1] == "🔺 <b>AVAX</b> · 📉 <b>SHORT SİNYALİ</b> · 15dk"
+    b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "1h"}, "long")
+    assert b[0] == "🟩" * 10 and b[1] == "₿ <b>BITCOIN</b> · 📈 <b>LONG SİNYALİ</b> · 1s"
