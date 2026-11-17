@@ -394,10 +394,11 @@
   "signal_trigger": "supertrend",
   "_signal_trigger_aciklama": "Sinyal tetiği: 'supertrend' = Supertrend 10/3 dönüşü (trendi erken yakalar; TrendFlex listede oy verir), 'trendflex' = TrendFlex_Algo _BUY/SELL etiketi (Supertrend listede oy verir).",
   "telegram": {
-    "_aciklama": "BTC, ETH, XRP, BNB, SOL, DOGE ve AVAX sinyalleri ayrı kanala (Sorbot Majör) gider; hisse sinyallerinin hepsi (SAMSUNG dahil) Sorbot Nasdaq kanalına gider; diğer kripto, emtia sinyalleri ve bülten ana kanalda kalır. Kanal numarası token olmadan işe yaramaz.",
+    "_aciklama": "BTC, ETH, XRP, BNB, SOL, DOGE ve AVAX sinyalleri ayrı kanala (Sorbot Majör) gider; hisse sinyallerinin hepsi (SAMSUNG dahil) Sorbot Nasdaq kanalına gider; emtia sinyalleri Sorbot Emtia kanalına gider; diğer kripto sinyalleri ve bülten ana kanalda (Sorbot Altcoin) kalır. Kanal numarası token olmadan işe yaramaz.",
     "major_chat_id": "-1003824728969",
     "major_symbols": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT", "AVAXUSDT"],
     "equity_chat_id": "-1003365238459",
-    "equity_types": ["EQUITY", "KR_EQUITY", "HK_EQUITY"]
+    "equity_types": ["EQUITY", "KR_EQUITY", "HK_EQUITY"],
+    "commodity_chat_id": "-1004440589259"
   }
 }

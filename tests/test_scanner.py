@@ -990,7 +990,8 @@ def test_notifier_major_channel(monkeypatch):
     assert n.chat_for(None) == "-100main"
     assert n.chat_for("NVDAUSDT", "EQUITY") == "-1003365238459"
     assert n.chat_for("SAMSUNGUSDT", "KR_EQUITY") == "-1003365238459"
-    assert n.chat_for("XAUUSDT", "COMMODITY") == "-100main"
+    assert n.chat_for("XAUUSDT", "COMMODITY") == "-1004440589259"
+    assert n.chat_for("SUIUSDT", "COIN") == "-100main"
     assert n.chat_for("BTCUSDT", "COIN") == "-1003824728969"
 
 
