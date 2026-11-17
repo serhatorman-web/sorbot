@@ -1908,7 +1908,7 @@ def technical_rating_line(votes, rating=None):
     label, icon, buy, sell, net = rating or technical_rating(votes)
     # SAT / GÜÇLÜ SAT'ta önce SAT yüzdesi, diğerlerinde önce AL yüzdesi
     b, sl = round(buy), round(sell)
-    parts = [f"AL %{b}", f"SAT %{sl}"]
+    parts = [f"AL 🟢▲ %{b}", f"SAT 🔴▼ %{sl}"]
     if "SAT" in label:
         parts.reverse()
     return f"<b>İŞLEM SKORU :</b> {icon} {label} · ({parts[0]} / {parts[1]})"
