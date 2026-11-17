@@ -1,0 +1,24 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for tf in 15m 1h; do
+            echo "=== YENİ ($tf) ==="
+            SORBOT_TF=$tf DRY_RUN=1 python3 scanner.py > new_$tf.txt 2>&1 || true
+            grep -E "Analiz edilen|Evren|Bitti|Gönderildi|Telegram hatası|Traceback|Error|radarı" new_$tf.txt | head -30 || true
+          done
+          python3 - <<'PY'
+          import json
+          c = json.load(open("config.json")); c["universe"]["watchlist_only"] = False
+          json.dump(c, open("config.json", "w"), ensure_ascii=False, indent=2)
+          PY
+          for tf in 15m 1h; do
+            echo "=== ESKİ TARAMA ($tf) ==="
+            SORBOT_TF=$tf DRY_RUN=1 python3 scanner.py > old_$tf.txt 2>&1 || true
+            grep -E "Analiz edilen|Evren|Bitti|Gönderildi|Traceback|Error|radarı" old_$tf.txt | head -30 || true
+          done
