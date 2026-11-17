@@ -76,7 +76,10 @@ BANNERS = {"BTCUSDT": ("🟧", "₿ <b>BITCOIN SİNYALİ</b>"), "ETHUSDT": ("�
            # kırmızı/yeşil LONG-SHORT'a ayrıldığı için diğer renkler kullanıldı
            "XRPUSDT": ("⬛", "✕ <b>XRP SİNYALİ</b>"), "BNBUSDT": ("🟨", "🔶 <b>BNB SİNYALİ</b>"),
            "SOLUSDT": ("🟪", "◎ <b>SOLANA SİNYALİ</b>"), "DOGEUSDT": ("🟫", "🐕 <b>DOGECOIN SİNYALİ</b>"),
-           "AVAXUSDT": ("♦️", "🔺 <b>AVAX SİNYALİ</b>")}
+           "AVAXUSDT": ("♦️", "🔺 <b>AVAX SİNYALİ</b>"),
+           "HYPEUSDT": ("🟦", "⚡ <b>HYPE SİNYALİ</b>"), "LINKUSDT": ("🟦", "🔗 <b>CHAINLINK SİNYALİ</b>"),
+           "SUIUSDT": ("🟦", "💧 <b>SUI SİNYALİ</b>"), "ADAUSDT": ("🟦", "₳ <b>CARDANO SİNYALİ</b>"),
+           "ZECUSDT": ("🟨", "ⓩ <b>ZCASH SİNYALİ</b>")}
 TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 

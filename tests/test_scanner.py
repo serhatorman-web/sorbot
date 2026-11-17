@@ -293,7 +293,7 @@ def test_btc_eth_profiles():
     assert b[0] == "🟧" * 10 and "BITCOIN SİNYALİ" in b[1] and "5dk" in b[1]
     assert scanner.banner_lines({"symbol": "ETHUSDT"}, {"timeframe": "4h"})[0] == "🟦" * 10
     assert scanner.banner_lines({"symbol": "SOLUSDT"}, {"timeframe": "1h"})[0] == "🟪" * 10
-    assert scanner.banner_lines({"symbol": "ADAUSDT"}, {"timeframe": "1h"}) == []
+    assert scanner.banner_lines({"symbol": "NEARUSDT"}, {"timeframe": "1h"}) == []
 
 
 def test_rsi_divergence():
@@ -986,12 +986,13 @@ def test_notifier_major_channel(monkeypatch):
     assert n.chat_for("BTCUSDT") == "-1003824728969"
     assert n.chat_for("ETHUSDT") == "-1003824728969"
     assert n.chat_for("SOLUSDT") == "-1003824728969"
-    assert n.chat_for("ADAUSDT") == "-100main"
+    assert n.chat_for("NEARUSDT") == "-100main"
     assert n.chat_for(None) == "-100main"
     assert n.chat_for("NVDAUSDT", "EQUITY") == "-1003365238459"
     assert n.chat_for("SAMSUNGUSDT", "KR_EQUITY") == "-1003365238459"
     assert n.chat_for("XAUUSDT", "COMMODITY") == "-1004440589259"
-    assert n.chat_for("SUIUSDT", "COIN") == "-100main"
+    assert n.chat_for("NEARUSDT", "COIN") == "-100main"
+    assert n.chat_for("HYPEUSDT", "COIN") == "-1003824728969"
     assert n.chat_for(None, "BULLETIN") == "-1003810871076"
     assert n.chat_for("BTCUSDT", "COIN") == "-1003824728969"
 
