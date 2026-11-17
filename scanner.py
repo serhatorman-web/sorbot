@@ -2289,6 +2289,8 @@ def build_universe(api, cfg):
         except Exception as e:  # noqa: BLE001
             print(f"  [uyarı] Binance spot listesi alınamadı, filtre atlandı: {e}")
     min_age = ucfg.get("crypto_min_age_days") or 0
+    wl_syms = ucfg.get("tradingview_watchlist") if ucfg.get("watchlist_only") else None
+    wset = set(wl_syms) if wl_syms else None
     now_ms = time.time() * 1000
     for s in info["symbols"]:
         if s.get("quoteAsset") != "USDT" or s.get("status") != "TRADING":
@@ -2298,6 +2300,22 @@ def build_universe(api, cfg):
         typ = s.get("underlyingType")
         meta = {"symbol": s["symbol"], "type": typ, "precision": tick_decimals(s)}
         all_meta[s["symbol"]] = meta
+        if wset is not None:                  # TradingView listesi modu: sadece listedekiler
+            if s["symbol"] not in wset or s["symbol"] in exclude:
+                continue
+            qv = tickers.get(s["symbol"], {}).get("qv", 0)
+            if typ == "EQUITY":
+                need = min_qv.get("EQUITY", min_qv["default"])
+                if us_market_status(datetime.now(timezone.utc)) != "open":
+                    if not ucfg.get("scan_equity_when_closed", True):
+                        continue
+                    need = min_qv.get("EQUITY_closed", need)
+                if qv < need:
+                    continue
+            elif typ == "COMMODITY" and qv < min_qv.get("COMMODITY", min_qv["default"]):
+                continue
+            universe.append(meta)                 # coinlerde hacim eşiği yok
+            continue
         if typ not in include or s["symbol"] in exclude:
             continue
         wl = ucfg.get("equity_whitelist")
