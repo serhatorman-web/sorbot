@@ -292,7 +292,8 @@ def test_btc_eth_profiles():
     b = scanner.banner_lines({"symbol": "BTCUSDT"}, {"timeframe": "5m"})
     assert b[0] == "🟧" * 10 and "BITCOIN SİNYALİ" in b[1] and "5dk" in b[1]
     assert scanner.banner_lines({"symbol": "ETHUSDT"}, {"timeframe": "4h"})[0] == "🟦" * 10
-    assert scanner.banner_lines({"symbol": "SOLUSDT"}, {"timeframe": "1h"}) == []
+    assert scanner.banner_lines({"symbol": "SOLUSDT"}, {"timeframe": "1h"})[0] == "🟪" * 10
+    assert scanner.banner_lines({"symbol": "ADAUSDT"}, {"timeframe": "1h"}) == []
 
 
 def test_rsi_divergence():
