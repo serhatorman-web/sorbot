@@ -1921,13 +1921,13 @@ def indicator_list_lines(res, direction):
     opp = [n for n, v in res["votes"] if v == -s]
     neu = [n for n, v in res["votes"] if v == 0]
     word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
-    icon = {"AL": "🟢", "SAT": "🔴"}
+    icon = {"AL": "🟢▲", "SAT": "🔴▼"}
     out = [f"{icon[word]} {word} ({len(same)}): " + ", ".join(same)] if same else []
     # boş olan satır (ör. %100 AL iken SAT/Nötr) yazılmaz
     if opp:
         out += ([""] if out else []) + [f"{icon[oword]} {oword} ({len(opp)}): " + ", ".join(opp)]
     if neu:
-        out += ([""] if out else []) + [f"⚪ Nötr ({len(neu)}): " + ", ".join(neu)]
+        out += ([""] if out else []) + [f"⚪▶ Nötr ({len(neu)}): " + ", ".join(neu)]
     return out
 
 
@@ -2005,7 +2005,7 @@ def build_message(res, direction, cfg, now_utc):
         if psig:
             lines += ["", SEP, f"📌 Tetik: Pivot {'üstünde' if direction == 'long' else 'altında'} kapanış "
                                f"+ Supertrend, DynaRange, QQE MOD onayı"]
-        st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {'🟢' if st_word == 'AL' else '🔴'} <b>{st_word}</b>"
+        st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {'🟢▲' if st_word == 'AL' else '🔴▼'} <b>{st_word}</b>"
         if psig:
             lines += ["", st_line]
         else:
@@ -2083,7 +2083,7 @@ def build_radar_message(res, rd, cfg, now_utc):
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     if res.get("votes"):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
-        st_txt = "🟢 <b>AL</b>" if st == 1 else ("🔴 <b>SAT</b>" if st == -1 else "⚪ <b>—</b>")
+        st_txt = "🟢▲ <b>AL</b>" if st == 1 else ("🔴▼ <b>SAT</b>" if st == -1 else "⚪▶ <b>—</b>")
         st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}"
         gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
         if gi is not None:                       # Supertrend satırı Giriş'in üstünde
