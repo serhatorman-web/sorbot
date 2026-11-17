@@ -11,23 +11,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           python3 -c "
-          import json, time, scanner as sc
-          cfg = json.load(open('config.json')); cfg['universe']['crypto_top_n'] = None
-          api = sc.Binance()
-          u, *_ = sc.build_universe(api, cfg)
-          coins = sorted(m['symbol'] for m in u if m['type'] == 'COIN')
-          fi = {s['symbol']: s for s in api.get('/fapi/v1/exchangeInfo')['symbols']}
-          spot = api.get('/api/v3/exchangeInfo')
-          spot_bases = {s['baseAsset'] for s in spot['symbols'] if s.get('status') == 'TRADING' and s.get('quoteAsset') == 'USDT'}
-          now = time.time() * 1000
-          def age(s): return (now - fi[s].get('onboardDate', now)) / 86400000
-          sp = [c for c in coins if sc.coin_base(c) in spot_bases or c.removesuffix('USDT') in spot_bases]
-          old = [c for c in coins if age(c) >= 90]
-          both = [c for c in sp if age(c) >= 90]
-          b = lambda L: ' '.join(x.removesuffix('USDT') for x in L)
-          print('TOPLAM', len(coins))
-          print('SPOT', len(sp)); print('SPOT_ELENEN', b([c for c in coins if c not in sp]))
-          print('YAS90', len(old)); print('YAS_ELENEN', b([c for c in coins if c not in old]))
-          print('IKISI', len(both)); print('IKISI_ELENEN', b([c for c in coins if c not in both]))
-          print('SPOT_AMA_YENI', b([c for c in sp if c not in old]))
+          import json, scanner as sc
+          cfg = json.load(open('config.json'))
+          u, *_ = sc.build_universe(sc.Binance(), cfg)
+          c = sorted(m['symbol'].removesuffix('USDT') for m in u if m['type'] == 'COIN')
+          print('KRIPTO', len(c), ' '.join(c))
+          for k in ('OP','IMX','RUNE','SAND','GALA','APE','WIF','1000BONK','1000FLOKI','PHAROS','IDOL','MAGMA','BEAT'):
+              print('VAR' if k in c else 'YOK', k)
           " || true

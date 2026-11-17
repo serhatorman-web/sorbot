@@ -2249,6 +2249,17 @@ def build_universe(api, cfg):
     # Kripto: yalnızca piyasa değeri sıralamasında ilk N'deki bilinen coinler (adı duyulmamış coinler elenir)
     top_n = ucfg.get("crypto_top_n")
     top = top_coins(top_n) if top_n else None
+    # Kripto: Binance SPOT'ta da listelenmiş (Binance'in kabul ettiği) ve vadelide en az N gündür işlem gören coinler.
+    # Sadece vadeliye eklenen yeni / meme coinler elenir.
+    spot = None
+    if ucfg.get("crypto_require_spot"):
+        try:
+            spot = {x["baseAsset"] for x in api.get("/api/v3/exchangeInfo")["symbols"]
+                    if x.get("status") == "TRADING" and x.get("quoteAsset") == "USDT"}
+        except Exception as e:  # noqa: BLE001
+            print(f"  [uyarı] Binance spot listesi alınamadı, filtre atlandı: {e}")
+    min_age = ucfg.get("crypto_min_age_days") or 0
+    now_ms = time.time() * 1000
     for s in info["symbols"]:
         if s.get("quoteAsset") != "USDT" or s.get("status") != "TRADING":
             continue
@@ -2272,6 +2283,11 @@ def build_universe(api, cfg):
         if qv < need:
             continue
         if typ == "COIN" and top is not None and coin_base(s["symbol"]) not in top:
+            continue
+        if typ == "COIN" and spot is not None and coin_base(s["symbol"]) not in spot \
+                and s["symbol"].removesuffix("USDT") not in spot:
+            continue
+        if typ == "COIN" and min_age and (now_ms - s.get("onboardDate", now_ms)) / 86_400_000 < min_age:
             continue
         universe.append(meta)
     return universe, all_meta, tickers, funding
