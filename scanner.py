@@ -161,6 +161,9 @@ def put_time_top(lines, t_close):
         lines.insert(0, tag)
 
 
+EQUITY_FLAGS = {"EQUITY": "🇺🇸", "KR_EQUITY": "🇰🇷", "HK_EQUITY": "🇭🇰"}
+
+
 def banner_lines(meta, cfg, direction=None):
     """Majör coin bandı. Yön verilirse bant yöne göre 🟩 LONG / 🟥 SHORT olur, coin adı başlıkta kalır:
     🟥… / 🔺 AVAX · 📉 SHORT SİNYALİ · 15dk / 🟥…"""
@@ -1989,9 +1992,12 @@ def build_message(res, direction, cfg, now_utc):
     banner = banner_lines(meta, cfg, direction)
     if not banner:
         bar = ("🟩" if direction == "long" else "🟥") * 10
-        mk = " / NASDAQ" if meta.get("type") == "EQUITY" else ""      # hisse sinyallerini ayırmak için
         title = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
-        banner = [bar, f"{title} · {TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))}{mk}", bar, ""]
+        tf_s = TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))
+        flag = EQUITY_FLAGS.get(meta.get("type"))
+        if flag:      # hisse (Sorbot Nasdaq): 🟥… / 🇺🇸 NVDA · 📉 SHORT SİNYALİ · 15dk / 🟥…
+            title = f"{flag} <b>{meta['symbol'].removesuffix('USDT')}</b> · {title}"
+        banner = [bar, f"{title} · {tf_s}", bar, ""]
     lines = banner + [
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         SEP] + top + ([SEP] if top else []) + [

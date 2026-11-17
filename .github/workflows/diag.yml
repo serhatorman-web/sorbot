@@ -1,0 +1,9 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: SORBOT_TF=15m DRY_RUN=1 PREVIEW=1 PREVIEW_SYMBOL=NVDAUSDT PREVIEW_DIR=short python3 scanner.py > out.txt 2>&1 || true; awk '/TEST · ÖNİZLEME/{p=1} p{print} /^------------------------------------------$/{if(p){exit}}' out.txt
