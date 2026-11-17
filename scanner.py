@@ -931,7 +931,7 @@ def confidence_label(score):
 
 SEP = "━━━━━━━━━━━━━━━━"   # bölümler arası yatay çizgi
 
-TREND_LABEL = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay", None: "⚫ Veri yok"}
+TREND_LABEL = {1: "🟢▲ Yükselişte", -1: "🔴▼ Düşüşte", 0: "⚪▶ Yatay", None: "⚫ Veri yok"}
 
 
 def icon_row(label, value):
