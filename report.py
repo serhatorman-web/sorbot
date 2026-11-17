@@ -715,7 +715,7 @@ def markets_block(quotes):
     """Piyasalar: önceki görünüm – tüm satırlar açık, gruplar arasında boş satır."""
     if not quotes or not any(quotes.values()):
         return []
-    L = ["🌍 <b>PİYASALAR</b>"]
+    L = ["🌍 <b>PİYASALAR</b>", sc.SEP]
     for title, items in MARKET_GROUPS:
         rows = []
         for name, sym, _, cur in items:
@@ -734,10 +734,11 @@ def markets_block(quotes):
                         f"{pct_arrow(q.get('chg'))} · <i>{status}</i>")
         if rows:
             # gruplar arasında yatay çizgi (ilk grup başlığın hemen altında)
-            L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + thin(rows)
+            # sinyallerdeki gibi: büyük başlık, altında kalın çizgi, satırlar arası ince çizgi
+            L += ["", f"<b>{tr_upper(title)}</b>", sc.SEP] + thin(rows)
     rr = rates_block(quotes.get("_rates"))
     if rr:
-        L += ["", sc.SEP, "<b>🏦 Merkez Bankası Faizleri</b>"] + thin(rr)
+        L += ["", "<b>🏦 MERKEZ BANKASI FAİZLERİ</b>", sc.SEP] + thin(rr)
     return L
 
 
@@ -820,21 +821,21 @@ def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
     if mk:
         blocks.append("\n".join(mk))
     if released:
-        blocks.append("\n".join(["📊 <b>AÇIKLANAN VERİLER</b> <i>(son 1 saat)</i>", ""] + released_block(released)))
+        blocks.append("\n".join(["📊 <b>AÇIKLANAN VERİLER</b> <i>(son 1 saat)</i>", sc.SEP] + released_block(released)))
     if upcoming:
         h = rcfg.get("calendar_lookahead_hours", 3)
-        blocks.append("\n".join([f"🗓 <b>YAKLAŞAN VERİLER</b> <i>(önümüzdeki {h} saat)</i>", ""] + upcoming_block(upcoming)))
+        blocks.append("\n".join([f"🗓 <b>YAKLAŞAN VERİLER</b> <i>(önümüzdeki {h} saat)</i>", sc.SEP] + upcoming_block(upcoming)))
     for cat, items in news.items():
         if items:
             icon, title = (cat.split(" ", 1) + [""])[:2] if " " in cat else ("", cat)
-            blocks.append(f"{icon} <b>{tr_upper(title)}</b>\n"
+            blocks.append(f"{icon} <b>{tr_upper(title)}</b>\n{sc.SEP}\n"
                           + "\n".join(news_block(items, rcfg.get("news_per_category", 5))))
     if not blocks:
         return None
     header = "\n".join([LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE])
     footer = "\n".join([LINE, "🔴 yüksek önem · 🟠 orta önem · 🔥 öne çıkan haber", "<i>Yatırım tavsiyesi değildir.</i>"])
     # başlıklar (bölümler) arasında yatay çizgi – sinyal mesajlarındaki çizginin aynısı
-    body = ("\n\n" + sc.SEP + "\n").join(blocks)
+    body = "\n\n".join(blocks)            # her başlığın altında kalın çizgi var
     return "\n\n".join([header, body, footer])
 
 
