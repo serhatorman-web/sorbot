@@ -976,3 +976,13 @@ def test_dir_arrow_sections():
 def test_coin_base():
     assert scanner.coin_base("1000PEPEUSDT") == "PEPE" and scanner.coin_base("1MBABYDOGEUSDT") == "BABYDOGE"
     assert scanner.coin_base("BTCUSDT") == "BTC" and scanner.coin_base("1INCHUSDT") == "1INCH"
+
+
+def test_notifier_major_channel(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "-100main")
+    monkeypatch.delenv("TELEGRAM_CHAT_ID_MAJOR", raising=False)
+    n = scanner.Notifier()
+    assert n.chat_for("BTCUSDT") == "-1003824728969"
+    assert n.chat_for("ETHUSDT") == "-1003824728969"
+    assert n.chat_for("SOLUSDT") == "-100main"
+    assert n.chat_for(None) == "-100main"
