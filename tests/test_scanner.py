@@ -984,5 +984,6 @@ def test_notifier_major_channel(monkeypatch):
     n = scanner.Notifier()
     assert n.chat_for("BTCUSDT") == "-1003824728969"
     assert n.chat_for("ETHUSDT") == "-1003824728969"
-    assert n.chat_for("SOLUSDT") == "-100main"
+    assert n.chat_for("SOLUSDT") == "-1003824728969"
+    assert n.chat_for("ADAUSDT") == "-100main"
     assert n.chat_for(None) == "-100main"
