@@ -2038,8 +2038,9 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
-        for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res), ichimoku_lines(res, direction, cfg),
-                      volume_profile_lines(res, cfg), divergence_lines(res), volume_lines(res, cfg)):
+        # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
+        for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg), trendline_lines(res),
+                      divergence_lines(res), volume_lines(res, cfg)):
             if block:
                 lines += section(block)
     lines += (["", trend_line] if trend_line else []) + market_section(lb, market_lines(res, cfg, now_utc))
@@ -2106,9 +2107,9 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
-    for block in (pivot_lines(res, direction, cfg), price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
-                  trendline_lines(res), ichimoku_lines(res, direction, cfg), volume_profile_lines(res, cfg),
-                  divergence_lines(res), volume_lines(res, cfg)):
+    # PIVOTS, ICHIMOKU ve HACİM PROFİLİ bölümleri kullanıcı isteğiyle mesajdan kaldırıldı
+    for block in (price_action_lines(res, direction, cfg), order_block_lines(res, cfg),
+                  trendline_lines(res), divergence_lines(res), volume_lines(res, cfg)):
         if block:
             lines += section(block)
     trend = tf_table_html(res)
