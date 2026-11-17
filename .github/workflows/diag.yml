@@ -1,0 +1,12 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          PYTHONPATH=. python3 tools/ssl_vs_st.py 1h 120 || true
+          PYTHONPATH=. python3 tools/ssl_vs_st.py 15m 60 || true
