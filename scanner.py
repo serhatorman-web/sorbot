@@ -2436,11 +2436,16 @@ def main():
         else:
             picks_pv = [best(coins, 1), best(coins, -1), best(eqs, 1) or best(eqs, -1),
                         best(metals, 1) or best(metals, -1), best(others, 1) or best(others, -1)]
+        psym = os.environ.get("PREVIEW_SYMBOL", "").strip().upper()
+        if psym:                                  # tek sembol, istenen yönle (örnek göstermek için)
+            picks_pv = [r for r in results if r["meta"]["symbol"] == psym]
         n = 0
         for r in picks_pv:
             if not r:
                 continue
             d = "long" if st_of(r) == 1 else "short"
+            if psym and os.environ.get("PREVIEW_DIR") in ("long", "short"):
+                d = os.environ["PREVIEW_DIR"]
             fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             compute_volume_profile(r, cfg)
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
