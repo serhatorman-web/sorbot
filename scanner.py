@@ -2193,6 +2193,42 @@ def tick_decimals(sym_info):
     return sym_info.get("pricePrecision")
 
 
+TOP_COINS_PATH = os.path.join(BASE_DIR, "state", "top_coins.json")
+
+
+def coin_base(symbol):
+    """Binance kontratından coin kodu: 1000PEPEUSDT → PEPE, 1MBABYDOGEUSDT → BABYDOGE."""
+    b = symbol.removesuffix("USDT")
+    for pre in ("1000000", "10000", "1000", "1M"):
+        if b.startswith(pre) and len(b) > len(pre):
+            return b[len(pre):]
+    return b
+
+
+def top_coins(n, max_age_h=6):
+    """CoinGecko piyasa değeri sıralamasında ilk n coinin kodları (6 saat önbellek).
+    Alınamazsa önbellek; o da yoksa None (filtre uygulanmaz, tarama durmaz)."""
+    cache = load_json(TOP_COINS_PATH, None)
+    if cache and cache.get("n") == n and time.time() - cache.get("t", 0) < max_age_h * 3600:
+        return set(cache["coins"])
+    try:
+        coins = []
+        for page in range(1, (n - 1) // 250 + 2):
+            req = urllib.request.Request(
+                "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc"
+                f"&per_page=250&page={page}", headers={"User-Agent": "Mozilla/5.0 (SorBot)", "Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                coins += [c["symbol"].upper() for c in json.loads(r.read().decode())]
+        coins = coins[:n]
+        os.makedirs(os.path.dirname(TOP_COINS_PATH), exist_ok=True)
+        with open(TOP_COINS_PATH, "w") as fh:
+            json.dump({"t": time.time(), "n": n, "coins": coins}, fh)
+        return set(coins)
+    except Exception as e:  # noqa: BLE001
+        print(f"  [uyarı] CoinGecko sıralaması alınamadı: {e}")
+        return set(cache["coins"]) if cache else None
+
+
 def build_universe(api, cfg):
     info = api.get("/fapi/v1/exchangeInfo")
     ucfg = cfg["universe"]
@@ -2210,6 +2246,9 @@ def build_universe(api, cfg):
 
     all_meta, universe = {}, []
     min_qv = ucfg["min_quote_volume_24h"]
+    # Kripto: yalnızca piyasa değeri sıralamasında ilk N'deki bilinen coinler (adı duyulmamış coinler elenir)
+    top_n = ucfg.get("crypto_top_n")
+    top = top_coins(top_n) if top_n else None
     for s in info["symbols"]:
         if s.get("quoteAsset") != "USDT" or s.get("status") != "TRADING":
             continue
@@ -2231,6 +2270,8 @@ def build_universe(api, cfg):
                 continue
             need = min_qv.get("EQUITY_closed", need)
         if qv < need:
+            continue
+        if typ == "COIN" and top is not None and coin_base(s["symbol"]) not in top:
             continue
         universe.append(meta)
     return universe, all_meta, tickers, funding

@@ -971,3 +971,8 @@ def test_dir_arrow_sections():
     assert out[2] == "🟢▲ Kijun 1: yukarı kırıldı" and out[4] == "🔴▼ Tenkan 2: aşağı kırıldı" and out[6].startswith("⚪ ")
     p = scanner.with_header_line(["📍 <b>PIVOTS</b> · 15dk", "🟢 x"])
     assert p[2] == "🟢 x"
+
+
+def test_coin_base():
+    assert scanner.coin_base("1000PEPEUSDT") == "PEPE" and scanner.coin_base("1MBABYDOGEUSDT") == "BABYDOGE"
+    assert scanner.coin_base("BTCUSDT") == "BTC" and scanner.coin_base("1INCHUSDT") == "1INCH"
