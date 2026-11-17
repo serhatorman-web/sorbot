@@ -94,6 +94,14 @@ def with_header_line(block):
     return block
 
 
+def arr(x, dec=2):
+    """Yüzde değişim renkli okla: +1.28 → '🟢▲ %1.28', -2.5 → '🔴▼ %2.50' (PİYASA DURUMU ile aynı)."""
+    if x is None:
+        return "–"
+    a = "🟢▲" if x > 0 else ("🔴▼" if x < 0 else "⚪▶")
+    return f"{a} %{abs(x):.{dec}f}"
+
+
 def put_st_line(lines, gi, st_line):
     """SUPERTREND satırı Giriş bölümünün çizgisinin üstüne (başlık gibi: satır, altında çizgi, Giriş)."""
     if gi > 0 and lines[gi - 1] == SEP:
@@ -444,7 +452,7 @@ def pump_dump_analysis(f, cfg, chg24, i=None):
     chg3 = pct(c[i], c[i - 3]) / 100
     if chg3 >= pd_cfg["already_pumped_3h"] or chg24 / 100 >= pd_cfg["already_pumped_24h"]:
         res["long_pen"] += 10
-        res["notes"].append(("long", f"⚠️ Pump sonrası (3s {chg3*100:+.1f}%, 24s {chg24:+.1f}%) – geç kalınmış olabilir"))
+        res["notes"].append(("long", f"⚠️ Pump sonrası (3s {arr(chg3*100, 1)}, 24s {arr(chg24, 1)}) – geç kalınmış olabilir"))
         # Negatif uyumsuzluk: fiyat yeni tepe, RSI daha düşük tepe
         r = f["rsi"]
         if None not in r[i - 30:i + 1]:
@@ -453,7 +461,7 @@ def pump_dump_analysis(f, cfg, chg24, i=None):
                 res["notes"].append(("short", "💥 Dump riski: pump sonrası negatif RSI uyumsuzluğu"))
     if chg3 <= -pd_cfg["already_pumped_3h"] or chg24 / 100 <= -pd_cfg["already_pumped_24h"]:
         res["short_pen"] += 10
-        res["notes"].append(("short", f"⚠️ Dump sonrası (3s {chg3*100:+.1f}%, 24s {chg24:+.1f}%) – geç kalınmış olabilir"))
+        res["notes"].append(("short", f"⚠️ Dump sonrası (3s {arr(chg3*100, 1)}, 24s {arr(chg24, 1)}) – geç kalınmış olabilir"))
         r = f["rsi"]
         if None not in r[i - 30:i + 1]:
             if min(c[i - 10:i + 1]) <= min(c[i - 30:i - 10]) and min(r[i - 10:i + 1]) > min(r[i - 30:i - 10]):
@@ -504,7 +512,7 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
             score += 10
         if oi_chg is not None and oi_chg >= pd_cfg["oi_change_confirm"]:
             score += 10 if oi_chg >= 0.05 else 5
-            why.append(f"Açık pozisyon artıyor (OI 4s {oi_chg*100:+.1f}%)")
+            why.append(f"Açık pozisyon artıyor (OI 4s {arr(oi_chg*100, 1)})")
         if funding is not None and ((s == 1 and funding >= cfg["funding"]["crowded_long"])
                                     or (s == -1 and funding <= cfg["funding"]["crowded_short"])):
             score -= 10   # fonlama aşırı kalabalıksa skor düşer (mesajda gösterilmez)
@@ -748,8 +756,8 @@ def evaluate_supertrend(meta, f, i, leader_bias, leader_name, funding, chg24, no
         why = []
         if dec:
             icon = "🚀" if s == 1 else "💥"
-            why.append(f"{icon} {lead_label}'den ayrışıyor: 24s {dec['own']*100:+.1f}% "
-                       f"({lead_label} {dec['leader']*100:+.1f}%), hacim {dec['vr']:.1f}x")
+            why.append(f"{icon} {lead_label}'den ayrışıyor: 24s {arr(dec['own']*100, 1)} "
+                       f"({lead_label} {arr(dec['leader']*100, 1)}), hacim {dec['vr']:.1f}x")
         out[key] = {"score": score, "why": why, "triggers": trig,
                     "agree": agree, "total": len(used), "decoupled": bool(dec)}
     return out
@@ -832,13 +840,13 @@ def apply_open_interest(res, oi_hist):
         side = res[key]
         if oi_chg >= cfg_pd["oi_change_confirm"] and price_chg * s > 0:
             side["score"] = min(100, side["score"] + adj)
-            side["why"].append(f"✅ Açık pozisyon artıyor (OI 4s {oi_chg*100:+.1f}%) – hareket destekli")
+            side["why"].append(f"✅ Açık pozisyon artıyor (OI 4s {arr(oi_chg*100, 1)}) – hareket destekli")
             if oi_chg >= cfg_pd["oi_change_strong"] and res["pd"]["vol_spike"]:
                 side["score"] = min(100, side["score"] + adj)
                 side["why"].append("🚀 Güçlü OI + hacim artışı" if s == 1 else "💥 Güçlü OI + hacim artışı")
         elif oi_chg <= -cfg_pd["oi_change_confirm"] and price_chg * s > 0:
             side["score"] = max(0, side["score"] - adj)
-            side["why"].append(f"⚠️ OI düşüyor ({oi_chg*100:+.1f}%) – hareket pozisyon kapatmadan kaynaklı olabilir")
+            side["why"].append(f"⚠️ OI düşüyor ({arr(oi_chg*100, 1)}) – hareket pozisyon kapatmadan kaynaklı olabilir")
 
 
 def decide(res, cfg, state, now):
@@ -1099,9 +1107,9 @@ def volume_lines(res, cfg):
         chg = (f["c"][k] / f["o"][k] - 1) * 100
         when = "sinyal mumu" if k == i else f"{i - k} mum önce"
         if body > 0:
-            out.append(f"📈 Büyük yükseliş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when}) → alıcılar güçlü")
+            out.append(f"📈 Büyük yükseliş: {arr(chg)} · hacim {ratio(k):.1f}x ({when}) → alıcılar güçlü")
         else:
-            out.append(f"📉 Büyük düşüş: {chg:+.2f}% · hacim {ratio(k):.1f}x ({when}) → satıcılar güçlü")
+            out.append(f"📉 Büyük düşüş: {arr(chg)} · hacim {ratio(k):.1f}x ({when}) → satıcılar güçlü")
     peak = max(range(max(0, i - 2), i + 1), key=ratio)
     if ratio(peak) >= vc.get("spike_ratio", 3.0):
         when = "sinyal mumu" if peak == i else f"{i - peak} mum önce"
@@ -1545,8 +1553,8 @@ def pivot_lines(res, direction, cfg):
             out.append(f"✅ Pivot stratejisi onaylandı → {'LONG' if up else 'SHORT'} girilebilir")
             out.append(f"Giriş: Pivot {fp(P)}")
             for k, (n, v) in enumerate(tgt, 1):
-                out.append(f"TP{k}: {n} {fp(v)} ({pct(v, P):+.2f}%)")
-            out.append(f"Stop: {stop_n} {fp(stop)} ({pct(stop, P):+.2f}%)")
+                out.append(f"TP{k}: {n} {fp(v)} ({arr(pct(v, P))})")
+            out.append(f"Stop: {stop_n} {fp(stop)} ({arr(pct(stop, P))})")
     else:
         out.append("⚠️ Pivot stratejisi onaylamıyor → işleme girmek riskli, bekle")
     return out
@@ -1961,7 +1969,7 @@ def build_message(res, direction, cfg, now_utc):
         SEP] + top + ([SEP] if top else []) + [
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
         "",
-        f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}",
+        f"<b>Stop:</b> {fmt_price(sl, prec)} ({arr(pct(sl, entry))}) · {sl_label}",
     ]
     psig = res.get("pivot_sig") if (res.get("pivot_sig") or {}).get("dir") == direction else None
     for n, tp in enumerate(tps, 1):
@@ -1969,7 +1977,7 @@ def build_message(res, direction, cfg, now_utc):
             lab = psig["tps"][n - 1][0]
         else:
             lab = f"{cfg['risk']['tp_r_multiples'][n - 1]:g}R"
-        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {lab}"]
+        lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({arr(pct(tp, entry))}) · {lab}"]
     if cfg["risk"].get("show_breakeven_note", True):
         lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
 
@@ -2062,16 +2070,16 @@ def build_radar_message(res, rd, cfg, now_utc):
     if rd["kind"] == "start":
         entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
-                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
+                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({arr(pct(sl, entry))}) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
+            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({arr(pct(tp, entry))}) · {r:g}R"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
-                  f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({pct(lvl, f['c'][i]):+.2f}%)",
+                  f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({arr(pct(lvl, f['c'][i]))})",
                   "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     if res.get("votes"):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
