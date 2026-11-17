@@ -945,7 +945,7 @@ def test_section():
 
 
 def test_market_section():
-    assert scanner.market_section(["a"], ["b"]) == ["", "🌍 <b>PİYASA DURUMU</b>", scanner.SEP, "a", "b"]
+    assert scanner.market_section(["a"], ["b"]) == ["", "🌍 <b>PİYASA DURUMU</b>", scanner.SEP, "a", scanner.THIN, "b"]
     assert scanner.market_section([], []) == []
 
 

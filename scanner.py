@@ -97,12 +97,18 @@ def put_st_line(lines, gi, st_line):
 
 
 MARKET_HEADER = "🌍 <b>PİYASA DURUMU</b>"
+THIN = "────────────────"
 
 
 def market_section(lb, ml):
     """🌍 PİYASA DURUMU: BTC / ETH yönü, BTC Dominance, ABD borsası, likidite."""
     rows = list(lb or []) + list(ml or [])
-    return (["", MARKET_HEADER, SEP] + rows) if rows else []
+    if not rows:
+        return []
+    body = []
+    for k, r in enumerate(rows):                 # satırlar arasında ince çizgi (trend tablosu gibi)
+        body += ([THIN] if k else []) + [r]
+    return ["", MARKET_HEADER, SEP] + body
 
 
 def section(block):
@@ -1777,7 +1783,7 @@ def tf_table_html(res):
     # başlığın altında kalın çizgi
     # kutu (blockquote) yok: arka plan renksiz, alıntı işareti yok; satırlar arasında ince çizgi
     # başlığın altında bölüm aralarındaki kalın çizgi (━), satırlar arasında ince çizgi
-    return "📊 <b>TREND TABLOSU</b>\n" + SEP + "\n" + "\n────────────────\n".join(rows)
+    return "📊 <b>TREND TABLOSU</b>\n" + SEP + "\n" + ("\n" + THIN + "\n").join(rows)
 
 
 def rating_label(net):
