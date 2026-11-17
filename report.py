@@ -701,6 +701,16 @@ def chg_icon(chg):
     return "🟢" if chg and chg > 0 else ("🔴" if chg and chg < 0 else "⚪")
 
 
+def thin(rows):
+    """Satırların arasına ince yatay çizgi (sinyal mesajlarındaki gibi)."""
+    out = []
+    for r in rows:
+        if out:
+            out.append(sc.THIN)
+        out.append(r)
+    return out
+
+
 def markets_block(quotes):
     """Piyasalar: önceki görünüm – tüm satırlar açık, gruplar arasında boş satır."""
     if not quotes or not any(quotes.values()):
@@ -724,10 +734,10 @@ def markets_block(quotes):
                         f"{pct_arrow(q.get('chg'))} · <i>{status}</i>")
         if rows:
             # gruplar arasında yatay çizgi (ilk grup başlığın hemen altında)
-            L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + rows
+            L += ([""] if len(L) == 1 else ["", sc.SEP]) + [f"<b>{title}</b>"] + thin(rows)
     rr = rates_block(quotes.get("_rates"))
     if rr:
-        L += ["", sc.SEP, "<b>🏦 Merkez Bankası Faizleri</b>"] + rr
+        L += ["", sc.SEP, "<b>🏦 Merkez Bankası Faizleri</b>"] + thin(rr)
     return L
 
 
@@ -756,6 +766,8 @@ def released_block(events):
     L = []
     for e in events:
         t = e["dt"].astimezone(TR_TZ)
+        if L:
+            L.append(sc.THIN)
         L.append(f"{IMP_ICON.get(e['importance'], '•')} <b>{esc(e['tr'])}</b> · {econ.country_label(e['country'])} · {t:%H:%M}")
         L.append(f"      Gerçekleşen: <b>{esc(econ.fmt_val(e, 'actual'))}</b>  │  Beklenti: {esc(econ.fmt_val(e, 'forecast'))}"
                  f"  │  Önceki: {esc(econ.fmt_val(e, 'previous'))}")
@@ -770,6 +782,10 @@ def released_block(events):
 
 
 def upcoming_block(events):
+    return thin(_upcoming_rows(events))
+
+
+def _upcoming_rows(events):
     L = []
     for e in events:
         t = e["dt"].astimezone(TR_TZ)
@@ -784,6 +800,10 @@ def upcoming_block(events):
 
 
 def news_block(items, per_cat):
+    return thin(_news_rows(items, per_cat))
+
+
+def _news_rows(items, per_cat):
     L = []
     for it in items[:per_cat]:
         mark = "🔥" if it.get("imp", 0) >= 5 else "▫️"
