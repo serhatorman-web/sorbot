@@ -81,11 +81,26 @@ HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİS
            "🧱 <b>ORDER BLOCK", "〽️ <b>RSI UYUMSUZLUK", "🔊 <b>HACİM</b>")
 
 
+DIR_SECTIONS = ("📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "〽️ <b>RSI UYUMSUZLUK")
+
+
+def dir_arrow(r):
+    """Yön satırının başındaki 🟢 / 🔴 ikonuna ok ekler (🟢▲ / 🔴▼)."""
+    if r.startswith("🟢 "):
+        return "🟢▲ " + r[2:]
+    if r.startswith("🔴 "):
+        return "🔴▼ " + r[2:]
+    return r
+
+
 def with_header_line(block):
     """Bölüm başlığının (PIVOTS, ICHIMOKU …) altına kalın yatay çizgi (TREND TABLOSU gibi)."""
     if block and block[0].startswith(HEADERS):
         body = []
+        arrows = block[0].startswith(DIR_SECTIONS)
         for r in block[1:]:
+            if arrows:
+                r = dir_arrow(r)
             # satırlar arasında ince çizgi; pivot hedef grubu (Giriş/TP/Stop) bir arada kalır
             if body and not r.startswith(("TP", "Stop:")):
                 body.append(THIN)
@@ -1668,7 +1683,7 @@ def leader_line(res, name=None, bias=None, cfg=None):
     """Piyasa lideri yönü (kripto: BTC, hisse: QQQ) + anlık fiyat ve 24s değişim."""
     name = name or res["leader_name"]
     lb_ = res["leader_bias"] if bias is None else bias
-    lbl = {1: "🟢 Yükselişte", -1: "🔴 Düşüşte", 0: "⚪ Yatay"}       # BTC / ETH / QQQ yönü
+    lbl = {1: "🟢▲ Yükselişte", -1: "🔴▼ Düşüşte", 0: "⚪▶ Yatay"}       # BTC / ETH / QQQ yönü
     icon, word = lbl[1 if lb_ >= 0.5 else (-1 if lb_ <= -0.5 else 0)].split(" ", 1)
     # baştaki ikon trendi gösterir; 24s kısmı fiyat değişimi (ayrı ayrı etiketli)
     row = f"{icon} {name} yönü ({bias_tf_label(cfg)}) · Trend: {word}" if cfg else f"{icon} {name} yönü · Trend: {word}"
@@ -1725,7 +1740,7 @@ def dominance_line(res):
     chg = d.get("chg")
     btc = ((res.get("mkt") or {}).get("BTC") or {}).get("chg")
     if chg is None or abs(chg) < 0.05:
-        return (f"⚪ BTC Dominance · Yatay · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
+        return (f"⚪▶ BTC Dominance · Yatay · %{d['dom']:.2f} (▶ yatay) → BTC ve altcoinler aynı hızda hareket ediyor"
                 " → Sonuç: dominance bu işlem için belirleyici değil")
     tag = f"(▲ {chg:.2f} puan)" if chg > 0 else f"(▼ {abs(chg):.2f} puan)"   # renk sadece satır başında
     up_btc = btc is not None and btc > 0
@@ -1734,13 +1749,13 @@ def dominance_line(res):
                " → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü" if up_btc else
                "altcoinler BTC'den daha sert düşüyor (riskten kaçış)"
                " → Sonuç: altcoin LONG'ları riskli, altcoin SHORT'ları öne çıkar")
-        icon = "🟢"                 # ikon dominance yönünü gösterir (yükselişte 🟢)
+        icon = "🟢▲"                # ikon dominance yönünü gösterir (yükselişte 🟢▲)
     else:
         why = ("para altcoinlere akıyor (altcoin sezonu belirtisi)"
                " → Sonuç: altcoin LONG'ları için olumlu" if up_btc else
                "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü"
                " → Sonuç: altcoin SHORT'larında temkinli ol, altcoinler daha az düşebilir")
-        icon = "🔴"                 # düşüşte 🔴; altcoin etkisi Sonuç kısmında
+        icon = "🔴▼"                # düşüşte 🔴▼; altcoin etkisi Sonuç kısmında
     word = "Yükselişte" if chg > 0 else "Düşüşte"
     return f"{icon} BTC Dominance · {word} · %{d['dom']:.2f} {tag} → {why}"
 
@@ -1771,7 +1786,7 @@ def market_lines(res, cfg, now_utc):
             q, lbl = (res.get("mkt") or {}).get("QQQ"), "24s: Nasdaq QQQ"
         if q and q.get("last"):
             chg = q.get("chg", 0.0)
-            icon, word = ("🟢", "Yükselişte") if chg > 0 else (("🔴", "Düşüşte") if chg < 0 else ("⚪", "Yatay"))
+            icon, word = ("🟢▲", "Yükselişte") if chg > 0 else (("🔴▼", "Düşüşte") if chg < 0 else ("⚪▶", "Yatay"))
             arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
             out.append(f"{icon} ABD borsası · {status} · {word} · {lbl} {fmt_price(q['last'], 2)} "
                        f"{arrow} %{abs(chg):.2f}")

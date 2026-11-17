@@ -850,11 +850,11 @@ def test_market_rows():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": -1.0,
            "eth_bias": 1.0, "mkt": mkt, "qv24": 4_235_000}
     lb = scanner.leader_block(res)
-    assert lb[0] == "🔴 BTC yönü · Trend: Düşüşte · 24s: 78,500.00 🔴▼ %1.40", lb
-    assert lb[1] == "🟢 ETH yönü · Trend: Yükselişte · 24s: 2,650.50 🟢▲ %0.80", lb
+    assert lb[0] == "🔴▼ BTC yönü · Trend: Düşüşte · 24s: 78,500.00 🔴▼ %1.40", lb
+    assert lb[1] == "🟢▲ ETH yönü · Trend: Yükselişte · 24s: 2,650.50 🟢▲ %0.80", lb
     now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
     ml = scanner.market_lines(res, {}, now)
-    assert ml[0] == "🟢 ABD borsası · Açık · Yükselişte · 24s: Nasdaq QQQ 612.40 🟢▲ %0.85", ml
+    assert ml[0] == "🟢▲ ABD borsası · Açık · Yükselişte · 24s: Nasdaq QQQ 612.40 🟢▲ %0.85", ml
     assert ml[1] == "🔴 Likidite · Düşük (24s hacim 4.2M $ · yüksek eşiği 50M $)", ml
     res["meta"] = {"symbol": "ETHUSDT", "type": "COIN"}
     assert len(scanner.leader_block(res)) == 1
@@ -865,9 +865,9 @@ def test_market_rows_equity():
     mkt = {"QQQ": {"last": 665.62, "chg": -0.92}}
     res = {"meta": {"symbol": "TSMUSDT", "type": "EQUITY"}, "leader_name": "QQQ", "leader_bias": -1.0,
            "mkt": mkt, "qv24": 25_200_000}
-    assert scanner.leader_block(res) == ["🔴 QQQ yönü · Trend: Düşüşte · 24s: 665.62 🔴▼ %0.92"]
+    assert scanner.leader_block(res) == ["🔴▼ QQQ yönü · Trend: Düşüşte · 24s: 665.62 🔴▼ %0.92"]
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🔴 ABD borsası · Açık · Düşüşte · 24s: Nasdaq QQQ 665.62 🔴▼ %0.92",
+    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · 24s: Nasdaq QQQ 665.62 🔴▼ %0.92",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
 
 
@@ -903,10 +903,10 @@ def test_send_telegram_retries(monkeypatch):
 def test_dominance_line():
     base = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "mkt": {"BTC": {"last": 1, "chg": 1.2}}}
     up = scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
-    assert up == ("🟢 BTC Dominance · Yükselişte · %57.30 (▲ 0.42 puan) → para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler "
+    assert up == ("🟢▲ BTC Dominance · Yükselişte · %57.30 (▲ 0.42 puan) → para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler "
                   "geride kalabilir → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü")
     dn = scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
-    assert dn.startswith("🔴 BTC Dominance · Düşüşte · %56.10 (▼ 0.35 puan) → para altcoinlere akıyor")
+    assert dn.startswith("🔴▼ BTC Dominance · Düşüşte · %56.10 (▼ 0.35 puan) → para altcoinlere akıyor")
     base["mkt"]["BTC"]["chg"] = -2.0
     assert "riskten kaçış" in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
     assert "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
@@ -921,7 +921,7 @@ def test_bias_tf_label():
     res = {"meta": {"symbol": "BEATUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": 0.8,
            "mkt": {"BTC": {"last": 64760.4, "chg": -0.32}}}
     assert scanner.leader_block(res, {"timeframe": "15m"})[0] == \
-        "🟢 BTC yönü (15dk + 1s) · Trend: Yükselişte · 24s: 64,760.40 🔴▼ %0.32"
+        "🟢▲ BTC yönü (15dk + 1s) · Trend: Yükselişte · 24s: 64,760.40 🔴▼ %0.32"
 
 
 def test_upper_resample():
@@ -957,9 +957,17 @@ def test_market_rows_ndx():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "ndx": {"last": 27277.73, "chg": -2.38},
            "mkt": {"QQQ": {"last": 665.62, "chg": -0.92}}, "qv24": None}
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🔴 ABD borsası · Açık · Düşüşte · Günlük: Nasdaq 100 27,277.73 🔴▼ %2.38"], ml
+    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Günlük: Nasdaq 100 27,277.73 🔴▼ %2.38"], ml
 
 
 def test_arr():
     assert scanner.arr(1.284) == "🟢▲ %1.28" and scanner.arr(-2.5) == "🔴▼ %2.50" and scanner.arr(0) == "⚪▶ %0.00"
     assert scanner.arr(-11.73, 1) == "🔴▼ %11.7" and scanner.arr(None) == "–"
+
+
+def test_dir_arrow_sections():
+    b = ["☁️ <b>ICHIMOKU</b> · 15dk", "🟢 Kijun 1: yukarı kırıldı", "🔴 Tenkan 2: aşağı kırıldı", "⚪ Ichimoku kararsız (2/4)"]
+    out = scanner.with_header_line(b)
+    assert out[2] == "🟢▲ Kijun 1: yukarı kırıldı" and out[4] == "🔴▼ Tenkan 2: aşağı kırıldı" and out[6].startswith("⚪ ")
+    p = scanner.with_header_line(["📍 <b>PIVOTS</b> · 15dk", "🟢 x"])
+    assert p[2] == "🟢 x"
