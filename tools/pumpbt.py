@@ -1,13 +1,24 @@
 """Pump/dump yakalama testi (geçici): izleme listesindeki coinlerde son ~60 günlük 1s ve 15dk verisiyle
 farklı 'trend içinde hızlanma' kurallarının kaç sinyal ürettiğini ve sonrasında ne olduğunu ölçer."""
-import json, sys, urllib.request, urllib.parse
+import json, sys, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, ".")
 import indicators as ta
 
 cfg = json.load(open("config.json", encoding="utf-8"))
-get = lambda path, p: json.load(urllib.request.urlopen(urllib.request.Request(
-    "https://www.binance.com" + path + "?" + urllib.parse.urlencode(p), headers={"User-Agent": "x"}), timeout=30))
+import time
+BASE = "https://www.binance.com"
+
+
+def get(path, p):
+    for k in range(8):
+        try:
+            return json.load(urllib.request.urlopen(urllib.request.Request(
+                BASE + path + "?" + urllib.parse.urlencode(p), headers={"User-Agent": "x"}), timeout=30))
+        except urllib.error.HTTPError as e:
+            if e.code in (418, 429):
+                time.sleep(20 * (k + 1)); continue
+            raise
 info = get("/fapi/v1/exchangeInfo", {})
 coins = {s["symbol"] for s in info["symbols"] if s.get("underlyingType") == "COIN"}
 syms = [s for s in cfg["universe"]["tradingview_watchlist"] if s in coins]
@@ -25,13 +36,14 @@ def load(sym, tf, pages):
             break
         out = raw + out
         end = raw[0][0] - 1
+        time.sleep(0.25)
     return out[:-1]
 
 
 DATA = {}
-with ThreadPoolExecutor(8) as ex:
-    for sym, d1, d15 in ex.map(lambda s: (s, load(s, "1h", 1), load(s, "15m", 4)), syms):
-        DATA[sym] = {"1h": d1, "15m": d15}
+for sym in syms:
+    DATA[sym] = {"1h": load(sym, "1h", 1), "15m": load(sym, "15m", 4)}
+    time.sleep(1.2)
 
 # kurallar: (ad, tf, hacim_x, kırılım_mum, gövde_atr, son_3s_max, son_24s_max, ema50 şartı)
 RULES = [
