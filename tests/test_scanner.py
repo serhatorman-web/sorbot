@@ -1065,3 +1065,4 @@ def test_econ_category():
     assert report.econ_category("Gram altın rekor kırdı") == "🛢️ Emtia"
     assert report.econ_category("Panoro Energy rekor üretim açıkladı", "fin") == "🏦 Finans"
     assert report.econ_category("İran ablukasının ABD'ye faturası 1 milyar dolar") == "📊 Ekonomi"
+    assert report.econ_category("Bitcoin 64.474 dolara geriledi, faiz artışı beklentisi sürüyor") == "🪙 Kripto"

@@ -98,7 +98,13 @@ IMPORTANT_MIN = 5          # 🔥 eşiği: bu puan ve üstü "ÖNEMLİ HABERLER"
 IMPORTANT_MAX = 3
 
 
+CRYPTO_PAT = re.compile(r"bitcoin|\bBTC\b|ethereum|\bETH\b|kripto|altcoin|stablecoin|\bXRP\b|Solana|Binance|Coinbase",
+                        re.IGNORECASE)
+
+
 def econ_category(title, hint=None):
+    if CRYPTO_PAT.search(title):
+        return "🪙 Kripto"
     if COMMODITY_PAT.search(title):
         return "🛢️ Emtia"
     if MACRO_PAT.search(title):
