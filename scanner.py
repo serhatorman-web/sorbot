@@ -1705,7 +1705,7 @@ def fvg_lines(f, i, s, precision=None):
     inside = [g for g in gaps if g["lo"] <= c <= g["hi"]]
     if inside:
         g = inside[-1]
-        out.append(f"⚪ Fiyat açık bir {'boğa' if g['dir'] == 1 else 'ayı'} FVG içinde ({zone(g)}) → bu bölgede tepki gelebilir"
+        out.append(f"{'🟢' if g['dir'] == 1 else '🔴'} Fiyat açık bir {'boğa' if g['dir'] == 1 else 'ayı'} FVG içinde ({zone(g)}) → bu bölgede tepki gelebilir"
                    f" → Sonuç: buradan {'yükseliş' if g['dir'] == 1 else 'düşüş'} gelebilir")
     below = [g for g in gaps if g["dir"] == 1 and g["hi"] < c and g not in new]
     above = [g for g in gaps if g["dir"] == -1 and g["lo"] > c and g not in new]
