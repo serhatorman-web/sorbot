@@ -1938,9 +1938,9 @@ def trend_alignment_line(res, direction):
     s = 1 if direction == "long" else -1
     icon = "🟢" if s == 1 else "🔴"
     if all(d == s for d in dirs):
-        return "✅ <b>Bu işlem trend ile uyumlu</b>"
+        return "✅ <b>Bu işlem trend tablosu ile uyumlu</b>"
     if all(d == -s for d in dirs):
-        return "🔴 <b>Uyarı: Bu işlem trend ile uyumsuz</b>"
+        return "🔴 <b>Uyarı: Bu işlem trend tablosu ile uyumsuz</b>"
     return None
 
 
