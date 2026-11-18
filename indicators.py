@@ -582,9 +582,19 @@ def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.
             out.append({"type": kind, "state": "active", "touches": touches, "level": ln(last), "bars_ago": 0,
                         "retest": None, "a": A, "b": p})
             continue
-        brk = last
-        while brk - 1 > p and side(brk - 1):
-            brk -= 1
+        # kırılım mumu: çizgiden sonraki İLK kapanışla kırılım. Fiyat kısa süre (en fazla 3 kapanış) çizginin içine
+        # dönüp tekrar kırarsa bu retesttir, yeni kırılım değildir. Daha uzun süre içeride kalırsa ilk kırılım
+        # başarısız sayılır ve sonraki kırılım esas alınır.
+        brk, inside, k = first_brk, 0, first_brk + 1
+        while k <= last:
+            if side(k):
+                inside = 0
+            else:
+                inside += 1
+                if inside > 3:
+                    k = next(j for j in range(k + 1, n) if side(j))
+                    brk, inside = k, 0
+            k += 1
         if last - brk > recent:
             continue
         state, touch, moved = "none", None, False
@@ -598,6 +608,8 @@ def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.
                 if moved and kind == "falling" and low[k] <= ln(k) + tol and close[k] > ln(k):
                     touch = k
                 if moved and kind == "rising" and high[k] >= ln(k) - tol and close[k] < ln(k):
+                    touch = k
+                if not side(k):              # kapanışla çizginin içine geri döndü → çizgi yeniden test ediliyor
                     touch = k
                 if touch is not None:
                     state = "touch"

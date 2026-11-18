@@ -41,6 +41,12 @@ for sym in SYMS:
             for k in range(B + 1, kb):
                 if d * (c[k] - ln(k)) > 0.1 * a[k]:
                     errs.append(f"kırılımdan önce de kapanışla geçilmiş ({k})"); break
+            run = 0
+            for k in range(kb + 1, n):
+                run = run + 1 if d * (c[k] - ln(k)) <= 0.1 * a[k] else 0
+                if run > 3:
+                    errs.append("kırılımdan sonra 3 mumdan uzun süre çizginin içinde kalmış"); break
+            print("TL", sym, tf, ev["type"], "kırılım", ev["bars_ago"], "mum önce", ev["retest"], "OK" if not errs else "")
             if errs:
                 tl_bad += 1
                 print("TLHATA", sym, tf, ev["type"], errs)

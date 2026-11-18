@@ -1230,3 +1230,13 @@ def test_trendline_images_render():
     imgs = scanner.trendline_images(res, {})
     assert len(imgs) == 1 and imgs[0][0][:8] == b"\x89PNG\r\n\x1a\n"
     assert imgs[0][1].startswith("🟢 ₿ <b>BTC</b> · 15dk: Düşen trend çizgisi kırıldı · "), imgs[0][1]
+
+
+def test_trendline_rebreak_is_retest():
+    """PENDLE 4s (18.11.2026): yükselen çizgi 293. mumda kırıldı, 295'te kapanışla geri döndü (retest),
+    296'da tekrar kırdı. Kırılım ilk kırılım mumu olmalı ve retest yapılmış sayılmalı."""
+    import json, os
+    d = json.load(open(os.path.join(os.path.dirname(__file__), "data", "pendle_4h.json")))
+    ev = [e for e in ta.trendlines_close(d["h"], d["l"], d["c"]) if e["type"] == "rising"]
+    assert ev and ev[0]["state"] == "broken", ev
+    assert ev[0]["bars_ago"] == 6 and ev[0]["retest"] == "confirmed" and ev[0]["rt"] == 295, ev
