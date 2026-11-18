@@ -209,7 +209,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     nk = neck_at(kb if kb is not None else n - 1)
                     found.append({"ad": "OBO" if sgn == 1 else "TOBO", "yon": -sgn,
                                   "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                  "seviye": nk, "hedef": nk - sgn * height,
+                                  "seviye": nk, "hedef": nk - sgn * height, "_simdi": neck_at(n - 1),
                                   "ciz": {"noktalar": [(p1, P(p1)), (n1, Q(n1)), (p2, P(p2)), (n2, Q(n2)), (p3, P(p3))],
                                           "cizgiler": [((n1, neck_at(n1)), (n - 1, neck_at(n - 1)))], "kb": kb}})
                     return
@@ -226,7 +226,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     if recent(kb):
                         found.append({"ad": "Üçlü Tepe" if sgn == 1 else "Üçlü Dip", "yon": -sgn,
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                      "seviye": neck, "hedef": neck - sgn * height,
+                                      "seviye": neck, "hedef": neck - sgn * height, "_simdi": neck,
                                       "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2)), (p3, P(p3))],
                                               "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
                         return
@@ -242,7 +242,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     if recent(kb):
                         found.append({"ad": "İkili Tepe" if sgn == 1 else "İkili Dip", "yon": -sgn,
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                      "seviye": neck, "hedef": neck - sgn * height,
+                                      "seviye": neck, "hedef": neck - sgn * height, "_simdi": neck,
                                       "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2))],
                                               "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
 
@@ -297,6 +297,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                               "kirilim": d, "ust": upper(kb if kb is not None else n - 1),
                               "alt": lower(kb if kb is not None else n - 1),
                               "hedef": ((upper(kb) if d == 1 else lower(kb)) + d * ws) if kb is not None else None,
+                              "_simdi": (upper(n - 1) if d == 1 else lower(n - 1)) if kb is not None else None,
                               "ciz": {"noktalar": [(k, h[k]) for k in rh] + [(k, l[k]) for k in rl],
                                       "cizgiler": [((s0, upper(s0)), (n - 1, upper(n - 1))),
                                                    ((s0, lower(s0)), (n - 1, lower(n - 1)))], "kb": kb}})
@@ -385,7 +386,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                 break
             if done or j2 < len(piv) - 1:
                 break
-    return _prioritize(found)
+    return _prioritize(found, c[-1])
 
 
 TOPS = {"İkili Tepe", "Üçlü Tepe", "OBO"}
@@ -395,8 +396,12 @@ FLAGS = {"Yükselen Bayrak", "Yükselen Flama", "Düşen Bayrak", "Düşen Flama
 CUPS = {"Fincan Kulp", "Ters Fincan Kulp"}
 
 
-def _prioritize(found):
-    """Aynı fiyat hareketini anlatan çakışan formasyonlardan daha özel olanı bırakır."""
+def _prioritize(found, last_close=None):
+    """Aynı fiyat hareketini anlatan çakışan formasyonlardan daha özel olanı bırakır. Kırıldıktan sonra fiyat
+    kırılım çizgisinin öbür tarafına geri dönmüşse (başarısız kırılım) formasyon yazılmaz."""
+    if last_close is not None:
+        found = [g for g in found if not (g["durum"] == "kirildi" and g.get("_simdi") is not None
+                                          and (last_close - g["_simdi"]) * g["kirilim"] < 0)]
     names = {g["ad"] for g in found}
     drop = set()
     if names & CUPS:

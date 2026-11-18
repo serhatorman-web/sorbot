@@ -422,7 +422,7 @@
   "formations": {
     "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında. images: kırılan grafik formasyonunun resmi sinyalin hemen ardından gönderilir (en fazla images_max).",
     "enabled": true,
-    "images": false,
+    "images": true,
     "images_max": 3
   },
   "price_action": {

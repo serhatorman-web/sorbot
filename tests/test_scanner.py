@@ -1206,3 +1206,12 @@ def test_pattern_images_render():
     cs = [{"t": 1795000000000 + k * 900000, "o": o[k], "h": h[k], "l": l[k], "c": c[k]} for k in range(len(c))]
     res["forms"] = {"15m": scanner.tf_formations(cs)}
     assert scanner.pattern_images(res, {"formations": {"enabled": True}}) == []
+
+
+def test_failed_breakout_not_reported():
+    """Boyun kırıldıktan sonra fiyat tekrar boyun üstüne dönerse ikili tepe yazılmaz (başarısız kırılım)."""
+    import patterns as pt
+    import indicators as ta
+    o, h, l, c = _zigzag([(0, 80), (40, 100), (55, 90), (70, 100), (80, 87), (84, 93)])
+    got = pt.chart_patterns(h, l, c, ta.atr(h, l, c, 14))
+    assert not any(g["ad"] == "İkili Tepe" and g["durum"] == "kirildi" for g in got), got
