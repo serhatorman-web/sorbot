@@ -333,7 +333,16 @@
     "early_alerts": true,
     "min_score_early": 55,
     "cooldown_hours": 12,
-    "max_per_run": 3
+    "max_per_run": 3,
+    "momentum": {
+      "_aciklama": "Trend içinde hızlanma (sıkışma aranmaz): hacim ≥ volume_x kat, breakout_lookback mumluk zirve kırılımı, gövde ≥ body_atr ATR, kapanış mumun üst %25'inde. Dump tarafı testte zarar ettiği için kapalı.",
+      "enabled": true,
+      "directions": ["long"],
+      "volume_x": 5.0,
+      "breakout_lookback": 48,
+      "body_atr": 1.5,
+      "close_pos": 0.75
+    }
   },
   "pump_dump": {
     "volume_spike_ratio": 3.0,

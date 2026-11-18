@@ -617,6 +617,38 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
               and oi_chg is not None and oi_chg >= 0.05):
             if score >= rc.get("min_score_early", 55):
                 out.append({"dir": key, "kind": "early", "score": score, "reasons": why})
+    out += momentum_radar(f, i, cfg, {d["dir"] for d in out})
+    return out
+
+
+def momentum_radar(f, i, cfg, taken=()):
+    """Trend içinde hızlanma (PIEVERSE 18.11 gibi): sıkışma aranmaz. Çok güçlü hacim (≥5x), 2 günlük zirvenin
+    kırılması ve tepeye yakın kapanan büyük gövdeli mum. Geçmiş testte (134 coin, 60 gün) günde ~4 uyarı;
+    dump tarafı test edildi ve zarar ettiği için kapalı (directions: ["long"])."""
+    mc = cfg.get("pump_radar", {}).get("momentum", {})
+    if not mc.get("enabled", True):
+        return []
+    lb = mc.get("breakout_lookback", 48)
+    o, h, l, c, v, a = f["o"], f["h"], f["l"], f["c"], f["v"], f["atr"]
+    if i < lb + 1 or not f["vol_ma"][i - 1] or not a[i]:
+        return []
+    vr = v[i] / f["vol_ma"][i - 1]
+    rng = (h[i] - l[i]) or 1e-12
+    out = []
+    for key, s in (("long", 1), ("short", -1)):
+        if key not in mc.get("directions", ["long"]) or key in taken:
+            continue
+        ext = max(h[i - lb:i]) if s == 1 else min(l[i - lb:i])
+        body = (c[i] - o[i]) * s / a[i]
+        pos = (c[i] - l[i]) / rng if s == 1 else (h[i] - c[i]) / rng
+        if (vr >= mc.get("volume_x", 5.0) and (c[i] - ext) * s > 0 and body >= mc.get("body_atr", 1.5)
+                and pos >= mc.get("close_pos", 0.75)):
+            days = lb * tf_ms(cfg) / 86_400_000
+            span = f"{days:g} günlük" if days >= 1 else f"{lb} mumluk"
+            out.append({"dir": key, "kind": "momentum", "score": min(100, 50 + int(vr * 5)),
+                        "reasons": [f"Hacim patlaması ({vr:.1f}x)",
+                                    f"{span} {'zirve' if s == 1 else 'dip'} kırıldı",
+                                    f"Güçlü mum (gövde {body:.1f} ATR, {'tepeye' if s == 1 else 'dibe'} yakın kapanış)"]})
     return out
 
 
@@ -1921,8 +1953,9 @@ def image_head(res, cfg, direction, rd=None):
     tf_s = TF_SHORT.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     long_ = direction == "long"
     if rd:
-        kind = ("🚀 PUMP SİNYALİ" if long_ else "💥 DUMP SİNYALİ") if rd.get("kind") == "start" else \
-               ("👀 PUMP ERKEN UYARI" if long_ else "👀 DUMP ERKEN UYARI")
+        kind = {"start": "🚀 PUMP SİNYALİ" if long_ else "💥 DUMP SİNYALİ",
+                "momentum": "⚡ PUMP HAREKETİ" if long_ else "⚡ DUMP HAREKETİ"}.get(
+            rd.get("kind"), "👀 PUMP ERKEN UYARI" if long_ else "👀 DUMP ERKEN UYARI")
     else:
         kind = "📈 LONG SİNYALİ" if long_ else "📉 SHORT SİNYALİ"
     return f"{kind} · {tf_s}"
@@ -2448,6 +2481,8 @@ def build_radar_message(res, rd, cfg, now_utc):
     bar = ("🟩" if long_ else "🟥") * 10
     if rd["kind"] == "start":
         title = "🚀 <b>PUMP SİNYALİ</b>" if long_ else "💥 <b>DUMP SİNYALİ</b>"
+    elif rd["kind"] == "momentum":
+        title = "⚡ <b>PUMP HAREKETİ</b>" if long_ else "⚡ <b>DUMP HAREKETİ</b>"
     else:
         title = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
     name = display_name(meta)      # sinyallerdeki gibi: 🟩… / ⚡ HYPE · 🚀 PUMP SİNYALİ · 1s / 🟩…
@@ -2462,7 +2497,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         if extra_line:
             lines += ["", extra_line]
     lines += ["", SEP]
-    if rd["kind"] == "start":
+    if rd["kind"] in ("start", "momentum"):
         entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
                   f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
@@ -2471,6 +2506,8 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pct(tp, entry):+.2f}%) · {r:g}R"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
+        if rd["kind"] == "momentum":
+            lines += ["", "<i>⚠️ Hareket başladıktan sonra gelen uyarı: geç giriş ve sert geri çekilme riski yüksek.</i>"]
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",

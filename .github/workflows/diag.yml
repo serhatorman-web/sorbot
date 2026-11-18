@@ -7,4 +7,4 @@ jobs:
       - uses: actions/checkout@v4
       - name: pumpbt
         continue-on-error: true
-        run: python3 tools/pumpbt.py 2>&1 | sed 's/^/PB| /' || true
+        run: python3 tools/pumpcheck.py 2>&1 | sed "s/^/PC| /" || true
