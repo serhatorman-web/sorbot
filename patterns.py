@@ -90,7 +90,7 @@ def candle_patterns(o, h, l, c, atr, i=None):
         out.append(("Yıldız Doji", BEAR))
 
     if any(ad == "Yıldız Doji" for ad, _ in out):        # düz doji satırı yıldız dojinin parçası
-        out = [x for x in out if x[0] != "Doji"]
+        out = [x for x in out if x[0] not in ("Doji", "Uzun Bacaklı Doji")]
 
     # Üç mum
     k0, m = i - 2, i - 1
