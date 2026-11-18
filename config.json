@@ -421,7 +421,7 @@
   },
   "trendline_images": {
     "_aciklama": "TREND ÇİZGİSİ bölümündeki kırılımların resmi (çizgi, temas noktaları, kırılım, retest) sinyalin hemen ardından gönderilir (en fazla max).",
-    "enabled": false,
+    "enabled": true,
     "max": 3
   },
   "formations": {

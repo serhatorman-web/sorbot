@@ -1215,3 +1215,18 @@ def test_failed_breakout_not_reported():
     o, h, l, c = _zigzag([(0, 80), (40, 100), (55, 90), (70, 100), (80, 87), (84, 93)])
     got = pt.chart_patterns(h, l, c, ta.atr(h, l, c, 14))
     assert not any(g["ad"] == "İkili Tepe" and g["durum"] == "kirildi" for g in got), got
+
+
+def test_trendline_images_render():
+    """Kırılan trend çizgisi için PNG ve mesajdaki satırla aynı açıklama üretilir."""
+    import math
+    c = [100 - k * 0.1 + 4 * math.sin(k / 8) for k in range(220)] + [80 + k * 0.9 for k in range(1, 9)]
+    o = [c[0]] + c[:-1]
+    h = [x + 0.5 for x in c]; l = [x - 0.5 for x in c]
+    cs = [{"t": 1795000000000 + k * 900000, "o": o[k], "h": h[k], "l": l[k], "c": c[k]} for k in range(len(c))]
+    tl = [dict(ev, tf="15m", price=c[-1]) for ev in ta.trendlines_close(h, l, c)]
+    assert any(e["state"] == "broken" for e in tl), tl
+    res = {"meta": {"symbol": "BTCUSDT", "type": "COIN", "precision": 2}, "tline": tl, "tl_cs": {"15m": cs}}
+    imgs = scanner.trendline_images(res, {})
+    assert len(imgs) == 1 and imgs[0][0][:8] == b"\x89PNG\r\n\x1a\n"
+    assert imgs[0][1].startswith("🟢 ₿ <b>BTC</b> · 15dk: Düşen trend çizgisi kırıldı · "), imgs[0][1]
