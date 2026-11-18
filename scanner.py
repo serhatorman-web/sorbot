@@ -2945,6 +2945,23 @@ def main():
                 d = os.environ["PREVIEW_DIR"]
             fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             compute_volume_profile(r, cfg)
+            pk = os.environ.get("PREVIEW_RADAR")      # start | momentum | early: radar mesajı önizlemesi
+            if pk:
+                f_, i_ = r["f"], r["i"]
+                vr_ = f_["v"][i_] / f_["vol_ma"][i_ - 1] if f_["vol_ma"][i_ - 1] else 0
+                up_ = d == "long"
+                why_ = {"start": ["Bollinger sıkışması (düşük oynaklık)", f"Hacim patlaması ({vr_:.1f}x)",
+                                  "20 mumluk " + ("direnç" if up_ else "destek") + " kırıldı"],
+                        "momentum": [f"Hacim patlaması ({vr_:.1f}x)", "2 günlük " + ("zirve" if up_ else "dip") + " kırıldı",
+                                     "Güçlü mum (gövde 1.8 ATR, " + ("tepeye" if up_ else "dibe") + " yakın kapanış)"],
+                        "early": ["Bollinger sıkışması (düşük oynaklık)",
+                                  "OBV " + ("birikim" if up_ else "dağıtım") + " (fiyat yatayken)",
+                                  "Açık pozisyon artıyor (OI 4s 🟢▲ %6.2)"]}[pk]
+                rd_ = {"dir": d, "kind": pk, "score": 80, "reasons": why_}
+                msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_radar_message(r, rd_, cfg, now_utc)
+                if notifier.send(msg):
+                    n += 1
+                continue
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
             if notifier.send(msg):
                 n += 1
