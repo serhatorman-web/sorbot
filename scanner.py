@@ -1700,23 +1700,25 @@ def fvg_lines(f, i, s, precision=None):
     if new:
         g = new[-1]
         out.append(f"✅ Yeni {'boğa' if up else 'ayı'} FVG: {zone(g)} → güçlü {'alış' if up else 'satış'} momentumu, "
-                   f"geri çekilmede {'destek' if up else 'direnç'} olur")
+                   f"geri çekilmede {'destek' if up else 'direnç'} olur → Sonuç: "
+                   f"{'yükseliş' if up else 'düşüş'} devam edebilir")
     inside = [g for g in gaps if g["lo"] <= c <= g["hi"]]
     if inside:
         g = inside[-1]
-        out.append(f"⚪ Fiyat açık bir {'boğa' if g['dir'] == 1 else 'ayı'} FVG içinde ({zone(g)}) → bu bölgede tepki gelebilir")
+        out.append(f"⚪ Fiyat açık bir {'boğa' if g['dir'] == 1 else 'ayı'} FVG içinde ({zone(g)}) → bu bölgede tepki gelebilir"
+                   f" → Sonuç: buradan {'yükseliş' if g['dir'] == 1 else 'düşüş'} gelebilir")
     below = [g for g in gaps if g["dir"] == 1 and g["hi"] < c and g not in new]
     above = [g for g in gaps if g["dir"] == -1 and g["lo"] > c and g not in new]
     if below:
         g = max(below, key=lambda x: x["hi"])
         pct = (c - g["hi"]) / c * 100
         what = "geri çekilmede alım bölgesi" if up else "TP bölgesi, burada tepki alımı gelebilir"
-        out.append(f"🟢 Boğa FVG (destek): {zone(g)} · %{pct:.2f} aşağıda → {what}")
+        out.append(f"🟢 Boğa FVG (destek): {zone(g)} · %{pct:.2f} aşağıda → {what} → Sonuç: bu bölgeden yükseliş gelebilir")
     if above:
         g = min(above, key=lambda x: x["lo"])
         pct = (g["lo"] - c) / c * 100
         what = "TP bölgesi, burada satış baskısı gelebilir" if up else "geri çekilmede satış bölgesi"
-        out.append(f"🔴 Ayı FVG (direnç): {zone(g)} · %{pct:.2f} yukarıda → {what}")
+        out.append(f"🔴 Ayı FVG (direnç): {zone(g)} · %{pct:.2f} yukarıda → {what} → Sonuç: bu bölgeden düşüş gelebilir")
     return out or ["⚪ Yakında açık FVG (fiyat boşluğu) yok"]
 
 
