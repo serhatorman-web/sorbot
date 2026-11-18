@@ -1201,6 +1201,8 @@ def order_block_lines(res, cfg):
     if not a:
         return []
     obs = res.get("obs")
+    if obs is None and not (f.get("bv") or f.get("v")):
+        return []
     if obs is None:      # uzun geçmiş yoksa taramadaki mumlarla
         obs = ta.flux_order_blocks(f["h"][:i + 1], f["l"][:i + 1], f["c"][:i + 1],
                                    (f.get("bv") or f["v"])[:i + 1], open_=f["o"][:i + 1])
@@ -1650,8 +1652,9 @@ def price_action_lines(res, direction, cfg):
     ok = [f"{names[k]} → {res_txt[k]}" for k in order if pa.get(k)]
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     fvg = fvg_lines(f, i, s, res["meta"].get("precision"))
+    ob = order_block_lines(res, cfg)[1:]          # order block'lar FVG'nin altında (başlıksız)
     return ([f"🕯️ <b>PRICE ACTION</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
-            + fvg)
+            + fvg + ob)
 
 
 def find_fvgs(f, i, lookback=100, min_atr=0.1):
@@ -2166,8 +2169,7 @@ def build_message(res, direction, cfg, now_utc):
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
-        for block in (volume_lines(res, cfg), divergence_lines(res), price_action_lines(res, direction, cfg),
-                      order_block_lines(res, cfg)):
+        for block in (volume_lines(res, cfg), divergence_lines(res), price_action_lines(res, direction, cfg)):
             if block:
                 lines += section(block)
     lines += (["", trend_line] if trend_line else []) + market_section(lb, market_lines(res, cfg, now_utc))
@@ -2238,8 +2240,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
-    for block in (volume_lines(res, cfg), divergence_lines(res), price_action_lines(res, direction, cfg),
-                      order_block_lines(res, cfg)):
+    for block in (volume_lines(res, cfg), divergence_lines(res), price_action_lines(res, direction, cfg)):
         if block:
             lines += section(block)
     lines += market_section(leader_block(res, cfg), market_lines(res, cfg, now_utc))

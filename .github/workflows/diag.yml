@@ -1,0 +1,13 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for s in ETHUSDT NVDAUSDT; do
+            SORBOT_TF=15m DRY_RUN=1 PREVIEW=1 PREVIEW_SYMBOL=$s python3 scanner.py > out.txt 2>&1 || true
+            echo "=== $s"; awk '/PRICE ACTION/{p=1} /PİYASA DURUMU/{p=0} p{print}' out.txt; grep -E "Traceback|Error" out.txt | head -3 || true
+          done
