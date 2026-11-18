@@ -5,8 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: chatid
+      - name: matplotlib
+        continue-on-error: true
+        run: python3 -m pip install --quiet --user matplotlib || python3 -m pip install --quiet --break-system-packages matplotlib || true
+      - name: phototest
         continue-on-error: true
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        run: python3 tools/chatid.py 2>&1 | sed 's/^/CI| /' || true
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 tools/phototest.py 2>&1 | sed 's/^/PT| /' || true
