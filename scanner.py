@@ -1825,8 +1825,7 @@ def trendline_lines(res):
         ago = f"{ev['bars_ago']} mum önce" if ev["bars_ago"] else "son mumda"
         tail = {"confirmed": f"✅ Retest yapıldı → {move} başlayabilir",
                 "touch": "🔄 Retest ediliyor",
-                "away": ("Retest yapmadan çizgiden yukarı doğru çıktı" if ev["type"] == "falling"
-                         else "Retest yapmadan çizgiden aşağı doğru indi")}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
+                "away": f"Retest beklemeden güçlü kırılım → {move} sürüyor"}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
         out.append(f"{head} · {tail}")
     return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
