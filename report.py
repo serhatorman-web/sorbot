@@ -50,10 +50,21 @@ DEFAULT_FEEDS = {
         ("Bloomberg HT", "https://www.bloomberght.com/rss", None),
         ("AA Ekonomi", "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", None),
         ("Dünya", "https://www.dunya.com/rss", None),
+        ("Investing TR", "https://tr.investing.com/rss/news_95.rss", None),     # ekonomik göstergeler
+        ("Investing TR", "https://tr.investing.com/rss/news_1.rss", None),      # döviz
+        ("Investing TR", "https://tr.investing.com/rss/news_25.rss", None),     # borsa
+    ],
+    "🛢️ Emtia": [
+        ("Investing TR", "https://tr.investing.com/rss/news_11.rss", None),
+    ],
+    "🌍 Gündem": [                                                              # sadece ÖNEMLİ HABERLER için
+        ("AA Dünya", "https://www.aa.com.tr/tr/rss/default?cat=dunya", "geo"),
+        ("AA Gündem", "https://www.aa.com.tr/tr/rss/default?cat=guncel", "geo"),
     ],
     "🪙 Kripto": [
         ("Investing TR Kripto", "https://tr.investing.com/rss/news_301.rss", None),
         ("BTCHaber", "https://www.btchaber.com/feed/", None),
+        ("Koin Bülteni", "https://koinbulteni.com/feed", None),
     ],
     "🤖 Yapay Zeka": [
         ("Webtekno", "https://www.webtekno.com/rss.xml", "ai"),
@@ -68,6 +79,67 @@ AI_PATTERN = re.compile(
     r"yapay ?zek[aâ]|\bAI\b|\bA\.I\.|OpenAI|ChatGPT|\bGPT|Gemini|Claude|Anthropic|Copilot|\bLLM|"
     r"Nvidia|DeepSeek|Grok|xAI|Llama|Mistral|Midjourney|\bSora\b|makine öğren|derin öğren|yapay sinir",
     re.IGNORECASE)
+# Gündem akışlarından sadece piyasayı etkileyebilecek jeopolitik/siyasi başlıklar
+GEO_PATTERN = re.compile(
+    r"savaş|saldır|füze|ateşkes|yaptırım|Hürmüz|İran|İsrail|Rusya|Ukrayna|NATO|Trump|Putin|Beyaz Saray|"
+    r"Çin|Tayvan|OPEC|seçim|darbe|deprem|nükleer|vurdu|bombal",
+    re.IGNORECASE)
+# Bülten kategorileri: Ekonomi & Finans akışlarındaki haberler başlığa göre Ekonomi / Finans / Emtia'ya ayrılır
+COMMODITY_PAT = re.compile(r"altın|gümüş|petrol|Brent|\bWTI\b|doğal ?gaz|bakır|emtia|OPEC|buğday|platin|paladyum|"
+                           r"kakao|kahve|şeker fiyat|maden", re.IGNORECASE)
+MACRO_PAT = re.compile(r"\bFed\b|FOMC|faiz|enflasyon|TÜFE|ÜFE|GSY[İI]H|büyüme|istihdam|işsizlik|merkez bankas|TCMB|"
+                       r"\bECB\b|BoJ|BoE|PMI|resesyon|ticaret açığı|bütçe|cari açık|ihracat|ithalat|tarife|gümrük|"
+                       r"vergi|Hazine Bakan|kredi notu", re.IGNORECASE)
+FINANCE_PAT = re.compile(r"borsa|hisse|BIST|Wall Street|Nasdaq|S&P|\bDow\b|banka|tahvil|getiri|döviz|dolar|euro|"
+                         r"sterlin|\byen\b|kur\b|şirket|bilanço|halka arz|kâr|gelir|satın al|birleşme|fon\b|kredi|"
+                         r"endeks|piyasa", re.IGNORECASE)
+NEWS_ORDER = ["🚨 Önemli Haberler", "📊 Ekonomi", "🏦 Finans", "🛢️ Emtia", "🪙 Kripto", "🤖 Yapay Zeka"]
+IMPORTANT_MIN = 5          # 🔥 eşiği: bu puan ve üstü "ÖNEMLİ HABERLER"e çıkar
+IMPORTANT_MAX = 3
+
+
+def econ_category(title):
+    if COMMODITY_PAT.search(title):
+        return "🛢️ Emtia"
+    if MACRO_PAT.search(title):
+        return "📊 Ekonomi"
+    if FINANCE_PAT.search(title):
+        return "🏦 Finans"
+    return "📊 Ekonomi"
+
+
+def organize_news(news):
+    """Toplanan haberleri bülten kategorilerine dağıtır; en önemlileri en üste 'ÖNEMLİ HABERLER'e alır."""
+    out = {c: [] for c in NEWS_ORDER}
+    for cat, items in news.items():
+        for it in items:
+            if cat == "💵 Ekonomi & Finans":
+                c = econ_category(it["title"])
+            elif cat == "🌍 Gündem":
+                c = None                          # gündem sadece önemliyse girer
+            else:
+                c = cat if cat in out else None
+            it["_cat"] = c
+            if c:
+                out[c].append(it)
+    pool = [it for items in news.values() for it in items
+            if it.get("imp", 0) >= IMPORTANT_MIN or (it.get("_cat") is None and it.get("imp", 0) >= 3)]
+    pool.sort(key=lambda x: (x.get("imp", 0), x["dt"].timestamp() if x.get("dt") else 0), reverse=True)
+    top = pool[:IMPORTANT_MAX]
+    out["🚨 Önemli Haberler"] = top
+    ids = {id(x) for x in top}
+    for c in NEWS_ORDER[1:]:
+        lst = sorted([x for x in out[c] if id(x) not in ids],
+                     key=lambda x: (x.get("imp", 0), x["dt"].timestamp() if x.get("dt") else 0), reverse=True)
+        per_src, keep = {}, []
+        for x in lst:                         # her kategoride kaynak başına en fazla 2 haber
+            if per_src.get(x["source"], 0) < PER_SOURCE_MAX:
+                per_src[x["source"]] = per_src.get(x["source"], 0) + 1
+                keep.append(x)
+        out[c] = keep
+    return out
+
+
 SKIP_LINK = ("/transcripts/",)   # Investing'in şirket konferans dökümleri
 # Önemsiz şirket haberleri: içeriden alım/satım, analist notu, atama vb.
 SKIP_TITLE = re.compile(
@@ -87,7 +159,7 @@ IMPORTANCE = [
     (r"enflasyon|TÜFE|ÜFE|\bCPI\b|\bPPI\b|PCE|tarım dışı|istihdam|işsizlik|GSYH|büyüme verisi|resesyon|durgunluk", 3),
     (r"perakende satış|(imalat|hizmet|bileşik) PMI|PMI (verisi|endeksi)|cari açık|bütçe açığı|kredi notu|Moody|Fitch|S&P Global", 2),
     # Jeopolitik ve politika
-    (r"savaş|saldırı|füze|ateşkes|yaptırım|gümrük|tarife|ambargo|seçim|darbe|Hürmüz", 3),
+    (r"savaş|saldır|füze|ateşkes|yaptırım|gümrük|tarife|ambargo|seçim|darbe|Hürmüz|vurdu|bombal|nükleer", 3),
     (r"Trump|Beyaz Saray|Kongre|Hazine|Putin|Şi Cinping|Xi Jinping|NATO|AB Komisyon|OPEC", 2),
     # Piyasa hareketleri
     (r"rekor|çöktü|çöküş|sert (düş|yüksel)|tarihi (zirve|dip)|panik|kriz|iflas|temerrüt|batı[şy]", 3),
@@ -126,6 +198,8 @@ def keep_item(item, flt):
         return False
     if flt == "ai":
         return bool(AI_PATTERN.search(item["title"]))
+    if flt == "geo":
+        return bool(GEO_PATTERN.search(item["title"]))
     return True
 
 COUNTRY_FLAG = {"USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵", "CNY": "🇨🇳", "CHF": "🇨🇭",
@@ -807,16 +881,25 @@ def news_block(items, per_cat):
 def _news_rows(items, per_cat):
     L = []
     for it in items[:per_cat]:
-        mark = "🔥" if it.get("imp", 0) >= 5 else "▫️"
+        mark = "🔥" if it.get("imp", 0) >= IMPORTANT_MIN else "▫️"
         t = it["dt"].astimezone(TR_TZ).strftime("%H:%M") if it.get("dt") else ""
-        # başlık normal yazı (link rengi/soluk alıntı yok); link kısa bir "oku" bağlantısında
-        L.append(f"{mark} {esc(it['title'])}\n      {esc(it['source'])}{' · ' + t if t else ''}"
+        # başlık kalın (kolay okunur); altında kaynak · saat · "oku" bağlantısı
+        L.append(f"{mark} <b>{esc(it['title'])}</b>\n└ {esc(it['source'])}{' · ' + t if t else ''}"
                  f" · <a href=\"{html.escape(it['link'])}\">oku</a>")
     return L
 
 
+def news_section(cat, items, per_cat):
+    icon, title = (cat.split(" ", 1) + [""])[:2] if " " in cat else ("", cat)
+    return f"{icon} <b>{tr_upper(title)}</b>\n{sc.SEP}\n" + "\n".join(news_block(items, per_cat))
+
+
 def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
     blocks = []
+    per_cat = rcfg.get("news_per_category", 3)
+    imp = news.get("🚨 Önemli Haberler") if news else None
+    if imp:                                   # en önemli haberler en üstte
+        blocks.append(news_section("🚨 Önemli Haberler", imp, IMPORTANT_MAX))
     mk = markets_block(markets) if markets else []
     if mk:
         blocks.append("\n".join(mk))
@@ -826,10 +909,8 @@ def bulletin_message(now_tr, released, upcoming, news, rcfg, markets=None):
         h = rcfg.get("calendar_lookahead_hours", 3)
         blocks.append("\n".join([f"🗓 <b>YAKLAŞAN VERİLER</b> <i>(önümüzdeki {h} saat)</i>", sc.SEP] + upcoming_block(upcoming)))
     for cat, items in news.items():
-        if items:
-            icon, title = (cat.split(" ", 1) + [""])[:2] if " " in cat else ("", cat)
-            blocks.append(f"{icon} <b>{tr_upper(title)}</b>\n{sc.SEP}\n"
-                          + "\n".join(news_block(items, rcfg.get("news_per_category", 5))))
+        if items and cat != "🚨 Önemli Haberler":
+            blocks.append(news_section(cat, items, per_cat))
     if not blocks:
         return None
     header = "\n".join([LINE, "📰 <b>SAATLİK PİYASA BÜLTENİ</b>", f"🕐 {tr_long_date(now_tr)} · {now_tr:%H:%M}", LINE])
@@ -882,7 +963,9 @@ def collect_news(feeds, state, rcfg, now_utc):
             sig = title_signature(it["title"])
             if any(similar(sig, p_) for p_ in picked_sigs):
                 continue
-            if per_src.get(it["source"], 0) < PER_SOURCE_MAX:
+            # Ekonomi & Finans havuzu sonra Ekonomi / Finans / Emtia'ya bölündüğü için kaynak sınırı daha geniş
+            src_max = PER_SOURCE_MAX * 3 if cat == "💵 Ekonomi & Finans" else PER_SOURCE_MAX
+            if per_src.get(it["source"], 0) < src_max:
                 per_src[it["source"]] = per_src.get(it["source"], 0) + 1
                 picked.append(it)
                 picked_sigs.append(sig)
@@ -946,6 +1029,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
         print(f"  [uyarı] takvim alınamadı: {e}")
         events = None
     news, seen_now, n_scanned = collect_news(feeds, state, rcfg, now_utc)
+    news = organize_news(news)
     markets = collect_markets(sc.Binance()) if rcfg.get("markets", True) else None
 
     last = datetime.fromtimestamp(state.get("last_bulletin", (now_utc - timedelta(hours=1)).timestamp()), timezone.utc)
@@ -985,7 +1069,7 @@ def run_bulletin(cfg, rcfg, notifier, state):
         state["seen"].update(seen_now)
         state["last_bulletin"] = now_utc.timestamp()
         state["sent_events"] = (list(sent_ids) + [e["id"] for e in released])[-300:]
-    n_news = sum(len(v[:rcfg.get("news_per_category", 5)]) for v in news.values())
+    n_news = sum(len(v[:rcfg.get("news_per_category", 3)]) for v in news.values())
     print(f"Bülten: {len(messages)} mesaj · {len(released)} açıklanan veri · {len(upcoming)} yaklaşan · "
           f"{n_news} haber ({n_scanned} tarandı)")
 

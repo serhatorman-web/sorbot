@@ -1037,3 +1037,21 @@ def test_display_name():
     assert scanner.display_name({"symbol": "HYPEUSDT", "type": "COIN"}) == "⚡ <b>HYPE</b>"
     assert scanner.display_name({"symbol": "STXUSDT", "type": "COIN"}) == "🪙 <b>STX</b>"
     assert scanner.display_name({"symbol": "NVDAUSDT", "type": "EQUITY"}) == "🇺🇸 <b>NVDA</b>"
+
+
+def test_news_organize():
+    import report
+    from datetime import datetime, timezone
+    now = datetime(2026, 11, 18, 9, 0, tzinfo=timezone.utc)
+    it = lambda t, imp, src="X": {"title": t, "imp": imp, "source": src, "link": t, "dt": now}
+    news = {"💵 Ekonomi & Finans": [it("Altın 3.800 doların altına düştü", 2), it("ABD'de enflasyon beklentiyi aştı", 3),
+                                   it("Borsa İstanbul güne yükselişle başladı", 2),
+                                   it("Fed'in Williams'ı daha fazla faiz artırımı gerekebileceğini söyledi", 8)],
+            "🌍 Gündem": [it("İran Kuveyt'e saldırdı, Hürmüz gerginliği sürüyor", 3, "AA")],
+            "🪙 Kripto": [it("Bitcoin 64 bin dolara geriledi", 2, "K")]}
+    o = report.organize_news(news)
+    assert [x["title"][:5] for x in o["🚨 Önemli Haberler"]] == ["Fed'i", "İran "]
+    assert [x["title"][:5] for x in o["🛢️ Emtia"]] == ["Altın"]
+    assert [x["title"][:5] for x in o["📊 Ekonomi"]] == ["ABD'd"]
+    assert [x["title"][:5] for x in o["🏦 Finans"]] == ["Borsa"]
+    assert list(o) == report.NEWS_ORDER

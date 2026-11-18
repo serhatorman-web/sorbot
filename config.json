@@ -269,11 +269,15 @@
     "mode": "bulletin",
     "news_categories": [
       "💵 Ekonomi & Finans",
+      "🛢️ Emtia",
+      "🌍 Gündem",
       "🪙 Kripto",
       "🤖 Yapay Zeka"
     ],
     "news_min_importance_by_category": {
-      "🤖 Yapay Zeka": 1
+      "🤖 Yapay Zeka": 1,
+      "🛢️ Emtia": 1,
+      "🌍 Gündem": 3
     },
     "calendar_countries": [
       "US",
@@ -287,7 +291,7 @@
     "calendar_min_importance": 0,
     "market_hourly": true,
     "news_hourly": true,
-    "news_per_category": 5,
+    "news_per_category": 3,
     "news_important_only": true,
     "news_min_importance": 2,
     "news_max_age_hours": 2,
