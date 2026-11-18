@@ -1,0 +1,10 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pumpbt
+        continue-on-error: true
+        run: python3 tools/pumpbt.py 2>&1 | sed 's/^/PB| /' || true
