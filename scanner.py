@@ -1797,7 +1797,7 @@ def dominance_line(res):
     if chg > 0:
         why = ("para BTC'ye akıyor, BTC altcoinlerden güçlü → altcoinler geride kalabilir"
                " → Sonuç: altcoin LONG'larında temkinli ol, BTC daha güçlü" if up_btc else
-               "altcoinler BTC'den daha sert düşüyor (riskten kaçış)"
+               "altcoinler BTC'den daha sert düşüyor"
                " → Sonuç: altcoin LONG'ları riskli, altcoin SHORT'ları öne çıkar")
         icon = "🟢▲"                # ikon dominance yönünü gösterir (yükselişte 🟢▲)
     else:

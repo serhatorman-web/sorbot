@@ -909,7 +909,8 @@ def test_dominance_line():
     dn = scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
     assert dn.startswith("🔴▼ BTC Dominance · Düşüşte · %56.10 (▼ 0.35 puan) → para altcoinlere akıyor")
     base["mkt"]["BTC"]["chg"] = -2.0
-    assert "riskten kaçış" in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
+    assert "riskten kaçış" not in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
+    assert "altcoinler BTC'den daha sert düşüyor →" in scanner.dominance_line(dict(base, btc_dom={"dom": 57.3, "chg": 0.42}))
     assert "BTC altcoinlerden daha sert düşüyor → altcoinler daha güçlü" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": -0.35}))
     assert "yatay" in scanner.dominance_line(dict(base, btc_dom={"dom": 56.1, "chg": 0.01}))
     assert scanner.dominance_line(base) is None
