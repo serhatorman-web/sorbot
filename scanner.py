@@ -1649,7 +1649,74 @@ def price_action_lines(res, direction, cfg):
                          else f"{mv} trendi devam ediyor")
     ok = [f"{names[k]} → {res_txt[k]}" for k in order if pa.get(k)]
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
-    return [f"🕯️ <b>PRICE ACTION</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
+    fvg = fvg_lines(f, i, s, res["meta"].get("precision"))
+    return ([f"🕯️ <b>PRICE ACTION</b> · {span}"] + ([f"✅ {x}" for x in ok] or ["⚪ Sinyal mumunda belirgin formasyon yok"])
+            + fvg)
+
+
+def find_fvgs(f, i, lookback=100, min_atr=0.1):
+    """Açık (doldurulmamış) Fair Value Gap'ler – i. muma kadar olan veriyle.
+    Boğa FVG: low[k] > high[k-2] (3 mumluk boşluk, bölge high[k-2] – low[k]); fiyat bölgenin altına inerse dolmuş sayılır,
+    kısmen girerse kalan kısım bölge olur. Ayı FVG tersi. ATR'nin %10'undan küçük boşluklar gürültü sayılıp atlanır.
+    Döner: [{"dir": +1/-1, "lo", "hi", "k"}]"""
+    h_, l_, at = f["h"], f["l"], f["atr"]
+    out = []
+    for k in range(max(2, i - lookback + 1), i + 1):
+        a = at[k] or 0
+        if l_[k] > h_[k - 2] and l_[k] - h_[k - 2] >= min_atr * a:
+            lo, hi, d = h_[k - 2], l_[k], 1
+        elif h_[k] < l_[k - 2] and l_[k - 2] - h_[k] >= min_atr * a:
+            lo, hi, d = h_[k], l_[k - 2], -1
+        else:
+            continue
+        for j in range(k + 1, i + 1):
+            if d == 1:
+                if l_[j] <= lo:
+                    hi = None
+                    break
+                hi = min(hi, l_[j])
+            else:
+                if h_[j] >= hi:
+                    lo = None
+                    break
+                lo = max(lo, h_[j])
+        if hi is not None and lo is not None and hi > lo:
+            out.append({"dir": d, "lo": lo, "hi": hi, "k": k})
+    return out
+
+
+def fvg_lines(f, i, s, precision=None):
+    """Price action bölümüne FVG satırları: sinyal mumunun bıraktığı yeni boşluk, en yakın açık destek / direnç FVG'si."""
+    gaps = find_fvgs(f, i)
+    if not gaps:
+        return ["⚪ Yakında açık FVG (fiyat boşluğu) yok"]
+    c = f["c"][i]
+    fp = lambda x: fmt_price(x, precision)
+    zone = lambda g: f"{fp(g['lo'])} – {fp(g['hi'])}"
+    up = s == 1
+    out = []
+    new = [g for g in gaps if g["k"] >= i - 1 and g["dir"] == s]
+    if new:
+        g = new[-1]
+        out.append(f"✅ Yeni {'boğa' if up else 'ayı'} FVG: {zone(g)} → güçlü {'alış' if up else 'satış'} momentumu, "
+                   f"geri çekilmede {'destek' if up else 'direnç'} olur")
+    inside = [g for g in gaps if g["lo"] <= c <= g["hi"]]
+    if inside:
+        g = inside[-1]
+        out.append(f"⚪ Fiyat açık bir {'boğa' if g['dir'] == 1 else 'ayı'} FVG içinde ({zone(g)}) → bu bölgede tepki gelebilir")
+    below = [g for g in gaps if g["dir"] == 1 and g["hi"] < c and g not in new]
+    above = [g for g in gaps if g["dir"] == -1 and g["lo"] > c and g not in new]
+    if below:
+        g = max(below, key=lambda x: x["hi"])
+        pct = (c - g["hi"]) / c * 100
+        what = "geri çekilmede alım bölgesi" if up else "TP bölgesi, burada tepki alımı gelebilir"
+        out.append(f"🟢 Boğa FVG (destek): {zone(g)} · %{pct:.2f} aşağıda → {what}")
+    if above:
+        g = min(above, key=lambda x: x["lo"])
+        pct = (g["lo"] - c) / c * 100
+        what = "TP bölgesi, burada satış baskısı gelebilir" if up else "geri çekilmede satış bölgesi"
+        out.append(f"🔴 Ayı FVG (direnç): {zone(g)} · %{pct:.2f} yukarıda → {what}")
+    return out or ["⚪ Yakında açık FVG (fiyat boşluğu) yok"]
 
 
 def pa_result_texts(direction):

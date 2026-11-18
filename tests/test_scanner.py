@@ -1076,3 +1076,17 @@ def test_inline_release_impact():
     assert "biraz azalır" in imp["reason"] and ("🟢", "Sterlin için hafif olumlu") in imp["items"]
     flat = econ.asset_impact(dict(title="CPI YoY", country="US", actual=3.0, forecast=3.0, previous=3.0))
     assert flat["items"] == [("⚪", "Piyasalar için nötr")]
+
+
+def test_fvg():
+    # 0-2: boğa FVG (mum2 low 105 > mum0 high 100), 3-5: ayı FVG yukarıda yok; fiyat 110
+    h = [100, 106, 110, 112, 111, 111]
+    l = [95, 99, 105, 107, 108, 108]
+    c = [98, 105, 109, 110, 110, 110]
+    f = {"h": h, "l": l, "c": c, "o": c, "atr": [2] * 6}
+    g = scanner.find_fvgs(f, 5)
+    assert g and g[0]["dir"] == 1 and g[0]["lo"] == 100 and g[0]["hi"] == 105
+    lines = scanner.fvg_lines(f, 5, 1, 0)                 # en yakın açık boğa FVG: 106 – 107
+    assert any(x.startswith("🟢 Boğa FVG (destek): 106.00 – 107.00") for x in lines), lines
+    f2 = dict(f, l=[95, 99, 105, 107, 99, 108])          # 4. mum boşluğu doldurdu
+    assert not [x for x in scanner.find_fvgs(f2, 5) if x["k"] == 2]
