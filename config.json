@@ -425,6 +425,11 @@
     "enabled": true,
     "max": 3
   },
+  "divergence_images": {
+    "_aciklama": "RSI UYUMSUZLUK satırlarının resmi (fiyat ve RSI'da iki dip/tepe birleştirilmiş) Sorbot Grafikler kanalına gönderilir (en fazla max).",
+    "enabled": true,
+    "max": 3
+  },
   "formations": {
     "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında. images: kırılan grafik formasyonunun resmi sinyalin hemen ardından gönderilir (en fazla images_max).",
     "enabled": true,

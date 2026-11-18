@@ -1240,3 +1240,20 @@ def test_trendline_rebreak_is_retest():
     ev = [e for e in ta.trendlines_close(d["h"], d["l"], d["c"]) if e["type"] == "rising"]
     assert ev and ev[0]["state"] == "broken", ev
     assert ev[0]["bars_ago"] == 6 and ev[0]["retest"] == "confirmed" and ev[0]["rt"] == 295, ev
+
+
+def test_divergence_images_render():
+    """RSI uyumsuzluğu için PNG ve mesajdaki satırla aynı açıklama üretilir."""
+    import json, os
+    d = json.load(open(os.path.join(os.path.dirname(__file__), "data", "pendle_4h.json")))
+    h, l, c = d["h"], d["l"], d["c"]
+    cs = [{"t": 1795000000000 + k * 14400000, "o": (c[k - 1] if k else c[0]), "h": h[k], "l": l[k], "c": c[k]}
+          for k in range(len(c))]
+    r = ta.rsi(c, 14)
+    lows = [k for k in range(5, len(c) - 5) if r[k] is not None and None not in r[k - 5:k + 6] and r[k] == min(r[k - 5:k + 6])]
+    pair = next((a, b) for a, b in zip(lows, lows[1:]) if 5 <= b - a <= 60)
+    res = {"meta": {"symbol": "PENDLEUSDT", "type": "COIN", "precision": 4},
+           "div_d": {"4h": {"pos": pair, "neg": None, "rsi": r, "cs": cs}}}
+    imgs = scanner.divergence_images(res, {})
+    assert len(imgs) == 1 and imgs[0][0][:8] == b"\x89PNG\r\n\x1a\n"
+    assert imgs[0][1] == "🟢 🪙 <b>PENDLE</b> · 4 saat · Pozitif uyumsuzluk → yükseliş başlayabilir, dönüş için onay bekle"

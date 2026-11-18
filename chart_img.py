@@ -97,3 +97,66 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     fig.savefig(buf, format="png", facecolor=BG)
     plt.close(fig)
     return buf.getvalue()
+
+
+def render_divergence(cs, rsi, pts, bullish, title, prec=None):
+    """RSI uyumsuzluğu: üstte mumlar ve iki fiyat dibi/tepesi arasında çizgi, altta RSI ve aynı iki noktanın çizgisi."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception:  # noqa: BLE001
+        return None
+    p1, p2 = pts
+    n = len(cs)
+    start = max(0, min(p1 - 25, n - 90))
+    end = n
+    xs = range(start, end)
+    col = UP if bullish else DOWN
+    fig, (ax, ar) = plt.subplots(2, 1, figsize=(9, 6), dpi=110, sharex=True,
+                                 gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05})
+    fig.patch.set_facecolor(BG)
+    for a_ in (ax, ar):
+        a_.set_facecolor(BG)
+        a_.grid(color=GRID, linewidth=0.6)
+        a_.yaxis.tick_right()
+        a_.tick_params(axis="y", colors=TXT, labelsize=8)
+        for sp in a_.spines.values():
+            sp.set_color(GRID)
+    w = 0.6
+    for k in xs:
+        x = cs[k]
+        cc = UP if x["c"] >= x["o"] else DOWN
+        ax.vlines(k, x["l"], x["h"], color=cc, linewidth=0.8, zorder=2)
+        lo, hi = sorted((x["o"], x["c"]))
+        ax.add_patch(plt.Rectangle((k - w / 2, lo), w, max(hi - lo, 1e-12), color=cc, zorder=3))
+    key = "l" if bullish else "h"
+    y1, y2 = cs[p1][key], cs[p2][key]
+    ax.plot([p1, p2], [y1, y2], color=col, linewidth=2, zorder=5)
+    ax.plot([p1, p2], [y1, y2], "o", color=PIVOT, markeredgecolor=col, markersize=6, zorder=6)
+    lows = [cs[k]["l"] for k in xs]
+    highs = [cs[k]["h"] for k in xs]
+    pad = (max(highs) - min(lows)) * 0.06
+    ax.set_ylim(min(lows) - pad, max(highs) + pad)
+    ax.text(p2 + 1, y2, (" Fiyat: daha düşük dip" if bullish else " Fiyat: daha yüksek tepe"), color=col, fontsize=9,
+            va="top" if bullish else "bottom", zorder=7)
+    rv = [rsi[k] if rsi[k] is not None else float("nan") for k in xs]
+    ar.plot(list(xs), rv, color="#b39ddb", linewidth=1.2, zorder=3)
+    for lvl in (30, 70):
+        ar.axhline(lvl, color=GRID, linestyle="--", linewidth=0.9)
+    ar.plot([p1, p2], [rsi[p1], rsi[p2]], color=col, linewidth=2, zorder=5)
+    ar.plot([p1, p2], [rsi[p1], rsi[p2]], "o", color=PIVOT, markeredgecolor=col, markersize=6, zorder=6)
+    ar.text(p2 + 1, rsi[p2], (" RSI: daha yüksek dip" if bullish else " RSI: daha düşük tepe"), color=col, fontsize=9,
+            va="top" if bullish else "bottom", zorder=7)
+    ar.set_ylim(min(15, min(v for v in rv if v == v) - 3), max(85, max(v for v in rv if v == v) + 3))
+    ar.set_xlim(start - 1, end + int((end - start) * 0.22) + 4)
+    ticks = list(range(start, end, max(1, (end - start) // 6)))
+    ar.set_xticks(ticks)
+    ar.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
+                       color=TXT, fontsize=8)
+    ax.set_title(title, color=TXT, fontsize=11, loc="left")
+    fig.subplots_adjust(left=0.03, right=0.92, top=0.93, bottom=0.07)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor=BG)
+    plt.close(fig)
+    return buf.getvalue()

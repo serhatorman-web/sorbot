@@ -328,13 +328,13 @@ def band_retest(high, low, close, upper, lower, break_window=20, window=10, tol_
     return {"kind": "hold", "dir": d, "state": state, "bars_ago": last - touch}
 
 
-def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, range_max=60, recent=10):
+def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, range_max=60, recent=10, points=False):
     """TradingView RSI uyumsuzluk mantığı (normal uyumsuzluk):
       pozitif: RSI pivot dibi bir öncekinden YÜKSEK, fiyat dibi bir öncekinden DÜŞÜK
       negatif: RSI pivot tepesi bir öncekinden DÜŞÜK, fiyat tepesi bir öncekinden YÜKSEK
     Pivot, solunda `left` ve sağında `right` mum olan yerel dip/tepedir (sağdaki mumlar kapanınca kesinleşir).
     Sadece son pivot yeterince yeniyse (son `right + recent` mum içinde) uyumsuzluk 'var' sayılır.
-    Döner: (pozitif_var, negatif_var)
+    Döner: (pozitif_var, negatif_var); points=True ise {"pos": (p1, p2) | None, "neg": (p1, p2) | None, "rsi": [...]}
     """
     r = rsi(close, rsi_len)
     n = len(close)
@@ -351,15 +351,17 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
 
     def check(pivots, bullish):
         if len(pivots) < 2 or pivots[-1] < cutoff:
-            return False
+            return None
         p2, p1 = pivots[-1], pivots[-2]
         if not (range_min <= p2 - p1 <= range_max):
-            return False
-        if bullish:
-            return r[p2] > r[p1] and low[p2] < low[p1]
-        return r[p2] < r[p1] and high[p2] > high[p1]
+            return None
+        ok = (r[p2] > r[p1] and low[p2] < low[p1]) if bullish else (r[p2] < r[p1] and high[p2] > high[p1])
+        return (p1, p2) if ok else None
 
-    return check(lows, True), check(highs, False)
+    pos, neg = check(lows, True), check(highs, False)
+    if points:
+        return {"pos": pos, "neg": neg, "rsi": r}
+    return pos is not None, neg is not None
 
 
 def swing_anchor(high, low, lookback=300):

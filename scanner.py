@@ -1080,17 +1080,20 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
     rows = TF_ROWS if any(k == base_tf for k, _ in TF_ROWS) else ((base_tf, TF_NAMES.get(base_tf, base_tf)),) + TF_ROWS
     res["tf_rows"] = rows
     res["tf"] = {tf: tf_trend(candles.get(tf, [])) for tf, _ in rows}
-    pos, neg = [], []
+    pos, neg, div_d = [], [], {}
     for tf in DIV_TFS:
         cs = candles.get(tf, [])
         if len(cs) < 40:
             continue
-        p_, n_ = ta.rsi_divergence([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs])
-        if p_:
+        dv = ta.rsi_divergence([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs], points=True)
+        if dv["pos"]:
             pos.append(TF_NAMES[tf])
-        if n_:
+        if dv["neg"]:
             neg.append(TF_NAMES[tf])
+        if dv["pos"] or dv["neg"]:
+            div_d[tf] = dict(dv, cs=cs)
     res["div"] = {"pos": pos, "neg": neg}
+    res["div_d"] = div_d
     # trend çizgisi kırılımı + retest (RSI uyumsuzluğu ile aynı zaman dilimleri)
     # Kapanış (çizgi grafik) üzerinden, en az 2 temaslı trend çizgileri: sinyal zaman dilimi ve üstü (1 güne kadar)
     tl = []
@@ -1925,12 +1928,44 @@ def image_head(res, cfg, direction, rd=None):
     return f"{kind} · {tf_s}"
 
 
+def divergence_images(res, cfg):
+    """Mesajda yazılan RSI uyumsuzluklarının resimleri (fiyat + RSI, iki pivot birleştirilmiş): [(png, açıklama)]."""
+    dc = cfg.get("divergence_images", {})
+    if not dc.get("enabled", True):
+        return []
+    meta = res.get("meta", {})
+    prec = meta.get("precision")
+    name = display_name(meta) if meta.get("symbol") else ""
+    plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", name)).strip()
+    out = []
+    for tf in DIV_TFS:
+        dv = (res.get("div_d") or {}).get(tf)
+        if not dv:
+            continue
+        for kind in ("pos", "neg"):
+            if not dv.get(kind):
+                continue
+            line = divergence_lines({"div": {"pos": [TF_NAMES[tf]] if kind == "pos" else [],
+                                             "neg": [TF_NAMES[tf]] if kind == "neg" else []}})[1]
+            ad = "Pozitif uyumsuzluk" if kind == "pos" else "Negatif uyumsuzluk"
+            try:
+                png = chart_img.render_divergence(dv["cs"], dv["rsi"], dv[kind], kind == "pos",
+                                                  f"{plain} · {TF_NAMES.get(tf, tf)} · RSI {ad}", prec)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Uyumsuzluk resmi çizilemedi ({meta.get('symbol')} {tf}): {e}", file=sys.stderr)
+                png = None
+            if png:
+                icon, rest = line.split(" ", 1)
+                out.append((png, f"{icon} {name} · {TF_NAMES.get(tf, tf)} · {rest.replace(': ' + TF_NAMES[tf], '')}"))
+    return out[:dc.get("max", 3)]
+
+
 def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
     """Sinyal mesajının ardından trend çizgisi ve formasyon resimlerini gönderir: grafik kanalı tanımlıysa oraya
     (açıklamanın başında hangi sinyale ait olduğu yazar), yoksa sinyalin kanalına. Hata sinyali etkilemez.
-    Sıra mesajdaki gibi: önce trend çizgileri, sonra formasyonlar."""
+    Sıra mesajdaki gibi: trend çizgileri, RSI uyumsuzlukları, formasyonlar."""
     try:
-        for png, cap in trendline_images(res, cfg) + pattern_images(res, cfg):
+        for png, cap in trendline_images(res, cfg) + divergence_images(res, cfg) + pattern_images(res, cfg):
             notifier.send_photo(png, (f"<b>{head}</b>\n{cap}" if head else cap), symbol, typ)
     except Exception as e:  # noqa: BLE001
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
