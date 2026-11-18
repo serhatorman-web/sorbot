@@ -1063,13 +1063,15 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
             neg.append(TF_NAMES[tf])
     res["div"] = {"pos": pos, "neg": neg}
     # trend çizgisi kırılımı + retest (RSI uyumsuzluğu ile aynı zaman dilimleri)
+    # Kapanış (çizgi grafik) üzerinden, en az 2 temaslı trend çizgileri: sinyal zaman dilimi ve üstü (1 güne kadar)
     tl = []
-    for tf in DIV_TFS:
+    base_ms = TF_MS.get(base_tf, HOUR_MS)
+    for tf in ("15m", "1h", "4h", "1d"):
         cs = candles.get(tf, [])
-        if len(cs) < 40:
+        if TF_MS.get(tf, 0) < base_ms or len(cs) < 40:
             continue
-        for ev in ta.trendline_break([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
-            tl.append(dict(ev, tf=tf))
+        for ev in ta.trendlines_close([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
+            tl.append(dict(ev, tf=tf, price=cs[-1]["c"]))
     res["tline"] = tl
     # Pivot noktaları (TradingView "Pivot Points Standard", Fibonacci, Auto: 15dk ve altı günlük, üstü haftalık)
     ptf = "1d" if TF_MS.get(base_tf, HOUR_MS) <= 15 * 60 * 1000 else "1w"
@@ -1755,20 +1757,42 @@ def pa_names(direction):
 
 
 def trendline_lines(res):
-    """Trend çizgisi kırılımları: veri varsa yazılır, yoksa bölüm çıkmaz."""
-    out = []
+    """Trend çizgileri (kapanış/çizgi grafik, en az 2 temas). Her zaman dilimi için tek satır:
+    son kırılım varsa o, yoksa fiyata en yakın aktif çizgi. Veri yoksa bölüm çıkmaz."""
+    prec = res.get("meta", {}).get("precision")
+    by_tf = {}
     for ev in res.get("tline") or []:
-        name = TF_NAMES.get(ev["tf"], ev["tf"])
-        if ev["type"] == "rising":
-            head = f"🔴 {name}: Yükselen trend çizgisi kırıldı"
+        by_tf.setdefault(ev["tf"], []).append(ev)
+    out = []
+    for tf in ("15m", "1h", "4h", "1d"):
+        evs = by_tf.get(tf)
+        if not evs:
+            continue
+        brk = [e for e in evs if e["state"] == "broken"]
+        if brk:
+            ev = min(brk, key=lambda e: e["bars_ago"])
         else:
-            head = f"🟢 {name}: Düşen trend çizgisi kırıldı"
+            ev = min(evs, key=lambda e: abs(e["price"] - e["level"]) / e["price"])
+        name = TF_NAMES.get(tf, tf)
+        lvl = fmt_price(ev["level"], prec)
+        t = f"{ev['touches']} temas"
+        if ev["state"] == "active":
+            pct = abs(ev["price"] - ev["level"]) / ev["price"] * 100
+            if ev["type"] == "falling":
+                out.append(f"🔴 {name}: Düşen trend çizgisi (direnç) · {t} · çizgi {lvl} · fiyat %{pct:.2f} altında"
+                           f" → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir")
+            else:
+                out.append(f"🟢 {name}: Yükselen trend çizgisi (destek) · {t} · çizgi {lvl} · fiyat %{pct:.2f} üstünde"
+                           f" → kırılmadıkça yükseliş trendi sürüyor, kapanışla altına inerse düşüş gelebilir")
+            continue
         move = "yükseliş" if ev["type"] == "falling" else "düşüş"
-        tail = {"confirmed": f"✅ Retest yapıldı, {move} başladı",
-                "touch": f"🔄 Retest yapılıyor, {move} teyidi bekleniyor",
-                "away": f"{'⬆️' if move == 'yükseliş' else '⬇️'} Retest yapılmadan {move} devam etti (geç giriş riski)"
-                }.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
-        out.append(f"{head} · {tail}")
+        head = (f"🟢 {name}: Düşen trend çizgisi kapanışla kırıldı" if ev["type"] == "falling"
+                else f"🔴 {name}: Yükselen trend çizgisi kapanışla kırıldı")
+        ago = f"{ev['bars_ago']} mum önce" if ev["bars_ago"] else "son mumda"
+        tail = {"confirmed": f"✅ Retest yapıldı → {move} başladı",
+                "touch": f"🔄 Retest yapılıyor → {move} teyidi bekleniyor",
+                "away": f"Retest yapılmadan {move} devam etti (geç giriş riski)"}.get(ev["retest"], f"⏳ Retest yapılmadı, bekle → {move} gelebilir")
+        out.append(f"{head} ({ago}) · {t} · çizgi {lvl} · {tail}")
     return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
 
@@ -2171,12 +2195,12 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
-        # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
+        # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
         # PIVOTS, ICHIMOKU, HACİM PROFİLİ, PRICE ACTION ve TREND ÇİZGİSİ kullanıcı isteğiyle kaldırıldı
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
-        for block in (volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
+        for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
             if block:
                 lines += section(block)
@@ -2244,11 +2268,11 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
-    # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
+    # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
-    for block in (volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
+    for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
         if block:
             lines += section(block)

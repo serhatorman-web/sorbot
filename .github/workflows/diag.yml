@@ -1,0 +1,12 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          PYTHONPATH=. python3 tools/tl_check.py || true
+          SORBOT_TF=15m DRY_RUN=1 PREVIEW=1 PREVIEW_SYMBOL=BTCUSDT python3 scanner.py > out.txt 2>&1 || true
+          awk '/TREND TABLOSU/{p=1} /HACİM<\/b>/{p=0} p{print}' out.txt; grep -E "Traceback|Error" out.txt | head -3 || true

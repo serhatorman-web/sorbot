@@ -493,18 +493,29 @@ def test_trendline_break():
     h = [x + 1 for x in c]; l = [x - 1 for x in c]
     ev = ta.trendline_break(h, l, c)
     assert any(e["type"] == "falling" for e in ev), ev
-    lines = scanner.trendline_lines({"tline": [{"type": "rising", "retest": "none", "tf": "15m"},
-                                               {"type": "falling", "retest": "confirmed", "tf": "4h"},
-                                               {"type": "rising", "retest": "touch", "tf": "1d"},
-                                               {"type": "falling", "retest": "away", "tf": "1h"},
-                                               {"type": "rising", "retest": "away", "tf": "1w"}]})
+    lines = scanner.trendline_lines({"meta": {"precision": 2}, "tline": [
+        {"type": "falling", "state": "active", "touches": 3, "level": 101.0, "price": 100.0, "bars_ago": 0, "retest": None, "tf": "15m"},
+        {"type": "rising", "state": "active", "touches": 2, "level": 90.0, "price": 100.0, "bars_ago": 0, "retest": None, "tf": "15m"},
+        {"type": "falling", "state": "broken", "touches": 2, "level": 98.0, "price": 100.0, "bars_ago": 3, "retest": "confirmed", "tf": "4h"}]})
     assert lines == ["📐 <b>TREND ÇİZGİSİ</b>",
-                     "🔴 15dk: Yükselen trend çizgisi kırıldı · ⏳ Retest yapılmadı, bekle",
-                     "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı, yükseliş başladı",
-                     "🔴 1 gün: Yükselen trend çizgisi kırıldı · 🔄 Retest yapılıyor, düşüş teyidi bekleniyor",
-                     "🟢 1 saat: Düşen trend çizgisi kırıldı · ⬆️ Retest yapılmadan yükseliş devam etti (geç giriş riski)",
-                     "🔴 1 hafta: Yükselen trend çizgisi kırıldı · ⬇️ Retest yapılmadan düşüş devam etti (geç giriş riski)"]
-    assert scanner.trendline_lines({}) == []
+                     "🔴 15dk: Düşen trend çizgisi (direnç) · 3 temas · çizgi 101.00 · fiyat %1.00 altında → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir",
+                     "🟢 4 saat: Düşen trend çizgisi kapanışla kırıldı (3 mum önce) · 2 temas · çizgi 98.00 · ✅ Retest yapıldı → yükseliş başladı"], lines
+
+
+def test_trendlines_close():
+    import math
+    c = [100 - k * 0.1 + 4 * math.sin(k / 8) for k in range(220)]
+    h = [x + 0.5 for x in c]; l = [x - 0.5 for x in c]
+    ev = ta.trendlines_close(h, l, c)
+    f = [e for e in ev if e["type"] == "falling"]
+    assert f and f[0]["state"] == "active" and f[0]["touches"] >= 2
+    A, B = f[0]["a"], f[0]["b"]
+    slope = (c[B] - c[A]) / (B - A)
+    a14 = ta.atr(h, l, c, 14)
+    assert all(c[k] <= c[B] + slope * (k - B) + 0.1 * a14[k] + 1e-9 for k in range(A, len(c)))   # kapanışlar çizginin altında
+    c2 = c + [c[-1] + k * 0.9 for k in range(1, 8)]
+    ev2 = ta.trendlines_close([x + 0.5 for x in c2], [x - 0.5 for x in c2], c2)
+    assert any(e["type"] == "falling" and e["state"] == "broken" for e in ev2), ev2
 
 
 def test_volume_profile_retest():

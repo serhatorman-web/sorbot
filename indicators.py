@@ -530,6 +530,87 @@ def _pivots(vals, left, right, kind):
     return out
 
 
+def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.25, atr_len=14, recent=20,
+                     away_atr=2.5, detach_atr=0.5):
+    """Kapanış (çizgi grafik) üzerinden trend çizgileri – kullanıcının TradingView'da çizdiği gibi.
+    Düşen çizgi : penceredeki en yüksek kapanıştan (1. temas) başlar, sonraki tepe kapanışlarından çizginin en yatık
+                  olanına (2. temas) çekilir; aradaki hiçbir kapanış çizginin üstünde olamaz. En az 2 temas şart.
+    Yükselen çizgi: en düşük kapanıştan, sonraki dip kapanışlarına; aradaki kapanışlar çizginin altına inemez.
+    Temas: tepe/dip kapanışının çizgiye tol_atr x ATR kadar yakın olması.
+    Durum: "active" (çizgi kırılmadı) ya da "broken" (son `recent` mumda kapanışla kırıldı, fiyat hâlâ öbür tarafta).
+    Kırılımda retest: "none" | "touch" | "confirmed" | "away" (trendline_break ile aynı kurallar).
+    Döner: [{"type": "falling"|"rising", "state", "touches", "level", "bars_ago", "retest", "a", "b"}]"""
+    n = len(close)
+    if n < 40:
+        return []
+    a = atr(high, low, close, atr_len)
+    lo_i = max(0, n - window)
+    out = []
+    for kind in ("falling", "rising"):
+        seg = range(lo_i, n - 1 - min_sep)
+        if not seg:
+            continue
+        A = (max if kind == "falling" else min)(seg, key=lambda k: close[k])
+        pivs = [p for p in _pivots(close, piv, piv, "high" if kind == "falling" else "low") if p >= A + min_sep]
+        best = None
+        for p in sorted(pivs, key=lambda k: (close[k] - close[A]) / (k - A), reverse=(kind == "falling")):
+            slope = (close[p] - close[A]) / (p - A)
+            if (kind == "falling" and slope >= 0) or (kind == "rising" and slope <= 0):
+                continue
+            ln = lambda k, p=p, slope=slope: close[p] + slope * (k - p)
+            tol_in = lambda k: (a[k] or 0) * tol_atr       # iki temas arasında küçük taşmalar (iğne gibi) sorun değil
+            if kind == "falling" and any(close[k] > ln(k) + tol_in(k) for k in range(A + 1, p)):
+                continue
+            if kind == "rising" and any(close[k] < ln(k) - tol_in(k) for k in range(A + 1, p)):
+                continue
+            best = (p, slope, ln)
+            break
+        if not best:
+            continue
+        p, slope, ln = best
+        tol_in = lambda k: (a[k] or 0) * 0.1
+        # kırılım: kapanış çizginin öbür tarafında (0.1 x ATR'lik küçük taşmalar kırılım sayılmaz)
+        side = ((lambda k: close[k] > ln(k) + tol_in(k)) if kind == "falling"
+                else (lambda k: close[k] < ln(k) - tol_in(k)))
+        # temaslar: çizgiye yakın tepe/dip kapanışları (kırılımdan önce)
+        first_brk = next((k for k in range(p + 1, n) if side(k)), None)
+        upto = first_brk if first_brk is not None else n
+        cand = _pivots(close, piv, piv, "high" if kind == "falling" else "low")
+        touches = 2 + sum(1 for k in cand if A < k < upto and k != p and a[k] and abs(close[k] - ln(k)) <= tol_atr * a[k])
+        last = n - 1
+        if not side(last):
+            out.append({"type": kind, "state": "active", "touches": touches, "level": ln(last), "bars_ago": 0,
+                        "retest": None, "a": A, "b": p})
+            continue
+        brk = last
+        while brk - 1 > p and side(brk - 1):
+            brk -= 1
+        if last - brk > recent:
+            continue
+        state, touch, moved = "none", None, False
+        for k in range(brk + 1, n):
+            m = k - 1
+            far = (close[m] - ln(m)) if kind == "falling" else (ln(m) - close[m])
+            if a[m] and far >= detach_atr * a[m]:
+                moved = True
+            tol = (a[k] or 0) * tol_atr
+            if touch is None:
+                if moved and kind == "falling" and low[k] <= ln(k) + tol and close[k] > ln(k):
+                    touch = k
+                if moved and kind == "rising" and high[k] >= ln(k) - tol and close[k] < ln(k):
+                    touch = k
+                if touch is not None:
+                    state = "touch"
+            elif (kind == "falling" and close[k] > high[touch]) or (kind == "rising" and close[k] < low[touch]):
+                state = "confirmed"
+                break
+        if state == "none" and a[last] and abs(close[last] - ln(last)) > away_atr * a[last]:
+            state = "away"
+        out.append({"type": kind, "state": "broken", "touches": touches, "level": ln(last), "bars_ago": last - brk,
+                    "retest": state, "a": A, "b": p})
+    return out
+
+
 def trendline_break(high, low, close, left=5, right=5, recent=20, tol_atr=0.25, atr_len=14, away_atr=2.5,
                     detach_atr=0.5):
     """Yükselen / düşen trend çizgisi kırılımı ve retest.
