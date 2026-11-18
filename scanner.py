@@ -618,7 +618,35 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
             if score >= rc.get("min_score_early", 55):
                 out.append({"dir": key, "kind": "early", "score": score, "reasons": why})
     out += momentum_radar(f, i, cfg, {d["dir"] for d in out})
+    out += reversal_radar(f, i, cfg, {d["dir"] for d in out})
     return out
+
+
+def reversal_radar(f, i, cfg, taken=()):
+    """Pump sonrası dönüş (dump): son 2 günde %25+ yükselmiş coin zirveden en az %8 geri çekilmiş ve 12 saat EMA20
+    üstünde kaldıktan sonra ilk kez hacimli kırmızı mumla EMA20 altında kapatmış. Geçmiş testte (134 coin,
+    125 gün) günde ~1 uyarı; 24 saat sonra %61 düşmüş, ort. short sonucu +%1.2 (rastgele short −%0.15)."""
+    rv = cfg.get("pump_radar", {}).get("reversal", {})
+    if not rv.get("enabled", True) or "short" in taken:
+        return []
+    lb, ab = rv.get("lookback", 48), rv.get("above_bars", 12)
+    o, h, l, c, e20, a = f["o"], f["h"], f["l"], f["c"], f["ema20"], f["atr"]
+    if i < lb + 24 or not f["vol_ma"][i - 1] or not a[i] or any(e20[k] is None for k in range(i - ab, i + 1)):
+        return []
+    peak = max(h[i - lb:i])
+    base = min(l[i - lb - 24:i - 24])
+    rise = peak / base - 1 if base else 0
+    pull = 1 - c[i] / peak
+    vr = f["v"][i] / f["vol_ma"][i - 1]
+    body = (o[i] - c[i]) / a[i]
+    if (rise >= rv.get("rise", 0.25) and pull >= rv.get("pullback", 0.08) and c[i] < e20[i]
+            and all(c[k] > e20[k] for k in range(i - ab, i - 1))
+            and body >= rv.get("body_atr", 0.8) and vr >= rv.get("volume_x", 1.5)):
+        return [{"dir": "short", "kind": "reversal", "score": min(100, 60 + int(rise * 50)),
+                 "reasons": [f"Son 2 günde %{rise * 100:.0f} yükselmiş", f"Zirveden %{pull * 100:.0f} geri çekilmiş",
+                             f"{ab} saat sonra ilk kez EMA20 altında kapanış",
+                             f"Hacimli kırmızı mum ({vr:.1f}x, gövde {body:.1f} ATR)"]}]
+    return []
 
 
 def momentum_radar(f, i, cfg, taken=()):
@@ -1954,7 +1982,8 @@ def image_head(res, cfg, direction, rd=None):
     long_ = direction == "long"
     if rd:
         kind = {"start": "🚀 PUMP SİNYALİ" if long_ else "💥 DUMP SİNYALİ",
-                "momentum": "⚡ PUMP HAREKETİ" if long_ else "⚡ DUMP HAREKETİ"}.get(
+                "momentum": "⚡ PUMP HAREKETİ" if long_ else "⚡ DUMP HAREKETİ",
+                "reversal": "🔻 PUMP SONRASI DÖNÜŞ"}.get(
             rd.get("kind"), "👀 PUMP ERKEN UYARI" if long_ else "👀 DUMP ERKEN UYARI")
     else:
         kind = "📈 LONG SİNYALİ" if long_ else "📉 SHORT SİNYALİ"
@@ -2483,6 +2512,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         title = "🚀 <b>PUMP SİNYALİ</b>" if long_ else "💥 <b>DUMP SİNYALİ</b>"
     elif rd["kind"] == "momentum":
         title = "⚡ <b>PUMP HAREKETİ</b>" if long_ else "⚡ <b>DUMP HAREKETİ</b>"
+    elif rd["kind"] == "reversal":
+        title = "🔻 <b>PUMP SONRASI DÖNÜŞ</b>"
     else:
         title = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
     name = display_name(meta)      # sinyallerdeki gibi: 🟩… / ⚡ HYPE · 🚀 PUMP SİNYALİ · 1s / 🟩…
@@ -2497,7 +2528,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         if extra_line:
             lines += ["", extra_line]
     lines += ["", SEP]
-    if rd["kind"] in ("start", "momentum"):
+    if rd["kind"] in ("start", "momentum", "reversal"):
         entry, sl, tps, sl_label = levels(res, direction, cfg)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
                   f"<b>Stop:</b> {fmt_price(sl, prec)} ({pct(sl, entry):+.2f}%) · {sl_label}"]
@@ -2508,6 +2539,8 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
         if rd["kind"] == "momentum":
             lines += ["", "<i>⚠️ Hareket başladıktan sonra gelen uyarı: geç giriş ve sert geri çekilme riski yüksek.</i>"]
+        if rd["kind"] == "reversal":
+            lines += ["", "<i>⚠️ Pump sonrası ilk sert kırmızı mum: fiyat çok oynak, stop seviyesine dikkat.</i>"]
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
@@ -2954,6 +2987,8 @@ def main():
                                   "20 mumluk " + ("direnç" if up_ else "destek") + " kırıldı"],
                         "momentum": [f"Hacim patlaması ({vr_:.1f}x)", "2 günlük " + ("zirve" if up_ else "dip") + " kırıldı",
                                      "Güçlü mum (gövde 1.8 ATR, " + ("tepeye" if up_ else "dibe") + " yakın kapanış)"],
+                        "reversal": ["Son 2 günde %38 yükselmiş", "Zirveden %11 geri çekilmiş",
+                                     "12 saat sonra ilk kez EMA20 altında kapanış", "Hacimli kırmızı mum (2.3x, gövde 1.4 ATR)"],
                         "early": ["Bollinger sıkışması (düşük oynaklık)",
                                   "OBV " + ("birikim" if up_ else "dağıtım") + " (fiyat yatayken)",
                                   "Açık pozisyon artıyor (OI 4s 🟢▲ %6.2)"]}[pk]

@@ -342,6 +342,16 @@
       "breakout_lookback": 48,
       "body_atr": 1.5,
       "close_pos": 0.75
+    },
+    "reversal": {
+      "_aciklama": "Pump sonrası dönüş (dump): son lookback mumda %rise+ yükselmiş, zirveden pullback+ geri çekilmiş, above_bars mum EMA20 üstünde kaldıktan sonra ilk kez hacimli (volume_x) ve büyük gövdeli (body_atr) kırmızı mumla EMA20 altında kapanış.",
+      "enabled": true,
+      "lookback": 48,
+      "rise": 0.25,
+      "pullback": 0.08,
+      "above_bars": 12,
+      "body_atr": 0.8,
+      "volume_x": 1.5
     }
   },
   "pump_dump": {

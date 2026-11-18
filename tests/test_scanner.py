@@ -1275,3 +1275,22 @@ def test_momentum_radar():
     v[-1] = 3000.0                                        # hacim yetersiz → uyarı yok
     f["vol_ma"] = ta.sma(v, 20)
     assert scanner.momentum_radar(f, n - 1, cfg) == []
+
+
+def test_reversal_radar():
+    """Pump sonrası dönüş: %25+ yükseliş, zirveden %8+ geri çekilme, 12 mum EMA20 üstü sonrası hacimli kırmızı mumla altına."""
+    base = [100.0] * 60 + [100 + k * 3 for k in range(1, 15)] + [142 - k * 0.6 for k in range(1, 14)]
+    c = base[:]
+    o = [c[0]] + c[:-1]
+    h = [max(a, b) + 0.5 for a, b in zip(o, c)]; l = [min(a, b) - 0.5 for a, b in zip(o, c)]
+    v = [1000.0] * len(c)
+    o.append(c[-1]); c.append(c[-1] - 6); h.append(o[-1] + 0.2); l.append(c[-1] - 0.3); v.append(3000.0)
+    f = {"o": o, "h": h, "l": l, "c": c, "v": v, "vol_ma": ta.sma(v, 20), "atr": ta.atr(h, l, c, 14), "ema20": ta.ema(c, 20)}
+    i = len(c) - 1
+    cfg = {"timeframe": "1h", "pump_radar": {"reversal": {}}}
+    assert all(c[k] > f["ema20"][k] for k in range(i - 12, i - 1)) and c[i] < f["ema20"][i]
+    out = scanner.reversal_radar(f, i, cfg)
+    assert len(out) == 1 and out[0]["dir"] == "short" and out[0]["kind"] == "reversal", out
+    v[-1] = 1200.0                                       # hacim yetersiz → uyarı yok
+    f["vol_ma"] = ta.sma(v, 20)
+    assert scanner.reversal_radar(f, i, cfg) == []

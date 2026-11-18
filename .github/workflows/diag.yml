@@ -6,6 +6,9 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: dumpbt2
+      - name: revcheck
         continue-on-error: true
-        run: python3 tools/dumpbt2.py 2>&1 | sed 's/^/DB| /' || true
+        run: python3 tools/revcheck.py 2>&1 | sed 's/^/RC| /' || true
+      - name: önizleme
+        continue-on-error: true
+        run: DRY_RUN=1 PREVIEW=1 PREVIEW_SYMBOL=PIEVERSEUSDT PREVIEW_DIR=short PREVIEW_RADAR=reversal python3 scanner.py 2>&1 | sed 's/^/PV| /' || true
