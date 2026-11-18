@@ -1787,10 +1787,10 @@ def trendline_lines(res):
         if ev["state"] == "active":
             pct = abs(ev["price"] - ev["level"]) / ev["price"] * 100
             if ev["type"] == "falling":
-                out.append(f"🔴 {name}: Düşen trend çizgisi (direnç) · {t} · çizgi {lvl} · fiyat %{pct:.2f} altında"
+                out.append(f"🔴 {name}: Düşen trend çizgisi (direnç)"
                            f" → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir")
             else:
-                out.append(f"🟢 {name}: Yükselen trend çizgisi (destek) · {t} · çizgi {lvl} · fiyat %{pct:.2f} üstünde"
+                out.append(f"🟢 {name}: Yükselen trend çizgisi (destek)"
                            f" → kırılmadıkça yükseliş trendi sürüyor, kapanışla altına inerse düşüş gelebilir")
             continue
         move = "yükseliş" if ev["type"] == "falling" else "düşüş"
