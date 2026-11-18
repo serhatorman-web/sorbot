@@ -1451,7 +1451,7 @@ def _pa_basic(f, i, s):
 def signal_price_action(f, i, s):
     """Supertrend sinyallerinde sinyal mumu ve son mumlardaki price action (LONG için; SHORT'ta tersi).
     pa_engulf (sinyal ya da önceki mum) · pa_hammer pin bar/çekiç (sinyal ya da önceki mum) · pa_star yıldız ·
-    pa_inside_break · pa_strong_close · pa_bos: son pivot tepe (2/2, 30 mum) kapanışla geçildi ·
+    pa_inside_break · pa_strong_close · pa_bos: son pivot tepe (2/2, 30 mum) kapanışla kırıldı ·
     pa_structure: son iki pivot dip yükseliyor (SHORT: son iki pivot tepe alçalıyor)"""
     o_, h_, l_, c_ = f["o"], f["h"], f["l"], f["c"]
     a = f["atr"][i] or (h_[i] - l_[i]) or 1e-12
@@ -1636,9 +1636,9 @@ def price_action_lines(res, direction, cfg):
     choch = pa.get("_choch")
     if choch:
         bos_name = (f"Karakter değişimi (CHoCH): son {'alçalan tepe (LH)' if up else 'yükselen dip (HL)'}{lvl_txt} "
-                    f"kapanışla geçildi")
+                    f"kapanışla kırıldı")
     else:
-        bos_name = f"Yapı kırılımı (BOS): son {'tepe' if up else 'dip'}{lvl_txt} kapanışla geçildi"
+        bos_name = f"Yapı kırılımı (BOS): son {'tepe' if up else 'dip'}{lvl_txt} kapanışla kırıldı"
     names.update({"pa_hammer": "Pin bar / çekiç (uzun alt iğne)" if up else "Pin bar / ters çekiç (uzun üst iğne)",
                   "pa_bos": bos_name,
                   "pa_structure": "Yükselen dipler (HL)" if up else "Alçalan tepeler (LH)"})
