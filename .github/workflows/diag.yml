@@ -1,0 +1,11 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: dumpbt2
+        continue-on-error: true
+        run: python3 tools/dumpbt2.py 2>&1 | sed 's/^/DB| /' || true
