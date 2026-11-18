@@ -191,7 +191,7 @@
   },
   "order_blocks": {
     "_aciklama": "Sinyallerde PRICE ACTION içinde, FVG satırlarının altında order block'lar: TradingView 'Volumized Order Blocks | Flux Charts' (swing 10, en fazla 3+3 bölge, iğneyle bozulma, üst üste binenler birleşir, son 1750 mum) ile birebir. Bozulmamış bölgeler hacim ve yüzdeyle yazılır.",
-    "enabled": true
+    "enabled": false
   },
   "volume_profile": {
     "window": "swing",
