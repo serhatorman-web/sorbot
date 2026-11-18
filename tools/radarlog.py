@@ -9,6 +9,8 @@ for p in sorted(glob.glob("state/*.json")):
     except Exception as e:  # noqa: BLE001
         print("okunamadı", p, e); continue
     sig = d.get("signals", {}) if isinstance(d, dict) else {}
+    if not isinstance(sig, dict):
+        print("dosya", p, "signals liste, atlandı"); continue
     print("dosya", p, "kayıt", len(sig))
     for k, v in sig.items():
         if "|radar_" in k and isinstance(v, (int, float)):
