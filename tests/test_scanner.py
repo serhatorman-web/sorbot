@@ -1108,4 +1108,4 @@ def test_exchange_label():
     assert scanner.type_label({"symbol": "ORCLUSDT", "type": "EQUITY"}) == "NYSE"
     assert scanner.type_label({"symbol": "SAMSUNGUSDT", "type": "KR_EQUITY"}) == "KOSPI"
     assert scanner.type_label({"symbol": "ZZZUSDT", "type": "EQUITY"}) == "ABD Borsası"
-    assert scanner.type_label({"symbol": "SUIUSDT", "type": "COIN"}) == "Kripto"
+    assert scanner.type_label({"symbol": "SUIUSDT", "type": "COIN"}) == "KRİPTO"
