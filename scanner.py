@@ -1210,7 +1210,11 @@ def order_block_lines(res, cfg):
     prec = res["meta"].get("precision")
     span = TF_NAMES.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
     out = []
-    for ob in sorted((x for x in obs if not x["breaker"]), key=lambda x: -x["top"]):
+    live = [x for x in obs if not x["breaker"]]
+    # fiyata en yakın destek / direnç "ilk" olarak yazılır
+    near = {1: max((x["top"] for x in live if x["type"] == 1 and x["top"] < price), default=None),
+            -1: min((x["bottom"] for x in live if x["type"] == -1 and x["bottom"] > price), default=None)}
+    for ob in sorted(live, key=lambda x: -x["top"]):
         s = ob["type"]
         lo, hi = ob["bottom"], ob["top"]
         dist = (price - hi) if s == 1 else (lo - price)
@@ -1227,8 +1231,11 @@ def order_block_lines(res, cfg):
             st = f"✅ bölgeden tepki geldi ({role} çalıştı) → {mv} bekleniyor"
         else:
             pct_ = dist / price * 100
+            first = (hi == near[1]) if s == 1 else (lo == near[-1])
+            ilk = "ilk " if first else ""
             st = (f"fiyatın %{pct_:.1f} {'altında' if s == 1 else 'üstünde'} ({role}) → "
-                  f"{'düşüşte ilk destek, buradan tepki beklenir' if s == 1 else 'yükselişte ilk direnç, buradan satış beklenir'}")
+                  f"{f'düşüşte {ilk}destek, buradan tepki beklenir' if s == 1 else f'yükselişte {ilk}direnç, buradan satış beklenir'}"
+                  f" → Sonuç: bu bölgeden {mv} gelebilir")
         out.append(f"{name} {zone} · {vol} · {st}")
     return ([f"🧱 <b>ORDER BLOCK</b> · {span}"] + out) if out else []
 
