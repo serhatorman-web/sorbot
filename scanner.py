@@ -1982,9 +1982,9 @@ def divergence_lines(res):
     d = res.get("div") or {}
     out = []
     if d.get("pos"):
-        out.append("🟢 Pozitif uyumsuzluk: " + ", ".join(d["pos"]) + " → düşüşün gücü azalıyor, dönüş için onay bekle")
+        out.append("🟢 Pozitif uyumsuzluk: " + ", ".join(d["pos"]) + " → yükseliş başlayabilir, dönüş için onay bekle")
     if d.get("neg"):
-        out.append("🔴 Negatif uyumsuzluk: " + ", ".join(d["neg"]) + " → yükselişin gücü azalıyor, dönüş için onay bekle")
+        out.append("🔴 Negatif uyumsuzluk: " + ", ".join(d["neg"]) + " → düşüş başlayabilir, dönüş için onay bekle")
     return (["〽️ <b>RSI UYUMSUZLUK</b>"] + out) if out else []
 
 
