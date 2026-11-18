@@ -1257,3 +1257,21 @@ def test_divergence_images_render():
     imgs = scanner.divergence_images(res, {})
     assert len(imgs) == 1 and imgs[0][0][:8] == b"\x89PNG\r\n\x1a\n"
     assert imgs[0][1] == "🟢 🪙 <b>PENDLE</b> · 4 saat · Pozitif uyumsuzluk → yükseliş başlayabilir, dönüş için onay bekle"
+
+
+def test_momentum_radar():
+    """Trend içinde hızlanma: hacim ≥5x + 48 mumluk zirve kırılımı + büyük gövde + tepeye yakın kapanış → ⚡ PUMP HAREKETİ."""
+    n = 80
+    o = [100 + k * 0.05 for k in range(n)]
+    c = [x + 0.1 for x in o]
+    h = [x + 0.3 for x in c]; l = [x - 0.3 for x in o]
+    v = [1000.0] * n
+    o[-1], c[-1], h[-1], l[-1], v[-1] = c[-2], c[-2] + 4.0, c[-2] + 4.3, c[-2] - 0.1, 8000.0
+    f = {"o": o, "h": h, "l": l, "c": c, "v": v, "vol_ma": ta.sma(v, 20), "atr": ta.atr(h, l, c, 14)}
+    cfg = {"timeframe": "1h", "pump_radar": {"momentum": {}}}
+    out = scanner.momentum_radar(f, n - 1, cfg)
+    assert len(out) == 1 and out[0]["dir"] == "long" and out[0]["kind"] == "momentum", out
+    assert out[0]["reasons"][1] == "2 günlük zirve kırıldı", out
+    v[-1] = 3000.0                                        # hacim yetersiz → uyarı yok
+    f["vol_ma"] = ta.sma(v, 20)
+    assert scanner.momentum_radar(f, n - 1, cfg) == []
