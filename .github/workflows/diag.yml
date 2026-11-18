@@ -1,0 +1,13 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: matplotlib
+        continue-on-error: true
+        run: python3 -m pip install --quiet --user matplotlib || python3 -m pip install --quiet --break-system-packages matplotlib || true
+      - name: drawcheck
+        continue-on-error: true
+        run: python3 tools/drawcheck.py 2>&1 | sed 's/^/DC| /' || true
