@@ -421,6 +421,6 @@
   },
   "price_action": {
     "_aciklama": "Sinyallerde PRICE ACTION bölümü (formasyonlar, FVG, order block). RSI uyumsuzluğun altında; order block'lar kapalı (order_blocks.enabled false).",
-    "enabled": true
+    "enabled": false
   }
 }
