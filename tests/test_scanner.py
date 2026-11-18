@@ -665,8 +665,8 @@ def test_order_block_lines():
            {"type": -1, "top": 110.0, "bottom": 109.0, "vol": 1.0, "pct": 1, "breaker": True}]
     out = scanner.order_block_lines({"f": f, "i": n - 1, "meta": {"precision": 2}, "obs": obs}, {"timeframe": "15m"})
     assert out[0] == "🧱 <b>ORDER BLOCK</b> · 15dk", out
-    assert out[1] == "🔴 Ayı OB 104.00 – 105.00 · 6.263K (%7) · fiyatın %4.0 üstünde (direnç) → yükselişte ilk direnç, buradan satış beklenir", out
-    assert out[2] == "🟢 Boğa OB 97.00 – 98.00 · 14.155K (%9) · fiyatın %2.0 altında (destek) → düşüşte ilk destek, buradan tepki beklenir", out
+    assert out[1] == "🔴 Ayı OB 104.00 – 105.00 · 6.263K (%7) · fiyatın %4.0 üstünde (direnç) → yükselişte ilk direnç, buradan satış beklenir → Sonuç: bu bölgeden düşüş gelebilir", out
+    assert out[2] == "🟢 Boğa OB 97.00 – 98.00 · 14.155K (%9) · fiyatın %2.0 altında (destek) → düşüşte ilk destek, buradan tepki beklenir → Sonuç: bu bölgeden yükseliş gelebilir", out
     assert len(out) == 3, out                                       # bozulmuş bölge yazılmaz
 
 
