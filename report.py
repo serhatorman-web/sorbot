@@ -867,7 +867,7 @@ def released_block(events):
             L.append(f"      {v[0]} {v[1]}")
         imp = econ.asset_impact(e)
         if imp:
-            L.append(f"      💡 <i>{esc(imp['reason'])}</i>")
+            L.append(f"      💡 <b>Sonuç:</b> {esc(imp['reason'])}")
             L.append("      " + "  ·  ".join(f"{ic} {t_}" for ic, t_ in imp["items"]))
     return L
 

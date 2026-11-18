@@ -235,6 +235,9 @@ def verdict(e):
     if a is None or f is None or not isinstance(a, (int, float)) or not isinstance(f, (int, float)):
         return None
     if a == f:
+        p = e.get("previous")
+        if isinstance(p, (int, float)) and p != a:
+            return "⚪", "Beklentiyle aynı · önceki döneme göre " + ("▲ yükseldi" if a > p else "▼ düştü")
         return "⚪", "Beklentiyle aynı"
     higher = a > f
     arrow = "▲ Beklentinin üstünde" if higher else "▼ Beklentinin altında"
@@ -276,8 +279,23 @@ def _surprise(e):
         what = "Faiz beklentisi" if RATE_DECISION.search(title) or "rate" in title.lower() else "Enflasyon beklentisi"
         kind = "rate" if what == "Faiz beklentisi" else "inflation"
         return up, f"{what} önceki ankete göre " + ("yükseldi" if up else "düştü"), kind
-    if not isinstance(a, (int, float)) or not isinstance(f, (int, float)) or a == f:
+    if not isinstance(a, (int, float)) or not isinstance(f, (int, float)):
         return None
+    if a == f:
+        # sürpriz yok: yön için önceki döneme bakılır (etki sınırlı)
+        p = e.get("previous")
+        if not isinstance(p, (int, float)) or NO_ANALYSIS.search(title):
+            return None
+        if a == p:
+            return None, "Beklentiyle ve önceki dönemle aynı", "flat"
+        up = a > p
+        if RATE_DECISION.search(title):
+            return up, "Faiz beklendiği gibi " + ("artırıldı" if up else "indirildi"), "rate"
+        if INFLATION.search(title):
+            return up, "Enflasyon beklentiyle aynı ama önceki döneme göre " + ("yükseldi" if up else "düştü"), "inflation_soft"
+        if LABOR_WEAK.search(title):
+            return (not up), "Beklentiyle aynı; işgücü piyasası önceki döneme göre " + ("zayıfladı" if up else "güçlendi"), "growth_soft"
+        return up, "Beklentiyle aynı; ekonomi önceki döneme göre " + ("güçlendi" if up else "zayıfladı"), "growth_soft"
     higher = a > f
     if RATE_DECISION.search(title):
         return higher, "Faiz kararı beklentiden " + ("yüksek" if higher else "düşük"), "rate"
@@ -315,6 +333,11 @@ def asset_impact(e):
     if not sp:
         return None
     hawkish, reason, kind = sp
+    if kind == "flat":
+        return {"hawkish": None, "reason": reason + " → sürpriz yok, piyasa etkisi sınırlı",
+                "items": [("⚪", "Piyasalar için nötr")]}
+    soft = kind.endswith("_soft")
+    kind = kind.replace("_soft", "")
     cb = CENTRAL_BANK.get(c)
     if c == "US":
         if kind == "rate":
@@ -340,4 +363,9 @@ def asset_impact(e):
         items = [_item(strong, "Kripto"), _item(strong, "Petrol ve emtia")]
     else:
         return None
+    if soft:     # beklentiyle aynı geldiyse etki sınırlı: "hafif olumlu / hafif olumsuz"
+        reason = reason.replace(" ihtimali azalır", " ihtimali biraz azalır").replace(" ihtimali artar", " ihtimali biraz artar")
+        reason += " (sürpriz yok, etki sınırlı)"
+        items = [(ic, t.replace(" için olumlu", " için hafif olumlu").replace(" için olumsuz", " için hafif olumsuz"))
+                 for ic, t in items]
     return {"hawkish": hawkish, "reason": reason, "items": items}

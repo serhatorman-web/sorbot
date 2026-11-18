@@ -1066,3 +1066,13 @@ def test_econ_category():
     assert report.econ_category("Panoro Energy rekor üretim açıkladı", "fin") == "🏦 Finans"
     assert report.econ_category("İran ablukasının ABD'ye faturası 1 milyar dolar") == "📊 Ekonomi"
     assert report.econ_category("Bitcoin 64.474 dolara geriledi, faiz artışı beklentisi sürüyor") == "🪙 Kripto"
+
+
+def test_inline_release_impact():
+    import econ
+    e = dict(title="Inflation Rate YoY", country="GB", actual=3.6, forecast=3.6, previous=3.5)
+    assert econ.verdict(e) == ("⚪", "Beklentiyle aynı · önceki döneme göre ▲ yükseldi")
+    imp = econ.asset_impact(e)
+    assert "biraz azalır" in imp["reason"] and ("🟢", "Sterlin için hafif olumlu") in imp["items"]
+    flat = econ.asset_impact(dict(title="CPI YoY", country="US", actual=3.0, forecast=3.0, previous=3.0))
+    assert flat["items"] == [("⚪", "Piyasalar için nötr")]
