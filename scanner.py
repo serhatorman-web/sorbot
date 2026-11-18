@@ -1044,7 +1044,7 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
         if tf in candles:
             continue
         try:
-            raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 150})
+            raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 300})   # trend çizgisi için ~200 mum
             candles[tf] = parse_klines(raw, now_ms)
         except Exception:  # noqa: BLE001
             candles[tf] = []
@@ -1756,6 +1756,9 @@ def pa_names(direction):
             "pa_strong_close": f"Güçlü kapanış (mum {'tepesine' if up else 'dibine'} yakın)"}
 
 
+TL_MAX_DIST = {"15m": 3, "1h": 5, "4h": 10, "1d": 15}     # aktif trend çizgisi en fazla bu % uzaklıktaysa yazılır
+
+
 def trendline_lines(res):
     """Trend çizgileri (kapanış/çizgi grafik, en az 2 temas). Her zaman dilimi için tek satır:
     son kırılım varsa o, yoksa fiyata en yakın aktif çizgi. Veri yoksa bölüm çıkmaz."""
@@ -1769,10 +1772,15 @@ def trendline_lines(res):
         if not evs:
             continue
         brk = [e for e in evs if e["state"] == "broken"]
+        # aktif çizgi ancak fiyata yakınsa anlamlı (çok uzaktaki çizgi yazılmaz)
+        near = [e for e in evs if e["state"] == "active"
+                and abs(e["price"] - e["level"]) / e["price"] * 100 <= TL_MAX_DIST.get(tf, 5)]
         if brk:
             ev = min(brk, key=lambda e: e["bars_ago"])
+        elif near:
+            ev = min(near, key=lambda e: abs(e["price"] - e["level"]) / e["price"])
         else:
-            ev = min(evs, key=lambda e: abs(e["price"] - e["level"]) / e["price"])
+            continue
         name = TF_NAMES.get(tf, tf)
         lvl = fmt_price(ev["level"], prec)
         t = f"{ev['touches']} temas"
