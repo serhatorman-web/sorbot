@@ -2521,8 +2521,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         if gi is not None:                       # Supertrend satırı Giriş'in üstünde
             put_st_line(lines, gi, st_line)
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
-        else:
-            lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
+        else:                                    # erken uyarı: giriş yok; SUPERTREND satırı, sonra İNDİKATÖRLER başlığı
+            lines += ["", st_line, "", IND_HEADER, SEP] + indicator_list_lines(res, direction)
     # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
