@@ -335,9 +335,9 @@
     "cooldown_hours": 12,
     "max_per_run": 3,
     "momentum": {
-      "_aciklama": "Trend içinde hızlanma (sıkışma aranmaz): hacim ≥ volume_x kat, breakout_lookback mumluk zirve kırılımı, gövde ≥ body_atr ATR, kapanış mumun üst %25'inde. Dump tarafı testte zarar ettiği için kapalı.",
+      "_aciklama": "Trend içinde hızlanma (sıkışma aranmaz): hacim ≥ volume_x kat, breakout_lookback mumluk zirve kırılımı, gövde ≥ body_atr ATR, kapanış mumun üst %25'inde. Dump tarafı kullanıcı isteğiyle açık (geçmiş testte pump tarafından zayıf).",
       "enabled": true,
-      "directions": ["long"],
+      "directions": ["long", "short"],
       "volume_x": 5.0,
       "breakout_lookback": 48,
       "body_atr": 1.5,

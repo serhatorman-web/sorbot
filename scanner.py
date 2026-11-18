@@ -651,8 +651,8 @@ def reversal_radar(f, i, cfg, taken=()):
 
 def momentum_radar(f, i, cfg, taken=()):
     """Trend içinde hızlanma (PIEVERSE 18.11 gibi): sıkışma aranmaz. Çok güçlü hacim (≥5x), 2 günlük zirvenin
-    kırılması ve tepeye yakın kapanan büyük gövdeli mum. Geçmiş testte (134 coin, 60 gün) günde ~4 uyarı;
-    dump tarafı test edildi ve zarar ettiği için kapalı (directions: ["long"])."""
+    kırılması ve tepeye yakın kapanan büyük gövdeli mum (dump için tersi). Geçmiş testte (134 coin, 60 gün) pump
+    tarafı günde ~4 uyarı; dump tarafı daha zayıf çıktı ama kullanıcı isteğiyle açık (directions)."""
     mc = cfg.get("pump_radar", {}).get("momentum", {})
     if not mc.get("enabled", True):
         return []

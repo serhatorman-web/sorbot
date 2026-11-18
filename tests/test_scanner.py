@@ -1294,3 +1294,16 @@ def test_reversal_radar():
     v[-1] = 1200.0                                       # hacim yetersiz → uyarı yok
     f["vol_ma"] = ta.sma(v, 20)
     assert scanner.reversal_radar(f, i, cfg) == []
+
+
+def test_momentum_radar_dump():
+    """Dump hareketi: hacim ≥5x + 48 mumluk dip kırılımı + büyük kırmızı gövde + dibe yakın kapanış."""
+    n = 80
+    o = [100 - k * 0.05 for k in range(n)]
+    c = [x - 0.1 for x in o]
+    h = [x + 0.3 for x in o]; l = [x - 0.3 for x in c]
+    v = [1000.0] * n
+    o[-1], c[-1], h[-1], l[-1], v[-1] = c[-2], c[-2] - 4.0, c[-2] + 0.1, c[-2] - 4.3, 8000.0
+    f = {"o": o, "h": h, "l": l, "c": c, "v": v, "vol_ma": ta.sma(v, 20), "atr": ta.atr(h, l, c, 14)}
+    out = scanner.momentum_radar(f, n - 1, {"timeframe": "1h", "pump_radar": {"momentum": {"directions": ["long", "short"]}}})
+    assert len(out) == 1 and out[0]["dir"] == "short" and out[0]["reasons"][1] == "2 günlük dip kırıldı", out
