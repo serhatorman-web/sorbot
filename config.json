@@ -419,6 +419,10 @@
     "commodity_chat_id": "-1004440589259",
     "bulletin_chat_id": "-1003810871076"
   },
+  "formations": {
+    "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında.",
+    "enabled": false
+  },
   "price_action": {
     "_aciklama": "Sinyallerde PRICE ACTION bölümü (formasyonlar, FVG, order block). RSI uyumsuzluğun altında; order block'lar kapalı (order_blocks.enabled false).",
     "enabled": false

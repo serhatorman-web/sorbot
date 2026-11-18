@@ -28,6 +28,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 import indicators as ta
+import patterns as pt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -86,11 +87,11 @@ TF_SHORT = {"5m": "5dk", "15m": "15dk", "1h": "1s", "4h": "4s", "1d": "1g"}
 
 
 IND_HEADER = "📋 <b>İNDİKATÖRLER</b>"
-HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "📊 <b>HACİM PROFİLİ",
+HEADERS = ("📍 <b>PIVOTS", "🕯️ <b>PRICE ACTION", "🧩 <b>FORMASYONLAR", "📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "📊 <b>HACİM PROFİLİ",
            "🧱 <b>ORDER BLOCK", "〽️ <b>RSI UYUMSUZLUK", "🔊 <b>HACİM</b>")
 
 
-DIR_SECTIONS = ("📐 <b>TREND ÇİZGİSİ", "☁️ <b>ICHIMOKU", "〽️ <b>RSI UYUMSUZLUK")
+DIR_SECTIONS = ("📐 <b>TREND ÇİZGİSİ", "🧩 <b>FORMASYONLAR", "☁️ <b>ICHIMOKU", "〽️ <b>RSI UYUMSUZLUK")
 
 
 def dir_arrow(r):
@@ -1065,7 +1066,7 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
     trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (15dk / 1s / 4s / 1g / 1h)."""
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
-    candles = {base_tf: [{"c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
+    candles = {base_tf: [{"o": f["o"][k], "c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
     for tf in dict.fromkeys([base_tf] + [x for x, _ in TF_ROWS] + list(DIV_TFS)):
         if tf in candles:
             continue
@@ -1099,6 +1100,17 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
         for ev in ta.trendlines_close([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
             tl.append(dict(ev, tf=tf, price=cs[-1]["c"]))
     res["tline"] = tl
+    # Mum ve grafik formasyonları: sinyal zaman dilimi ve üstü (1 güne kadar)
+    forms = {}
+    for tf in ("15m", "1h", "4h", "1d"):
+        cs = candles.get(tf, [])
+        if TF_MS.get(tf, 0) < base_ms or len(cs) < 60:
+            continue
+        try:
+            forms[tf] = tf_formations(cs)
+        except Exception:  # noqa: BLE001
+            pass
+    res["forms"] = forms
     # Pivot noktaları (TradingView "Pivot Points Standard", Fibonacci, Auto: 15dk ve altı günlük, üstü haftalık)
     ptf = "1d" if TF_MS.get(base_tf, HOUR_MS) <= 15 * 60 * 1000 else "1w"
     pc = candles.get(ptf) or []
@@ -1830,6 +1842,54 @@ def trendline_lines(res):
     return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
 
+def tf_formations(cs):
+    """Bir zaman diliminin kapanmış mumlarından mum ve grafik formasyonları."""
+    o = [x.get("o", x["c"]) for x in cs]
+    h = [x["h"] for x in cs]
+    l = [x["l"] for x in cs]
+    c = [x["c"] for x in cs]
+    a = ta.atr(h, l, c, 14)
+    return {"mum": pt.candle_patterns(o, h, l, c, a), "grafik": pt.chart_patterns(h, l, c, a), "price": c[-1]}
+
+
+FORM_ICON = {1: "🟢", -1: "🔴", 0: "⚪"}
+
+
+def formation_lines(res):
+    """🧩 FORMASYONLAR: her zaman dilimi (sinyal TF ve üstü) için son mumdaki mum formasyonları ve
+    oluşan / yeni kırılan grafik formasyonları."""
+    prec = res.get("meta", {}).get("precision")
+    fp = lambda x: fmt_price(x, prec)
+    out = []
+    for tf in ("15m", "1h", "4h", "1d"):
+        fm = (res.get("forms") or {}).get(tf)
+        if not fm:
+            continue
+        name = TF_NAMES.get(tf, tf)
+        for ad, yon in fm["mum"]:
+            res_txt = {1: "yükseliş işareti", -1: "düşüş işareti", 0: "kararsızlık, yön belirsiz"}[yon]
+            out.append(f"{FORM_ICON[yon]} {name} · {ad} (mum) → {res_txt}")
+        for g in fm["grafik"]:
+            ad, yon = g["ad"], g["yon"]
+            if g["durum"] == "kirildi":
+                d = g["kirilim"]
+                mv = "yükseliş" if d == 1 else "düşüş"
+                lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
+                yonu = "yukarı" if d == 1 else "aşağı"
+                tgt = f" · hedef {fp(g['hedef'])}" if g.get("hedef") else ""
+                out.append(f"{FORM_ICON[d]} {name} · {ad} → {fp(lvl)} {yonu} kırıldı, {mv} beklenebilir{tgt}")
+            else:
+                if "seviye" in g:      # tek tetik seviyesi (boyun / kenar)
+                    mv = "yükseliş" if yon == 1 else "düşüş"
+                    yer = "üstünde" if yon == 1 else "altında"
+                    out.append(f"{FORM_ICON[yon]} {name} · {ad} (oluşuyor) → {fp(g['seviye'])} {yer} kapanış {mv} getirebilir")
+                else:                  # üçgen / kama / dikdörtgen: iki kenar
+                    egilim = {1: ", genelde yukarı kırılır", -1: ", genelde aşağı kırılır", 0: ""}[yon]
+                    out.append(f"{FORM_ICON[yon]} {name} · {ad} (oluşuyor{egilim}) → {fp(g['ust'])} üstü kapanış yükseliş, "
+                               f"{fp(g['alt'])} altı düşüş getirebilir")
+    return (["🧩 <b>FORMASYONLAR</b>"] + out) if out else []
+
+
 def divergence_lines(res):
     d = res.get("div") or {}
     out = []
@@ -2229,12 +2289,13 @@ def build_message(res, direction, cfg, now_utc):
         lines += ["", "📌 Tetik: " + ", ".join(side["triggers"])]
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
-        # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
+        # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
         # PIVOTS, ICHIMOKU, HACİM PROFİLİ, PRICE ACTION ve TREND ÇİZGİSİ kullanıcı isteğiyle kaldırıldı
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
         for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
+                      (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
             if block:
                 lines += section(block)
@@ -2302,12 +2363,13 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:
             lines += ["", SEP, st_line, ""] + indicator_list_lines(res, direction)
-    # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → PRICE ACTION → PİYASA DURUMU
+    # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
     for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
-                      (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
+                  (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
+                  (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
         if block:
             lines += section(block)
     lines += market_section(leader_block(res, cfg), market_lines(res, cfg, now_utc))
