@@ -498,7 +498,6 @@ def test_trendline_break():
         {"type": "rising", "state": "active", "touches": 2, "level": 90.0, "price": 100.0, "bars_ago": 0, "retest": None, "tf": "15m"},
         {"type": "falling", "state": "broken", "touches": 2, "level": 98.0, "price": 100.0, "bars_ago": 3, "retest": "confirmed", "tf": "4h"}]})
     assert lines == ["📐 <b>TREND ÇİZGİSİ</b>",
-                     "🔴 15dk: Düşen trend çizgisi (direnç) → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir",
                      "🟢 4 saat: Düşen trend çizgisi kırıldı · ✅ Retest yapıldı → yükseliş başlayabilir"], lines
 
 

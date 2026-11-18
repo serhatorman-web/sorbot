@@ -1794,12 +1794,11 @@ def pa_names(direction):
             "pa_strong_close": f"Güçlü kapanış (mum {'tepesine' if up else 'dibine'} yakın)"}
 
 
-TL_MAX_DIST = {"15m": 3, "1h": 5, "4h": 10, "1d": 15}     # aktif trend çizgisi en fazla bu % uzaklıktaysa yazılır
 
 
 def trendline_lines(res):
-    """Trend çizgileri (kapanış/çizgi grafik, en az 2 temas). Her zaman dilimi için tek satır:
-    son kırılım varsa o, yoksa fiyata en yakın aktif çizgi. Veri yoksa bölüm çıkmaz."""
+    """Trend çizgisi kırılımları (kapanış/çizgi grafik, en az 2 temas). Her zaman dilimi için en son kırılım ve
+    retest durumu. Kırılmamış (aktif) çizgiler yazılmaz; kırılım yoksa bölüm çıkmaz."""
     prec = res.get("meta", {}).get("precision")
     by_tf = {}
     for ev in res.get("tline") or []:
@@ -1810,27 +1809,10 @@ def trendline_lines(res):
         if not evs:
             continue
         brk = [e for e in evs if e["state"] == "broken"]
-        # aktif çizgi ancak fiyata yakınsa anlamlı (çok uzaktaki çizgi yazılmaz)
-        near = [e for e in evs if e["state"] == "active"
-                and abs(e["price"] - e["level"]) / e["price"] * 100 <= TL_MAX_DIST.get(tf, 5)]
-        if brk:
-            ev = min(brk, key=lambda e: e["bars_ago"])
-        elif near:
-            ev = min(near, key=lambda e: abs(e["price"] - e["level"]) / e["price"])
-        else:
+        if not brk:                 # sadece kırılımlar yazılır; aktif (kırılmamış) çizgiler gelmez (kullanıcı isteği)
             continue
+        ev = min(brk, key=lambda e: e["bars_ago"])
         name = TF_NAMES.get(tf, tf)
-        lvl = fmt_price(ev["level"], prec)
-        t = f"{ev['touches']} temas"
-        if ev["state"] == "active":
-            pct = abs(ev["price"] - ev["level"]) / ev["price"] * 100
-            if ev["type"] == "falling":
-                out.append(f"🔴 {name}: Düşen trend çizgisi (direnç)"
-                           f" → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir")
-            else:
-                out.append(f"🟢 {name}: Yükselen trend çizgisi (destek)"
-                           f" → kırılmadıkça yükseliş trendi sürüyor, kapanışla altına inerse düşüş gelebilir")
-            continue
         move = "yükseliş" if ev["type"] == "falling" else "düşüş"
         head = (f"🟢 {name}: Düşen trend çizgisi kırıldı" if ev["type"] == "falling"
                 else f"🔴 {name}: Yükselen trend çizgisi kırıldı")
