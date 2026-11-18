@@ -1,9 +1,0 @@
-name: diag
-on: workflow_dispatch
-jobs:
-  d:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - run: DRY_RUN=1 python3 report.py > out.txt 2>&1 || true; cat out.txt
