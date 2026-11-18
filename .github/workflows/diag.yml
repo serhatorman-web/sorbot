@@ -1,0 +1,17 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: matplotlib
+        continue-on-error: true
+        run: python3 -m pip install --quiet --user matplotlib || true
+      - name: 15dk tarama (deneme)
+        continue-on-error: true
+        run: SORBOT_TF=15m DRY_RUN=1 python3 scanner.py 2>&1 | grep -v "^\(🟢\|🔴\|⚪\|━\|─\)" | sed 's/^/T15| /' | tail -80 || true
+      - name: 1s tarama (deneme)
+        continue-on-error: true
+        run: DRY_RUN=1 python3 scanner.py 2>&1 | sed 's/^/T1H| /' | grep -i "T1H| \(taranacak\|mum verisi\|analiz\|en yüksek\|→\|pump\|bitti\|traceback\|error\|hata\|exception\|  file\|----- telegram\)" | tail -80 || true
