@@ -254,7 +254,17 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
         s0 = min(rh[0], rl[0])
         last_piv = max(rh[-1], rl[-1])
         span = n - 1 - s0
-        fit_ok = (all(abs(h[k] - upper(k)) <= tol for k in rh) and all(abs(l[k] - lower(k)) <= tol for k in rl))
+        fit = 0.5 * a                                    # pivotlar çizgiye bu kadar yakın olmalı
+        fit_ok = (all(abs(h[k] - upper(k)) <= fit for k in rh) and all(abs(l[k] - lower(k)) <= fit for k in rl))
+        # son iki pivotun yönü çizginin yönüyle aynı olmalı: tek bir eski iğne (ör. düz dipler + bir sert iğne)
+        # düz bir kenarı yükselen/düşen gibi göstermesin
+        cls = lambda d: 0 if abs(d) <= 1.0 else (1 if d > 0 else -1)
+        span_ = max(1, n - 1 - min(rh[0], rl[0]))
+        for piv, m_, val in ((rh, mu, h), (rl, ml, l)):
+            if len(piv) >= 3:
+                m2 = (val[piv[-1]] - val[piv[-2]]) / (piv[-1] - piv[-2])
+                if cls(m2 * span_ / a) != cls(m_ * span_ / a):
+                    fit_ok = False
         ws, we = upper(s0) - lower(s0), upper(n - 1) - lower(n - 1)
         kb, d = _first_break(c, last_piv + 1, n, upper, lower, a)
         inside_end = kb if kb is not None else n

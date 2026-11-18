@@ -1179,3 +1179,13 @@ def test_formation_lines_text():
         "🧩 <b>FORMASYONLAR</b>",
         "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti",
         "🔴 15dk · İkili Tepe → 90.00 aşağı kırıldı, düşüş beklenebilir · hedef 80.00"]
+
+
+def test_triangle_not_from_single_spike():
+    """PENDLE 4s (18.11.2026): düz dipler (1.4033 / 1.4010) + tek eski iğne (1.3288) yükselen üçgen sayılmaz."""
+    import json, os
+    import patterns as pt
+    import indicators as ta
+    d = json.load(open(os.path.join(os.path.dirname(__file__), "data", "pendle_4h.json")))
+    got = pt.chart_patterns(d["h"], d["l"], d["c"], ta.atr(d["h"], d["l"], d["c"], 14))
+    assert not any(g["ad"] == "Yükselen Üçgen" for g in got), got
