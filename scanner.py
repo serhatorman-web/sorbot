@@ -1801,7 +1801,7 @@ def trendline_lines(res):
                 "touch": "🔄 Retest ediliyor",
                 "away": ("Retest yapmadan çizgiden yukarı doğru çıktı" if ev["type"] == "falling"
                          else "Retest yapmadan çizgiden aşağı doğru indi")}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
-        out.append(f"{head} ({ago}) · {t} · çizgi {lvl} · {tail}")
+        out.append(f"{head} · {tail}")
     return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
 
