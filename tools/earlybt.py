@@ -6,7 +6,10 @@ import indicators as ta
 import scanner
 
 TF = sys.argv[1] if len(sys.argv) > 1 else "1h"
-PAGES = {"15m": 3, "1h": 1}[TF]
+import os
+OOS = os.environ.get("OOS") == "1"                 # 1: önceki dönem (testte kullanılmamış veri)
+PAGES = {"15m": 3, "1h": 1}[TF] * (2 if OOS else 1)
+NEW = {"15m": 3, "1h": 1}[TF] * 1500
 HOLD = {"15m": 96, "1h": 48}[TF]           # en fazla 24s / 48s tut, sonra piyasadan kapat
 cfg = json.load(open("config.json", encoding="utf-8"))
 if TF in cfg.get("tf_profiles", {}):
@@ -105,6 +108,8 @@ def systems(f):
         "C+: C + üst zaman dilimi": lambda i, s: pre(i, s) and mtf(i, s) and (e9[i] - e21[i]) * s > 0
                                      and (e9[i - 1] - e21[i - 1]) * s <= 0 and f["macd_hist"][i] * s > 0 and (f["rsi"][i] - 50) * s > 0,
         "D: Hızlı Supertrend (10/2) + üst zaman dilimi": lambda i, s: pre(i, s) and mtf(i, s) and fast[i] == s and fast[i - 1] == -s,
+        "E: C+ ve hızlı Supertrend aynı yönde": lambda i, s: pre(i, s) and mtf(i, s) and fast[i] == s and (e9[i] - e21[i]) * s > 0
+                                               and (e9[i - 1] - e21[i - 1]) * s <= 0 and f["macd_hist"][i] * s > 0 and (f["rsi"][i] - 50) * s > 0,
     }
 
 
@@ -123,9 +128,11 @@ for sym in syms:
     n = len(f["c"])
     for name, rule in systems(f).items():
         a = agg.setdefault(name, {"n": 0, "win": 0, "R": 0.0, "pos": 0.0, "neg": 0.0, "early": [], "conf": 0, "days": 0})
-        a["days"] = max(a["days"], (n - 250) * scanner.tf_ms(cfg) / 86_400_000)
+        span = (n - NEW - 250) if OOS else min(n - 250, NEW)
+        a["days"] = max(a["days"], span * scanner.tf_ms(cfg) / 86_400_000)
         busy = 0
-        for i in range(250, n - 1):
+        lo_i, hi_i = (250, n - NEW) if OOS else (max(250, n - NEW), n - 1)
+        for i in range(lo_i, hi_i):
             if i < busy or f["atr"][i] is None:
                 continue
             for s in (1, -1):
@@ -147,7 +154,7 @@ for sym in syms:
     time.sleep(0.2)
 
 mins = {"15m": 15, "1h": 60}[TF]
-print(f"\n===== {TF} · {len(syms)} coin · çıkış: stop 1.5 ATR, TP 1R/2R/3R (1/3'er), TP1 sonrası stop girişe, en fazla {HOLD} mum")
+print(f"\n===== {'ÖNCEKİ DÖNEM (yeni veri) · ' if OOS else ''}{TF} · {len(syms)} coin · çıkış: stop 1.5 ATR, TP 1R/2R/3R (1/3'er), TP1 sonrası stop girişe, en fazla {HOLD} mum")
 for name, a in agg.items():
     nn = a["n"] or 1
     pf = a["pos"] / -a["neg"] if a["neg"] else float("inf")

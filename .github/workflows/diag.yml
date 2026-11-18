@@ -8,7 +8,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: 1 saat
         continue-on-error: true
-        run: python3 tools/earlybt.py 1h 2>&1 | sed 's/^/EB| /' || true
+        run: OOS=1 python3 tools/earlybt.py 1h 2>&1 | sed 's/^/EB| /' || true
   t15:
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -16,4 +16,4 @@ jobs:
       - uses: actions/checkout@v4
       - name: 15dk
         continue-on-error: true
-        run: python3 tools/earlybt.py 15m 2>&1 | sed 's/^/EB| /' || true
+        run: OOS=1 python3 tools/earlybt.py 15m 2>&1 | sed 's/^/EB| /' || true
