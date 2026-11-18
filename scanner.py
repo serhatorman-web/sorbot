@@ -221,7 +221,7 @@ def type_label(meta):
     return TYPE_LABEL.get(typ, typ)
 
 
-TYPE_LABEL = {"COIN": "Kripto", "EQUITY": "Hisse", "COMMODITY": "Emtia",
+TYPE_LABEL = {"COIN": "Kripto", "EQUITY": "NASDAQ", "COMMODITY": "Emtia",
               "HK_EQUITY": "HK Hisse", "KR_EQUITY": "KR Hisse", "FX": "Döviz"}
 
 
