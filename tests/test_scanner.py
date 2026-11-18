@@ -1055,3 +1055,13 @@ def test_news_organize():
     assert [x["title"][:5] for x in o["📊 Ekonomi"]] == ["ABD'd"]
     assert [x["title"][:5] for x in o["🏦 Finans"]] == ["Borsa"]
     assert list(o) == report.NEWS_ORDER
+
+
+def test_econ_category():
+    import report
+    assert report.econ_category("Nvidia Çin pazarından çekiliyor: gelir risk altında") != "🛢️ Emtia"
+    assert report.econ_category("Bitcoin doların altına düştü") != "🛢️ Emtia"
+    assert report.econ_category("Altın yeni faiz beklentisiyle düştü") == "🛢️ Emtia"
+    assert report.econ_category("Gram altın rekor kırdı") == "🛢️ Emtia"
+    assert report.econ_category("Panoro Energy rekor üretim açıkladı", "fin") == "🏦 Finans"
+    assert report.econ_category("İran ablukasının ABD'ye faturası 1 milyar dolar") == "📊 Ekonomi"

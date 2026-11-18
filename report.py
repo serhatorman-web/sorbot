@@ -50,9 +50,9 @@ DEFAULT_FEEDS = {
         ("Bloomberg HT", "https://www.bloomberght.com/rss", None),
         ("AA Ekonomi", "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", None),
         ("Dünya", "https://www.dunya.com/rss", None),
-        ("Investing TR", "https://tr.investing.com/rss/news_95.rss", None),     # ekonomik göstergeler
-        ("Investing TR", "https://tr.investing.com/rss/news_1.rss", None),      # döviz
-        ("Investing TR", "https://tr.investing.com/rss/news_25.rss", None),     # borsa
+        ("Investing TR", "https://tr.investing.com/rss/news_95.rss", "eco"),    # ekonomik göstergeler
+        ("Investing TR", "https://tr.investing.com/rss/news_1.rss", "fin"),     # döviz
+        ("Investing TR", "https://tr.investing.com/rss/news_25.rss", "fin"),    # borsa / şirketler
     ],
     "🛢️ Emtia": [
         ("Investing TR", "https://tr.investing.com/rss/news_11.rss", None),
@@ -85,11 +85,11 @@ GEO_PATTERN = re.compile(
     r"Çin|Tayvan|OPEC|seçim|darbe|deprem|nükleer|vurdu|bombal",
     re.IGNORECASE)
 # Bülten kategorileri: Ekonomi & Finans akışlarındaki haberler başlığa göre Ekonomi / Finans / Emtia'ya ayrılır
-COMMODITY_PAT = re.compile(r"altın|gümüş|petrol|Brent|\bWTI\b|doğal ?gaz|bakır|emtia|OPEC|buğday|platin|paladyum|"
+COMMODITY_PAT = re.compile(r"\baltın(?!d[ae]\b|d[ae]ki|a\b|ı\b)|gümüş|petrol|Brent|\bWTI\b|doğal ?gaz|bakır|emtia|OPEC|buğday|platin|paladyum|"
                            r"kakao|kahve|şeker fiyat|maden", re.IGNORECASE)
 MACRO_PAT = re.compile(r"\bFed\b|FOMC|faiz|enflasyon|TÜFE|ÜFE|GSY[İI]H|büyüme|istihdam|işsizlik|merkez bankas|TCMB|"
                        r"\bECB\b|BoJ|BoE|PMI|resesyon|ticaret açığı|bütçe|cari açık|ihracat|ithalat|tarife|gümrük|"
-                       r"vergi|Hazine Bakan|kredi notu", re.IGNORECASE)
+                       r"vergi|Hazine Bakan|kredi notu|abluka|yaptırım|Senato|Kongre|savaş", re.IGNORECASE)
 FINANCE_PAT = re.compile(r"borsa|hisse|BIST|Wall Street|Nasdaq|S&P|\bDow\b|banka|tahvil|getiri|döviz|dolar|euro|"
                          r"sterlin|\byen\b|kur\b|şirket|bilanço|halka arz|kâr|gelir|satın al|birleşme|fon\b|kredi|"
                          r"endeks|piyasa", re.IGNORECASE)
@@ -98,12 +98,12 @@ IMPORTANT_MIN = 5          # 🔥 eşiği: bu puan ve üstü "ÖNEMLİ HABERLER"
 IMPORTANT_MAX = 3
 
 
-def econ_category(title):
+def econ_category(title, hint=None):
     if COMMODITY_PAT.search(title):
         return "🛢️ Emtia"
     if MACRO_PAT.search(title):
         return "📊 Ekonomi"
-    if FINANCE_PAT.search(title):
+    if hint == "fin" or FINANCE_PAT.search(title):
         return "🏦 Finans"
     return "📊 Ekonomi"
 
@@ -114,7 +114,7 @@ def organize_news(news):
     for cat, items in news.items():
         for it in items:
             if cat == "💵 Ekonomi & Finans":
-                c = econ_category(it["title"])
+                c = econ_category(it["title"], it.get("hint"))
             elif cat == "🌍 Gündem":
                 c = None                          # gündem sadece önemliyse girer
             else:
@@ -125,7 +125,15 @@ def organize_news(news):
     pool = [it for items in news.values() for it in items
             if it.get("imp", 0) >= IMPORTANT_MIN or (it.get("_cat") is None and it.get("imp", 0) >= 3)]
     pool.sort(key=lambda x: (x.get("imp", 0), x["dt"].timestamp() if x.get("dt") else 0), reverse=True)
-    top = pool[:IMPORTANT_MAX]
+    top, used = [], set()
+    for x in pool:                            # çeşitlilik: her kategoriden en fazla 1 önemli haber
+        key = x.get("_cat") or "gündem"
+        if key in used:
+            continue
+        used.add(key)
+        top.append(x)
+        if len(top) == IMPORTANT_MAX:
+            break
     out["🚨 Önemli Haberler"] = top
     ids = {id(x) for x in top}
     for c in NEWS_ORDER[1:]:
@@ -200,6 +208,8 @@ def keep_item(item, flt):
         return bool(AI_PATTERN.search(item["title"]))
     if flt == "geo":
         return bool(GEO_PATTERN.search(item["title"]))
+    if flt in ("eco", "fin"):
+        item["hint"] = flt
     return True
 
 COUNTRY_FLAG = {"USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵", "CNY": "🇨🇳", "CHF": "🇨🇭",
@@ -927,7 +937,8 @@ def morning_calendar_message(now_tr, events):
     by_c = {}
     for e in events:
         by_c.setdefault(e["country"], []).append(e)
-    names = {"US": "ABD", "TR": "Türkiye", "EU": "Euro Bölgesi", "CN": "Çin"}
+    names = {"US": "ABD", "TR": "Türkiye", "EU": "Euro Bölgesi", "CN": "Çin", "GB": "İngiltere", "JP": "Japonya",
+             "DE": "Almanya"}
     for c in sorted(by_c, key=lambda x: (x != "US", x != "TR", x)):
         L += ["", f"{econ.FLAGS.get(c, '')} <b>{names.get(c, c)}</b>", ""] + upcoming_block(by_c[c])
     L += ["", LINE, "🔴 yüksek önem · 🟠 orta önem · Bkl = beklenti · Önc = önceki", "<i>Kaynak: TradingView ekonomik takvim</i>"]
