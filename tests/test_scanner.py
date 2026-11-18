@@ -1189,3 +1189,20 @@ def test_triangle_not_from_single_spike():
     d = json.load(open(os.path.join(os.path.dirname(__file__), "data", "pendle_4h.json")))
     got = pt.chart_patterns(d["h"], d["l"], d["c"], ta.atr(d["h"], d["l"], d["c"], 14))
     assert not any(g["ad"] == "Yükselen Üçgen" for g in got), got
+
+
+def test_pattern_images_render():
+    """Kırılan grafik formasyonu için PNG üretilir; oluşmakta olan için üretilmez."""
+    import patterns as pt
+    import indicators as ta
+    o, h, l, c = _zigzag([(0, 80), (40, 100), (55, 90), (70, 100), (82, 87)])
+    cs = [{"t": 1795000000000 + k * 900000, "o": o[k], "h": h[k], "l": l[k], "c": c[k]} for k in range(len(c))]
+    fm = scanner.tf_formations(cs)
+    res = {"meta": {"symbol": "BTCUSDT", "type": "COIN", "precision": 2}, "forms": {"15m": fm}}
+    imgs = scanner.pattern_images(res, {"formations": {"enabled": True}})
+    assert len(imgs) == 1 and imgs[0][0][:8] == b"\x89PNG\r\n\x1a\n"
+    assert imgs[0][1].startswith("🔴 ₿ <b>BTC</b> · 15dk · İkili Tepe → ") and "aşağı kırıldı · hedef" in imgs[0][1]
+    o, h, l, c = _zigzag([(0, 80), (40, 100), (55, 90), (70, 100), (80, 93)])        # kırılmamış
+    cs = [{"t": 1795000000000 + k * 900000, "o": o[k], "h": h[k], "l": l[k], "c": c[k]} for k in range(len(c))]
+    res["forms"] = {"15m": scanner.tf_formations(cs)}
+    assert scanner.pattern_images(res, {"formations": {"enabled": True}}) == []

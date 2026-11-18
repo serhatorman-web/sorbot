@@ -209,7 +209,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     nk = neck_at(kb if kb is not None else n - 1)
                     found.append({"ad": "OBO" if sgn == 1 else "TOBO", "yon": -sgn,
                                   "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                  "seviye": nk, "hedef": nk - sgn * height})
+                                  "seviye": nk, "hedef": nk - sgn * height,
+                                  "ciz": {"noktalar": [(p1, P(p1)), (n1, Q(n1)), (p2, P(p2)), (n2, Q(n2)), (p3, P(p3))],
+                                          "cizgiler": [((n1, neck_at(n1)), (n - 1, neck_at(n - 1)))], "kb": kb}})
                     return
         # Üçlü tepe / dip
         if len(piv) >= 3:
@@ -224,7 +226,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     if recent(kb):
                         found.append({"ad": "Üçlü Tepe" if sgn == 1 else "Üçlü Dip", "yon": -sgn,
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                      "seviye": neck, "hedef": neck - sgn * height})
+                                      "seviye": neck, "hedef": neck - sgn * height,
+                                      "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2)), (p3, P(p3))],
+                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
                         return
         # İkili tepe / dip
         if len(piv) >= 2:
@@ -238,7 +242,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     if recent(kb):
                         found.append({"ad": "İkili Tepe" if sgn == 1 else "İkili Dip", "yon": -sgn,
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
-                                      "seviye": neck, "hedef": neck - sgn * height})
+                                      "seviye": neck, "hedef": neck - sgn * height,
+                                      "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2))],
+                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
 
     tops(ph, 1)
     tops(pl, -1)
@@ -290,7 +296,10 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                 found.append({"ad": name, "yon": bias, "durum": "kirildi" if kb is not None else "olusuyor",
                               "kirilim": d, "ust": upper(kb if kb is not None else n - 1),
                               "alt": lower(kb if kb is not None else n - 1),
-                              "hedef": ((upper(kb) if d == 1 else lower(kb)) + d * ws) if kb is not None else None})
+                              "hedef": ((upper(kb) if d == 1 else lower(kb)) + d * ws) if kb is not None else None,
+                              "ciz": {"noktalar": [(k, h[k]) for k in rh] + [(k, l[k]) for k in rl],
+                                      "cizgiler": [((s0, upper(s0)), (n - 1, upper(n - 1))),
+                                                   ((s0, lower(s0)), (n - 1, lower(n - 1)))], "kb": kb}})
 
     # ── Bayrak / flama ──
     best = None
@@ -328,7 +337,10 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
         name = ("Yükselen " if sgn == 1 else "Düşen ") + ("Flama" if flama else "Bayrak")
         lvl = hi if sgn == 1 else lo
         found.append({"ad": name, "yon": sgn, "durum": "kirildi" if broke else "olusuyor",
-                      "kirilim": sgn if broke else 0, "seviye": lvl, "hedef": lvl + move})
+                      "kirilim": sgn if broke else 0, "seviye": lvl, "hedef": lvl + move,
+                      "ciz": {"noktalar": [], "cizgiler": [((s - plen, c[s - plen]), (s, c[s])),
+                                                           ((cons[0], hi), (n - 1, hi)), ((cons[0], lo), (n - 1, lo))],
+                              "kb": n - 1 if broke else None}})
 
     # ── Fincan kulp / ters fincan kulp ──
     for piv, sgn in ((ph, 1), (pl, -1)):
@@ -366,7 +378,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     continue                                   # daha önce kırılmış (eski)
                 found.append({"ad": "Fincan Kulp" if sgn == 1 else "Ters Fincan Kulp", "yon": sgn,
                               "durum": "kirildi" if broke else "olusuyor", "kirilim": sgn if broke else 0,
-                              "seviye": rim, "hedef": rim + sgn * depth})
+                              "seviye": rim, "hedef": rim + sgn * depth,
+                              "ciz": {"noktalar": [(r1, P(r1)), (bk, Q(bk)), (r2, P(r2))],
+                                      "cizgiler": [((r1, rim), (n - 1, rim))], "kb": n - 1 if broke else None}})
                 done = True
                 break
             if done or j2 < len(piv) - 1:

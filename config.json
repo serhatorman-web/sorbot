@@ -420,8 +420,10 @@
     "bulletin_chat_id": "-1003810871076"
   },
   "formations": {
-    "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında.",
-    "enabled": true
+    "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında. images: kırılan grafik formasyonunun resmi sinyalin hemen ardından gönderilir (en fazla images_max).",
+    "enabled": true,
+    "images": false,
+    "images_max": 3
   },
   "price_action": {
     "_aciklama": "Sinyallerde PRICE ACTION bölümü (formasyonlar, FVG, order block). RSI uyumsuzluğun altında; order block'lar kapalı (order_blocks.enabled false).",

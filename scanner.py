@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 
 import indicators as ta
 import patterns as pt
+import chart_img
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -1066,7 +1067,8 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
     trend tablosu (15dk / 1s / 4s / 1g) ve RSI uyumsuzluğu (15dk / 1s / 4s / 1g / 1h)."""
     sym = res["meta"]["symbol"]
     f, i = res["f"], res["i"]
-    candles = {base_tf: [{"o": f["o"][k], "c": f["c"][k], "h": f["h"][k], "l": f["l"][k]} for k in range(i + 1)]}
+    candles = {base_tf: [{"t": f["t"][k], "o": f["o"][k], "c": f["c"][k], "h": f["h"][k], "l": f["l"][k]}
+                         for k in range(i + 1)]}
     for tf in dict.fromkeys([base_tf] + [x for x, _ in TF_ROWS] + list(DIV_TFS)):
         if tf in candles:
             continue
@@ -1831,7 +1833,50 @@ def tf_formations(cs):
     l = [x["l"] for x in cs]
     c = [x["c"] for x in cs]
     a = ta.atr(h, l, c, 14)
-    return {"mum": pt.candle_patterns(o, h, l, c, a), "grafik": pt.chart_patterns(h, l, c, a), "price": c[-1]}
+    return {"mum": pt.candle_patterns(o, h, l, c, a), "grafik": pt.chart_patterns(h, l, c, a), "price": c[-1], "cs": cs}
+
+
+def pattern_images(res, cfg):
+    """Mesajda yazılan (kırılmış) grafik formasyonlarının resimleri: [(png, açıklama)]."""
+    fc = cfg.get("formations", {})
+    if not fc.get("enabled", True) or not fc.get("images", True):
+        return []
+    meta = res.get("meta", {})
+    prec = meta.get("precision")
+    name = display_name(meta) if meta.get("symbol") else ""
+    out = []
+    for tf in ("15m", "1h", "4h", "1d"):
+        fm = (res.get("forms") or {}).get(tf)
+        if not fm:
+            continue
+        for g in fm["grafik"]:
+            if g["durum"] != "kirildi" or not fm.get("cs"):
+                continue
+            yonu = "yukarı" if g["kirilim"] == 1 else "aşağı"
+            # resim başlığı: HTML etiketleri ve emojiler (grafik yazı tipinde yok) çıkarılır
+            title = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", name)).strip()
+            title = f"{title} · {TF_NAMES.get(tf, tf)} · {g['ad']} ({yonu} kırıldı)"
+            try:
+                png = chart_img.render_pattern(fm["cs"], g, title, prec)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Formasyon resmi çizilemedi ({meta.get('symbol')} {tf} {g['ad']}): {e}", file=sys.stderr)
+                png = None
+            if png:
+                icon = "🟢" if g["kirilim"] == 1 else "🔴"
+                lvl = g.get("seviye", g.get("ust") if g["kirilim"] == 1 else g.get("alt"))
+                cap = (f"{icon} {name} · {TF_NAMES.get(tf, tf)} · {g['ad']} → {fmt_price(lvl, prec)} {yonu} kırıldı"
+                       + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
+                out.append((png, cap))
+    return out[:fc.get("images_max", 3)]
+
+
+def send_pattern_images(notifier, res, cfg, symbol=None, typ=None):
+    """Sinyal mesajının hemen ardından formasyon resimlerini aynı kanala gönderir (hata sinyali etkilemez)."""
+    try:
+        for png, cap in pattern_images(res, cfg):
+            notifier.send_photo(png, cap, symbol, typ)
+    except Exception as e:  # noqa: BLE001
+        print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
 
 
 FORM_ICON = {1: "🟢", -1: "🔴", 0: "⚪"}
@@ -2368,6 +2413,40 @@ def build_radar_message(res, rd, cfg, now_utc):
 # --------------------------------------------------------------------------- #
 # Telegram
 # --------------------------------------------------------------------------- #
+def send_telegram_photo(png, caption, token, chat_id, attempts=4):
+    """Telegram sendPhoto (multipart). Hız sınırında bekleyip yeniden dener."""
+    url = TELEGRAM_API.format(token=token).replace("/sendMessage", "/sendPhoto")
+    boundary = "----sorbot" + str(int(time.time() * 1000))
+    parts = []
+    for k, v in (("chat_id", str(chat_id)), ("caption", caption[:1024]), ("parse_mode", "HTML")):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; filename="formasyon.png"\r\n'
+                 f'Content-Type: image/png\r\n\r\n'.encode() + png + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    body = b"".join(parts)
+    for attempt in range(attempts):
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return bool(json.loads(r.read().decode()).get("ok"))
+        except urllib.error.HTTPError as e:
+            txt = e.read().decode(errors="ignore")[:300]
+            if e.code == 429:
+                try:
+                    wait = int(json.loads(txt).get("parameters", {}).get("retry_after", 5))
+                except (ValueError, AttributeError):
+                    wait = 5
+                time.sleep(min(wait + 1, 60))
+                continue
+            if e.code >= 500:
+                time.sleep(min(2 ** (attempt + 1), 30))
+                continue
+            raise RuntimeError(f"Telegram resim hatası {e.code}: {txt}") from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+            time.sleep(min(2 ** (attempt + 1), 30))
+    return False
+
+
 def send_telegram(text, token, chat_id, attempts=6):
     """Telegram'a gönderir. Hız sınırı (429), bağlantı kopması ve zaman aşımında bekleyip yeniden dener
     (2, 4, 8, 16, 30 sn). Kalıcı hatada (400 vb.) RuntimeError fırlatır."""
@@ -2454,6 +2533,20 @@ class Notifier:
             return True
         ok = send_telegram(text, self.token, chat)
         time.sleep(1.1)   # Telegram grup limiti: ~20 mesaj/dk
+        return ok
+
+    def send_photo(self, png, caption, symbol=None, typ=None):
+        chat = self.chat_for(symbol, typ)
+        if self.dry:
+            d = os.path.join(BASE_DIR, "state", "previews")
+            os.makedirs(d, exist_ok=True)
+            path = os.path.join(d, f"{int(time.time() * 1000)}.png")
+            with open(path, "wb") as fh:
+                fh.write(png)
+            print(f"\n----- TELEGRAM RESMİ (gönderilmedi) -----\n{caption}\n[resim: {path}]\n" + "-" * 42)
+            return True
+        ok = send_telegram_photo(png, caption, self.token, chat)
+        time.sleep(1.1)
         return ok
 
 
@@ -2722,7 +2815,9 @@ def main():
             fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             compute_volume_profile(r, cfg)
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
-            n += notifier.send(msg) and 1 or 0
+            if notifier.send(msg):
+                n += 1
+                send_pattern_images(notifier, r, cfg)
         print(f"Önizleme: {n} örnek sinyal gönderildi.")
         return 0
 
@@ -2772,6 +2867,7 @@ def main():
         try:
             if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                 sent += 1
+                send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
                 print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
         except Exception as e:  # noqa: BLE001
@@ -2820,6 +2916,7 @@ def main():
                 try:
                     if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         piv_n += 1
+                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
                         state["signals"][key] = now
                         state["signals"][key + "_period"] = pv["start"]
                         print(f"  → Pivot sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
@@ -2855,6 +2952,7 @@ def main():
                 try:
                     if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         ssl_n += 1
+                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
                         state["signals"][key] = now
                         state["signals"][key + "_ev"] = f_["t"][ev]
                         print(f"  → SSL sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
@@ -2891,6 +2989,7 @@ def main():
             try:
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc), r["meta"]["symbol"], r["meta"]["type"]):
                     sent += 1
+                    send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
                     state["signals"][key] = now
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)

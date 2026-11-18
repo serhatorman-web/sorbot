@@ -33,6 +33,10 @@ jobs:
             sorbot-loop-state-
             sorbot-state-
 
+      - name: Grafik kütüphanesi (formasyon resimleri)
+        continue-on-error: true
+        run: python3 -m pip install --quiet --user matplotlib || python3 -m pip install --quiet --break-system-packages matplotlib || true
+
       - name: Tarama döngüsü
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}

@@ -1,0 +1,17 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: matplotlib
+        continue-on-error: true
+        run: python3 -m pip install --quiet --user matplotlib || python3 -m pip install --quiet --break-system-packages matplotlib || true
+      - name: imgtest
+        continue-on-error: true
+        run: python3 tools/imgtest.py 2>&1 | sed 's/^/IM| /' || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: imgs
+          path: out/
