@@ -499,7 +499,7 @@ def test_trendline_break():
         {"type": "falling", "state": "broken", "touches": 2, "level": 98.0, "price": 100.0, "bars_ago": 3, "retest": "confirmed", "tf": "4h"}]})
     assert lines == ["📐 <b>TREND ÇİZGİSİ</b>",
                      "🔴 15dk: Düşen trend çizgisi (direnç) · 3 temas · çizgi 101.00 · fiyat %1.00 altında → kırılmadıkça düşüş trendi sürüyor, kapanışla üstüne çıkarsa yükseliş gelebilir",
-                     "🟢 4 saat: Düşen trend çizgisi kapanışla kırıldı (3 mum önce) · 2 temas · çizgi 98.00 · ✅ Retest yapıldı → yükseliş başladı"], lines
+                     "🟢 4 saat: Düşen trend çizgisi kırıldı (3 mum önce) · 2 temas · çizgi 98.00 · ✅ Retest yapıldı → yükseliş başlayabilir"], lines
 
 
 def test_trendlines_close():
