@@ -1913,12 +1913,25 @@ def trendline_images(res, cfg):
     return out[:tc.get("max", 3)]
 
 
-def send_pattern_images(notifier, res, cfg, symbol=None, typ=None):
-    """Sinyal mesajının hemen ardından trend çizgisi ve formasyon resimlerini aynı kanala gönderir
-    (hata sinyali etkilemez). Sıra mesajdaki gibi: önce trend çizgileri, sonra formasyonlar."""
+def image_head(res, cfg, direction, rd=None):
+    """Grafik kanalındaki resmin hangi sinyale ait olduğu: 📈 LONG SİNYALİ · 15dk / 🚀 PUMP SİNYALİ · 15dk."""
+    tf_s = TF_SHORT.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
+    long_ = direction == "long"
+    if rd:
+        kind = ("🚀 PUMP SİNYALİ" if long_ else "💥 DUMP SİNYALİ") if rd.get("kind") == "start" else \
+               ("👀 PUMP ERKEN UYARI" if long_ else "👀 DUMP ERKEN UYARI")
+    else:
+        kind = "📈 LONG SİNYALİ" if long_ else "📉 SHORT SİNYALİ"
+    return f"{kind} · {tf_s}"
+
+
+def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
+    """Sinyal mesajının ardından trend çizgisi ve formasyon resimlerini gönderir: grafik kanalı tanımlıysa oraya
+    (açıklamanın başında hangi sinyale ait olduğu yazar), yoksa sinyalin kanalına. Hata sinyali etkilemez.
+    Sıra mesajdaki gibi: önce trend çizgileri, sonra formasyonlar."""
     try:
         for png, cap in trendline_images(res, cfg) + pattern_images(res, cfg):
-            notifier.send_photo(png, cap, symbol, typ)
+            notifier.send_photo(png, (f"<b>{head}</b>\n{cap}" if head else cap), symbol, typ)
     except Exception as e:  # noqa: BLE001
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
 
@@ -2550,6 +2563,8 @@ class Notifier:
         self.commodity_chat = (os.environ.get("TELEGRAM_CHAT_ID_COMMODITY") or str(tg.get("commodity_chat_id") or "")).strip()
         # Piyasa/haber bülteni, ekonomik takvim ve anlık veriler ayrı kanala ("Sorbot Piyasa Bülteni")
         self.bulletin_chat = (os.environ.get("TELEGRAM_CHAT_ID_BULLETIN") or str(tg.get("bulletin_chat_id") or "")).strip()
+        # Trend çizgisi ve formasyon resimleri ayrı kanala ("Sorbot Grafikler"); tanımlı değilse sinyalin kanalına
+        self.charts_chat = (os.environ.get("TELEGRAM_CHAT_ID_CHARTS") or str(tg.get("charts_chat_id") or "")).strip()
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
@@ -2580,7 +2595,7 @@ class Notifier:
         return ok
 
     def send_photo(self, png, caption, symbol=None, typ=None):
-        chat = self.chat_for(symbol, typ)
+        chat = self.charts_chat or self.chat_for(symbol, typ)
         if self.dry:
             d = os.path.join(BASE_DIR, "state", "previews")
             os.makedirs(d, exist_ok=True)
@@ -2861,7 +2876,7 @@ def main():
             msg = "🧪 <b>TEST · ÖNİZLEME</b> (gerçek sinyal değil)\n\n" + build_message(r, d, cfg, now_utc)
             if notifier.send(msg):
                 n += 1
-                send_pattern_images(notifier, r, cfg)
+                send_pattern_images(notifier, r, cfg, head="🧪 TEST · " + image_head(r, cfg, d))
         print(f"Önizleme: {n} örnek sinyal gönderildi.")
         return 0
 
@@ -2911,7 +2926,7 @@ def main():
         try:
             if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                 sent += 1
-                send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
+                send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
                 print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
         except Exception as e:  # noqa: BLE001
@@ -2960,7 +2975,7 @@ def main():
                 try:
                     if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         piv_n += 1
-                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
+                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
                         state["signals"][key] = now
                         state["signals"][key + "_period"] = pv["start"]
                         print(f"  → Pivot sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
@@ -2996,7 +3011,7 @@ def main():
                 try:
                     if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                         ssl_n += 1
-                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
+                        send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
                         state["signals"][key] = now
                         state["signals"][key + "_ev"] = f_["t"][ev]
                         print(f"  → SSL sinyali gönderildi: {r['meta']['symbol']} {d.upper()} ({cfg['timeframe']})")
@@ -3033,7 +3048,8 @@ def main():
             try:
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc), r["meta"]["symbol"], r["meta"]["type"]):
                     sent += 1
-                    send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"])
+                    send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"],
+                                        image_head(r, cfg, rd["dir"], rd))
                     state["signals"][key] = now
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)

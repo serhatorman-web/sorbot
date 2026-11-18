@@ -417,7 +417,8 @@
     "equity_chat_id": "-1003365238459",
     "equity_types": ["EQUITY", "KR_EQUITY", "HK_EQUITY"],
     "commodity_chat_id": "-1004440589259",
-    "bulletin_chat_id": "-1003810871076"
+    "bulletin_chat_id": "-1003810871076",
+    "charts_chat_id": ""
   },
   "trendline_images": {
     "_aciklama": "TREND ÇİZGİSİ bölümündeki kırılımların resmi (çizgi, temas noktaları, kırılım, retest) sinyalin hemen ardından gönderilir (en fazla max).",
