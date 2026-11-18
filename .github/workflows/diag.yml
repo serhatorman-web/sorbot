@@ -11,7 +11,3 @@ jobs:
       - name: imgtest
         continue-on-error: true
         run: python3 tools/imgtest.py 2>&1 | sed 's/^/IM| /' || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: imgs
-          path: out/

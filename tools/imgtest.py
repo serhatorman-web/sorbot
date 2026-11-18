@@ -19,3 +19,6 @@ for sym in SYMS:
         open(f"out/{n:02d}_{sym}.png", "wb").write(png)
         print(n, cap)
 print("toplam", n)
+import base64, glob
+for p in sorted(glob.glob("out/*.png")):
+    print("B64", os.path.basename(p), base64.b64encode(open(p, "rb").read()).decode())
