@@ -607,7 +607,7 @@ def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.
         if state == "none" and a[last] and abs(close[last] - ln(last)) > away_atr * a[last]:
             state = "away"
         out.append({"type": kind, "state": "broken", "touches": touches, "level": ln(last), "bars_ago": last - brk,
-                    "retest": state, "a": A, "b": p})
+                    "retest": state, "a": A, "b": p, "rt": touch})
     return out
 
 

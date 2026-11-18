@@ -1102,6 +1102,7 @@ def fetch_tf_trends(api, res, now_ms, base_tf="1h", order_blocks=True):
         for ev in ta.trendlines_close([x["h"] for x in cs], [x["l"] for x in cs], [x["c"] for x in cs]):
             tl.append(dict(ev, tf=tf, price=cs[-1]["c"]))
     res["tline"] = tl
+    res["tl_cs"] = {tf: candles.get(tf, []) for tf in ("15m", "1h", "4h", "1d")}
     # Mum ve grafik formasyonları: sinyal zaman dilimi ve üstü (1 güne kadar)
     forms = {}
     for tf in ("15m", "1h", "4h", "1d"):
@@ -1870,10 +1871,53 @@ def pattern_images(res, cfg):
     return out[:fc.get("images_max", 3)]
 
 
+def trendline_images(res, cfg):
+    """Mesajda yazılan trend çizgisi kırılımlarının resimleri (her zaman dilimi için en son kırılım): [(png, açıklama)]."""
+    tc = cfg.get("trendline_images", {})
+    if not tc.get("enabled", True):
+        return []
+    meta = res.get("meta", {})
+    prec = meta.get("precision")
+    name = display_name(meta) if meta.get("symbol") else ""
+    plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", name)).strip()
+    out = []
+    for tf in ("15m", "1h", "4h", "1d"):
+        brk = [e for e in res.get("tline") or [] if e["tf"] == tf and e["state"] == "broken"]
+        cs = (res.get("tl_cs") or {}).get(tf) or []
+        if not brk or not cs:
+            continue
+        ev = min(brk, key=lambda e: e["bars_ago"])
+        a_, b_ = ev["a"], ev["b"]
+        c = [x["c"] for x in cs]
+        if not (0 <= a_ < b_ < len(c)):
+            continue
+        m = (c[b_] - c[a_]) / (b_ - a_)
+        ln = lambda k: c[b_] + m * (k - b_)
+        n = len(c)
+        kb = n - 1 - ev["bars_ago"]
+        d = 1 if ev["type"] == "falling" else -1
+        g = {"kirilim": d, "seviye": ln(kb), "hedef": None,
+             "ciz": {"noktalar": [(a_, c[a_]), (b_, c[b_])], "cizgiler": [((a_, c[a_]), (n - 1, ln(n - 1)))],
+                     "kb": kb, "retest": ev.get("rt")}}
+        line = trendline_lines({"meta": meta, "tline": [ev]})[1]
+        kind = "Düşen" if d == 1 else "Yükselen"
+        title = f"{plain} · {TF_NAMES.get(tf, tf)} · {kind} trend çizgisi kırıldı"
+        try:
+            png = chart_img.render_pattern(cs, g, title, prec)
+        except Exception as e:  # noqa: BLE001
+            print(f"  Trend çizgisi resmi çizilemedi ({meta.get('symbol')} {tf}): {e}", file=sys.stderr)
+            png = None
+        if png:
+            icon, rest = line.split(" ", 1)
+            out.append((png, f"{icon} {name} · {rest}"))
+    return out[:tc.get("max", 3)]
+
+
 def send_pattern_images(notifier, res, cfg, symbol=None, typ=None):
-    """Sinyal mesajının hemen ardından formasyon resimlerini aynı kanala gönderir (hata sinyali etkilemez)."""
+    """Sinyal mesajının hemen ardından trend çizgisi ve formasyon resimlerini aynı kanala gönderir
+    (hata sinyali etkilemez). Sıra mesajdaki gibi: önce trend çizgileri, sonra formasyonlar."""
     try:
-        for png, cap in pattern_images(res, cfg):
+        for png, cap in trendline_images(res, cfg) + pattern_images(res, cfg):
             notifier.send_photo(png, cap, symbol, typ)
     except Exception as e:  # noqa: BLE001
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)

@@ -419,6 +419,11 @@
     "commodity_chat_id": "-1004440589259",
     "bulletin_chat_id": "-1003810871076"
   },
+  "trendline_images": {
+    "_aciklama": "TREND ÇİZGİSİ bölümündeki kırılımların resmi (çizgi, temas noktaları, kırılım, retest) sinyalin hemen ardından gönderilir (en fazla max).",
+    "enabled": false,
+    "max": 3
+  },
   "formations": {
     "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında. images: kırılan grafik formasyonunun resmi sinyalin hemen ardından gönderilir (en fazla images_max).",
     "enabled": true,

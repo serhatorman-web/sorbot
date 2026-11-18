@@ -61,6 +61,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         y = cs[kb]["c"]
         ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 6, y + (0.18 if d == 1 else -0.18) * rng),
                     color=col, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=col), zorder=6)
+    rt = ciz.get("retest")
+    if rt is not None and start <= rt < end:
+        y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
+        ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=TARGET, markeredgewidth=1.6, zorder=6)
+        ax.annotate("Retest", xy=(rt, y), xytext=(rt + 3, y + (-1 if d == 1 else 1) * (
+            max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) * 0.12),
+            color=TARGET, fontsize=9, arrowprops=dict(arrowstyle="->", color=TARGET), zorder=6)
     tgt = g.get("hedef")
     if tgt is not None:
         ax.axhline(tgt, color=TARGET, linestyle="--", linewidth=1.2, zorder=4)
