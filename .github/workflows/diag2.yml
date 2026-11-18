@@ -1,0 +1,21 @@
+name: diag2
+on: workflow_dispatch
+jobs:
+  t15:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/newsys.py 15m 2>&1 | sed 's/^/NS| /' || true
+  t1h:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/newsys.py 1h 2>&1 | sed 's/^/NS| /' || true
+  t4h:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/newsys.py 4h 2>&1 | sed 's/^/NS| /' || true
