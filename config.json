@@ -418,5 +418,9 @@
     "equity_types": ["EQUITY", "KR_EQUITY", "HK_EQUITY"],
     "commodity_chat_id": "-1004440589259",
     "bulletin_chat_id": "-1003810871076"
+  },
+  "price_action": {
+    "_aciklama": "Sinyallerde PRICE ACTION bölümü (formasyonlar, FVG, order block). Kullanıcı isteğiyle kapalı; açmak için enabled: true.",
+    "enabled": false
   }
 }
