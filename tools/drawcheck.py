@@ -38,9 +38,17 @@ for sym in SYMS:
                 errs.append("kırılım mumu çizgiyi kapanışla geçmemiş")
             if kb - 1 > B and d * (c[kb - 1] - ln(kb - 1)) > 0.1 * a[kb - 1]:
                 errs.append("kırılım daha önce olmuş (ilk kırılım mumu değil)")
+            # kırılımdan önceki kapanışla geçişler ancak ardından 3 mumdan uzun içeride kalındıysa (başarısız kırılım) kabul
+            last_out, run, failed_ok = None, 0, True
             for k in range(B + 1, kb):
                 if d * (c[k] - ln(k)) > 0.1 * a[k]:
-                    errs.append(f"kırılımdan önce de kapanışla geçilmiş ({k})"); break
+                    last_out, run = k, 0
+                else:
+                    run += 1
+            if last_out is not None and run <= 3:
+                errs.append(f"kırılımdan önce de kapanışla geçilmiş ve içeride kısa kalmış ({last_out})")
+            elif last_out is not None:
+                print("TLNOT", sym, tf, ev["type"], f"önceki başarısız kırılım {last_out}, sonra {run} mum içeride")
             run = 0
             for k in range(kb + 1, n):
                 run = run + 1 if d * (c[k] - ln(k)) <= 0.1 * a[k] else 0
