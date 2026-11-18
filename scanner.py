@@ -1680,7 +1680,8 @@ def find_fvgs(f, i, lookback=100, min_atr=0.1):
                     lo = None
                     break
                 lo = max(lo, h_[j])
-        if hi is not None and lo is not None and hi > lo:
+        # kısmen dolup çok incelmiş boşluklar da gürültü sayılır
+        if hi is not None and lo is not None and hi - lo >= min_atr * a:
             out.append({"dir": d, "lo": lo, "hi": hi, "k": k})
     return out
 
