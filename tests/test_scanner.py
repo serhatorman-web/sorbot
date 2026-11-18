@@ -1179,6 +1179,4 @@ def test_formation_lines_text():
     assert scanner.formation_lines(res) == [
         "🧩 <b>FORMASYONLAR</b>",
         "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti",
-        "⚪ 15dk · Doji (mum) → kararsızlık, yön belirsiz",
-        "🔴 15dk · İkili Tepe → 90.00 aşağı kırıldı, düşüş beklenebilir · hedef 80.00",
-        "⚪ 4 saat · Simetrik Üçgen (oluşuyor) → 105.00 üstü kapanış yükseliş, 95.00 altı düşüş getirebilir"]
+        "🔴 15dk · İkili Tepe → 90.00 aşağı kırıldı, düşüş beklenebilir · hedef 80.00"]

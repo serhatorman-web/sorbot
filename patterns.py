@@ -280,7 +280,7 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                 found.append({"ad": name, "yon": bias, "durum": "kirildi" if kb is not None else "olusuyor",
                               "kirilim": d, "ust": upper(kb if kb is not None else n - 1),
                               "alt": lower(kb if kb is not None else n - 1),
-                              "hedef": (c[kb] + d * ws) if kb is not None else None})
+                              "hedef": ((upper(kb) if d == 1 else lower(kb)) + d * ws) if kb is not None else None})
 
     # ── Bayrak / flama ──
     best = None

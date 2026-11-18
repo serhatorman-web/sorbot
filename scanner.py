@@ -1856,8 +1856,8 @@ FORM_ICON = {1: "🟢", -1: "🔴", 0: "⚪"}
 
 
 def formation_lines(res):
-    """🧩 FORMASYONLAR: her zaman dilimi (sinyal TF ve üstü) için son mumdaki mum formasyonları ve
-    oluşan / yeni kırılan grafik formasyonları."""
+    """🧩 FORMASYONLAR: her zaman dilimi (sinyal TF ve üstü) için son mumdaki yönlü mum formasyonları ve
+    son 10 mumda kapanışla kırılmış grafik formasyonları (oluşmakta olanlar ve nötr mumlar yazılmaz)."""
     prec = res.get("meta", {}).get("precision")
     fp = lambda x: fmt_price(x, prec)
     out = []
@@ -1867,9 +1867,13 @@ def formation_lines(res):
             continue
         name = TF_NAMES.get(tf, tf)
         for ad, yon in fm["mum"]:
+            if yon == 0:               # nötr mumlar (doji, topaç) yön vermez – yazılmaz (kullanıcı isteği)
+                continue
             res_txt = {1: "yükseliş işareti", -1: "düşüş işareti", 0: "kararsızlık, yön belirsiz"}[yon]
             out.append(f"{FORM_ICON[yon]} {name} · {ad} (mum) → {res_txt}")
         for g in fm["grafik"]:
+            if g["durum"] != "kirildi":    # sadece kapanışla kırılmış (tamamlanmış) formasyonlar (kullanıcı isteği)
+                continue
             ad, yon = g["ad"], g["yon"]
             if g["durum"] == "kirildi":
                 d = g["kirilim"]
