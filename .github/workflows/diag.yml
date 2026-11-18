@@ -8,6 +8,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: formtest
+      - name: preview
         continue-on-error: true
-        run: python3 tools/formtest.py 2>&1 | sed 's/^/FT| /' || true
+        run: |
+          for s in BTCUSDT SOLUSDT; do SORBOT_TF=15m DRY_RUN=1 PREVIEW=1 PREVIEW_SYMBOL=$s python3 scanner.py 2>&1 | sed 's/^/PV| /' || true; done

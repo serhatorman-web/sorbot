@@ -1109,3 +1109,76 @@ def test_exchange_label():
     assert scanner.type_label({"symbol": "SAMSUNGUSDT", "type": "KR_EQUITY"}) == "KOSPI"
     assert scanner.type_label({"symbol": "ZZZUSDT", "type": "EQUITY"}) == "ABD Borsası"
     assert scanner.type_label({"symbol": "SUIUSDT", "type": "COIN"}) == "KRİPTO"
+
+
+def _candles_after(trend, bars):
+    o, h, l, c = [], [], [], []
+    p = 100.0
+    for _ in range(30):
+        q = p + trend
+        o.append(p); c.append(q); h.append(max(p, q) + 0.5); l.append(min(p, q) - 0.5)
+        p = q
+    for do, dh, dl, dc in bars:
+        o.append(p + do); h.append(p + dh); l.append(p + dl); c.append(p + dc)
+    return o, h, l, c
+
+
+def test_candle_patterns_turkish_names():
+    import patterns as pt
+    import indicators as ta
+    cases = [("Çekiç", 1, -1, [(0, 0.1, -3, 0.4)]), ("Asılı Adam", -1, 1, [(0, 0.1, -3, 0.4)]),
+             ("Kayan Yıldız", -1, 1, [(0, 3, -0.1, 0.4)]), ("Ters Çekiç", 1, -1, [(0, 3, -0.1, 0.4)]),
+             ("Yutan Boğa", 1, -1, [(0, 0.2, -2.2, -2), (-2.1, 0.6, -2.2, 0.5)]),
+             ("Boğa Harami", 1, -1, [(0, 0.2, -2.7, -2.5), (-2, -0.6, -2.1, -1)]),
+             ("Kara Bulut", -1, 1, [(0, 2.7, -0.2, 2.5), (2.5, 2.8, 0.6, 0.8)]),
+             ("Sabah Yıldızı", 1, -1, [(0, 0.2, -2.7, -2.5), (-2.6, -2.2, -3.2, -2.8), (-2.7, -0.5, -2.8, -0.7)]),
+             ("Üç Kara Karga", -1, 1, [(0, 0.1, -1.6, -1.5), (-1.0, -0.9, -3.1, -3.0), (-2.5, -2.4, -4.6, -4.5)]),
+             ("Doji", 0, -1, [(0, 0.5, -0.5, 0.02)])]
+    for name, yon, trend, bars in cases:
+        o, h, l, c = _candles_after(trend, bars)
+        got = pt.candle_patterns(o, h, l, c, ta.atr(h, l, c, 14))
+        assert (name, yon) in got, (name, got)
+
+
+def _zigzag(points):
+    c = []
+    for (k0, p0), (k1, p1) in zip(points, points[1:]):
+        for k in range(k0, k1):
+            c.append(p0 + (p1 - p0) * (k - k0) / (k1 - k0) + (0.18 if k % 2 else -0.18))
+    c.append(points[-1][1])
+    o = [c[0]] + c[:-1]
+    return o, [max(a, b) + 0.6 for a, b in zip(o, c)], [min(a, b) - 0.6 for a, b in zip(o, c)], c
+
+
+def test_chart_patterns_detected():
+    import patterns as pt
+    import indicators as ta
+    cases = [("İkili Tepe", "kirildi", [(0, 80), (40, 100), (55, 90), (70, 100), (82, 87)]),
+             ("İkili Dip", "kirildi", [(0, 120), (40, 100), (55, 110), (70, 100), (82, 113)]),
+             ("OBO", "kirildi", [(0, 80), (30, 100), (42, 92), (56, 108), (70, 92), (82, 100), (95, 88)]),
+             ("TOBO", "kirildi", [(0, 120), (30, 100), (42, 108), (56, 92), (70, 108), (82, 100), (95, 112)]),
+             ("Simetrik Üçgen", "olusuyor", [(0, 80), (20, 110), (32, 90), (44, 106), (56, 94), (66, 102), (74, 98)]),
+             ("Yükselen Üçgen", "olusuyor", [(0, 80), (20, 100), (30, 90), (40, 100), (50, 94), (60, 100), (68, 97)]),
+             ("Dikdörtgen", "olusuyor", [(0, 80), (20, 110), (32, 100), (44, 110), (56, 100), (68, 110), (78, 104)]),
+             ("Yükselen Kama", "kirildi", [(0, 80), (20, 100), (32, 96), (44, 108), (56, 106), (68, 114), (76, 112)]),
+             ("Yükselen Bayrak", "kirildi", [(0, 90), (50, 92), (58, 115), (66, 111), (68, 113), (72, 110), (75, 118)]),
+             ("Fincan Kulp", "olusuyor", [(0, 80), (20, 110), (35, 97), (45, 92), (55, 97), (70, 110), (76, 105), (80, 108)])]
+    for name, durum, pts in cases:
+        o, h, l, c = _zigzag(pts)
+        got = pt.chart_patterns(h, l, c, ta.atr(h, l, c, 14))
+        assert any(g["ad"] == name and g["durum"] == durum for g in got), (name, got)
+
+
+def test_formation_lines_text():
+    res = {"meta": {"precision": 2}, "forms": {
+        "15m": {"mum": [("Yutan Boğa", 1), ("Doji", 0)], "grafik": [
+            {"ad": "İkili Tepe", "yon": -1, "durum": "kirildi", "kirilim": -1, "seviye": 90.0, "hedef": 80.0}], "price": 89},
+        "4h": {"mum": [], "grafik": [
+            {"ad": "Simetrik Üçgen", "yon": 0, "durum": "olusuyor", "kirilim": 0, "ust": 105.0, "alt": 95.0, "hedef": None}],
+            "price": 100}}}
+    assert scanner.formation_lines(res) == [
+        "🧩 <b>FORMASYONLAR</b>",
+        "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti",
+        "⚪ 15dk · Doji (mum) → kararsızlık, yön belirsiz",
+        "🔴 15dk · İkili Tepe → 90.00 aşağı kırıldı, düşüş beklenebilir · hedef 80.00",
+        "⚪ 4 saat · Simetrik Üçgen (oluşuyor) → 105.00 üstü kapanış yükseliş, 95.00 altı düşüş getirebilir"]
