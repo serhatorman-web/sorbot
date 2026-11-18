@@ -243,7 +243,7 @@ def type_label(meta):
     if typ == "COMMODITY":
         kind = "Değerli Metal" if sym in PRECIOUS_METALS else "Emtia"
         name = COMMODITY_NAMES.get(sym)
-        return f"{kind} ({name})" if name else kind
+        return tr_up(f"{kind} ({name})" if name else kind)
     return TYPE_LABEL.get(typ, typ)
 
 
