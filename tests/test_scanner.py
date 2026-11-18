@@ -1101,3 +1101,11 @@ def test_fvg():
     assert any(x.startswith("🟢 Boğa FVG (destek): 106.00 – 107.00") for x in lines), lines
     f2 = dict(f, l=[95, 99, 105, 107, 99, 108])          # 4. mum boşluğu doldurdu
     assert not [x for x in scanner.find_fvgs(f2, 5) if x["k"] == 2]
+
+
+def test_exchange_label():
+    assert scanner.type_label({"symbol": "COSTUSDT", "type": "EQUITY"}) == "NASDAQ"
+    assert scanner.type_label({"symbol": "ORCLUSDT", "type": "EQUITY"}) == "NYSE"
+    assert scanner.type_label({"symbol": "SAMSUNGUSDT", "type": "KR_EQUITY"}) == "KOSPI"
+    assert scanner.type_label({"symbol": "ZZZUSDT", "type": "EQUITY"}) == "ABD Borsası"
+    assert scanner.type_label({"symbol": "SUIUSDT", "type": "COIN"}) == "Kripto"

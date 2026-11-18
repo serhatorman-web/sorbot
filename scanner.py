@@ -211,9 +211,35 @@ def banner_lines(meta, cfg, direction=None):
     return [bar, f"{b[1]} · {tf}", bar, ""]
 
 
+# Hisselerin işlem gördüğü borsa (mesajda "Hisse" yerine yazılır). Listede olmayan ABD hissesi: "ABD Borsası".
+NYSE_STOCKS = {"BABA", "BE", "BMNR", "COHR", "CRCL", "DELL", "GLW", "IBM", "LLY", "NOW", "ORCL", "TSM", "SPY",
+               "BRKB", "JPM", "V", "WMT", "XOM", "UNH", "HD", "ABBV", "BAC", "KO", "MRK", "GEV", "CAT", "ACN",
+               "MCD", "DIS", "GS", "SHOP", "UBER", "ANET", "CRM", "NVO", "PFE", "CEG", "BX", "SONY", "USAR"}
+NASDAQ_STOCKS = {"AAOI", "AAPL", "ADBE", "AMAT", "AMD", "AMZN", "APP", "ARM", "ASML", "AVGO", "AXTI", "BNC", "CBRS",
+                 "COIN", "COST", "CRWV", "FLNC", "GOOGL", "HOOD", "INTC", "IREN", "LITE", "META", "MRNA", "MRVL",
+                 "MSFT", "MSTR", "MU", "MUU", "NBIS", "NFLX", "NVDA", "PLTR", "QCOM", "QQQ", "RKLB", "SKHY", "SMCI",
+                 "SNDK", "SPCX", "TSLA", "WDC", "PDD", "MELI", "TXN", "KLAC", "LRCX", "CSCO", "PANW", "CRWD",
+                 "AMGN", "CRDO", "ASTS", "ALAB"}
+
+
+def exchange_label(meta):
+    sym, typ = meta["symbol"].removesuffix("USDT"), meta.get("type")
+    if typ == "KR_EQUITY":
+        return "KOSPI"
+    if typ == "HK_EQUITY":
+        return "HKEX"
+    if sym in NASDAQ_STOCKS:
+        return "NASDAQ"
+    if sym in NYSE_STOCKS:
+        return "NYSE"
+    return "ABD Borsası"
+
+
 def type_label(meta):
-    """Mesaj başlığındaki tür: Kripto / Hisse / Değerli Metal (Altın) / Emtia (Brent Petrol)."""
+    """Mesaj başlığındaki tür: Kripto / NASDAQ · NYSE · KOSPI (hisseler) / Değerli Metal (Altın) / Emtia (Brent Petrol)."""
     sym, typ = meta["symbol"], meta["type"]
+    if typ in ("EQUITY", "KR_EQUITY", "HK_EQUITY"):
+        return exchange_label(meta)
     if typ == "COMMODITY":
         kind = "Değerli Metal" if sym in PRECIOUS_METALS else "Emtia"
         name = COMMODITY_NAMES.get(sym)
