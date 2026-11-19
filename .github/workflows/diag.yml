@@ -7,11 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m pip install --quiet --user matplotlib || true
-      - name: deneme tarama
-        continue-on-error: true
-        run: |
-          SORBOT_TF=15m DRY_RUN=1 python3 scanner.py 2>&1 | grep -A2 "TELEGRAM RESMİ\|Anlık grafik\|Bitti:\|resmi\|hatası" | sed 's/^/LV| /' || true
-          DRY_RUN=1 python3 scanner.py 2>&1 | grep -A2 "TELEGRAM RESMİ\|Anlık grafik\|Bitti:\|resmi\|hatası" | sed 's/^/LV| /' || true
       - name: oran
         continue-on-error: true
         run: python3 tools/liverate.py 2>&1 | sed 's/^/LR| /' || true
