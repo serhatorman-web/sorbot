@@ -1,4 +1,4 @@
-"""SSL Hybrid baseline (HMA 60 + Keltner 0.2) rengi + SSL çıkış etiketleri: SKY/BTC 1s olay listesi ve 80 coin testi.
+"""SSL Hybrid baseline (HMA 55 + Keltner 0.2) rengi + SSL çıkış etiketleri: SKY/BTC 1s olay listesi ve 80 coin testi.
 Sinyal: baseline rengi döner (kırmızı → SHORT, mavi → LONG); 'uyarılı' = son N mumda aynı yönde SSL çıkış etiketi.
 Çıkış A: TP 1/2/3R yönetimli · Çıkış B: çizgi ters renge dönene kadar tut (ilk stop aynı)."""
 import sys, time, statistics as st
@@ -12,7 +12,7 @@ TFS = {"15m": (90, 400), "1h": (365, 300)}
 TF_MS = {"15m": 900000, "1h": 3600000, "4h": 14400000}
 
 
-def baseline(h, l, c, n=60, mult=0.2):
+def baseline(h, l, c, n=55, mult=0.2):
     bb = ta.hma(c, n)
     tr = ta.true_range(h, l, c)
     rma = ta.ema([x or 0 for x in tr], n)
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     base = S.load_json(S.CONFIG_PATH, None)
     api = S.Binance()
     now = int(time.time() * 1000)
-    for sym in ("SKYUSDT", "BTCUSDT"):
+    for sym in ("SKYUSDT",):
         show(api, sym, now, base)
     info = api.get("/fapi/v1/exchangeInfo")
     ok = {s["symbol"] for s in info["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"
