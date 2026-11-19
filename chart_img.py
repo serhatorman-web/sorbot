@@ -74,9 +74,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     tgt = g.get("hedef")
     if tgt is not None:
         ax.axhline(tgt, color=TARGET, linestyle="--", linewidth=1.2, zorder=4)
-        ax.text(end + 1, tgt, f" Hedef {_fmt(tgt, prec)}", color=TARGET, fontsize=9, va="center", zorder=7,
-                bbox=dict(facecolor=BG, edgecolor="none", pad=1))
-    if lvl is not None:
+        ax.text(start + 1, tgt, f" Hedef {_fmt(tgt, prec)}", color=TARGET, fontsize=9, va="bottom", zorder=7,
+                bbox=dict(facecolor=BG, edgecolor="none", pad=1))     # sol başta: TP etiketleriyle çakışmasın
+    if lvl is not None and not (g.get("plan") or {}).get("at_level"):     # giriş kırılımdaysa etiket "Giriş (kırılım)"
         ax.text(end + 1, lvl, f" Kırılım {_fmt(lvl, prec)}", color=LINE, fontsize=9, va="center", zorder=7,
                 bbox=dict(facecolor=BG, edgecolor="none", pad=1))
     # işlem planı: giriş / TP1-2-3 / stop ve kâr (yeşil) – zarar (kırmızı) bölgeleri (kullanıcı isteği)
