@@ -160,7 +160,7 @@ def htf_trend(cs4):
     return 0
 
 
-def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None):
+def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None, m15=None):
     cat, short = RULES[sig["rule"]]
     icon, title, side = CATS[cat]
     d = sig["d"]
@@ -175,7 +175,8 @@ def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None):
     lines += [f"🛑 <b>Stop:</b> {fmt(lv['stop'])} ({p(lv['stop']):+.2f}%)",
               "━━━━━━━━━━━━━━━━",
               f"📝 {sig['why'][0].upper() + sig['why'][1:]}",
-              *([f"🧭 1 saatlik trend: {tr_txt[h1]}"] if h1 is not None else []),     # 15dk sinyalde (kullanıcı isteği)
+              *([f"🧭 15dk trend: {tr_txt[m15]}"] if m15 is not None else []),     # her sinyalde 15dk / 1s / 4s
+              *([f"🧭 1 saatlik trend: {tr_txt[h1]}"] if h1 is not None else []),     # (kullanıcı isteği)
               f"🧭 4 saatlik trend: {tr_txt[htf]}",
               *([f"📊 Geçmiş test: TP1 %{cfg_rule['test_tp1']} · ortalama {cfg_rule['test_r']:+.2f}R "
                  f"(işlem başına, ücret düşülmüş)"] if "test_r" in cfg_rule else []),
@@ -220,9 +221,9 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
             if seen.get(key, 0) >= now - cool:
                 continue
-            cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i]))
+            cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c])))
     sent, htf_cache = 0, {}
-    for meta, sig, rc, a, close, t_open in cands:
+    for meta, sig, rc, a, close, t_open, own_tr in cands:
         if sent >= sc.get("max_per_scan", 10):
             break
         sym = meta["symbol"]
@@ -238,17 +239,21 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         htf = htf_cache[sym]
         if rc.get("htf") and htf != sig["d"]:
             continue
-        h1 = None
-        if tf == "15m":
+        tr = {}
+        for k in ("15m", "1h"):                  # 15dk ve 1 saatlik trend (4 saatlik yukarıda)
+            if k == tf:
+                tr[k] = own_tr
+                continue
             try:
-                h1 = htf_trend(parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": "1h", "limit": 260}),
-                                            now * 1000))
+                tr[k] = htf_trend(parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": k, "limit": 260}),
+                                               now * 1000))
             except Exception:  # noqa: BLE001
-                h1 = 0
+                tr[k] = 0
         lv = levels(close, sig["d"], sig["stop"], a, rc.get("min_stop_pct", 0.0))
         prec = meta.get("precision")
         t_close = datetime.fromtimestamp((t_open + tf_ms) / 1000, tr_tz).strftime("%d.%m.%Y %H:%M")
-        msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc, h1)
+        msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc,
+                      tr.get("1h"), tr.get("15m"))
         try:
             if notifier.send_sniper(msg):
                 seen[key] = now

@@ -1368,9 +1368,9 @@ def test_sniper_pump_and_levels():
     lv = sniper.levels(100.0, -1, 100.2, 1.0, min_stop_pct=1.0)       # dar stop %1'e genişler
     assert abs(lv["stop"] - 101.0) < 1e-9 and abs(lv["tp"][2] - 97.0) < 1e-9
     msg = sniper.message("🪙 <b>SUI</b>", "15dk", sig[0], sniper.levels(104.0, 1, 103.0, 1.0), lambda p: f"{p:.2f}",
-                         "19.11.2026 14:00", 1, {}, h1=-1)
+                         "19.11.2026 14:00", 1, {}, h1=-1, m15=0)
     assert msg.splitlines()[0] == "🚀 <b>PUMP · LONG</b> · 15dk"
-    assert "🧭 1 saatlik trend: 🔴 düşüş\n🧭 4 saatlik trend: 🟢 yükseliş" in msg
+    assert "🧭 15dk trend: ⚪ yatay\n🧭 1 saatlik trend: 🔴 düşüş\n🧭 4 saatlik trend: 🟢 yükseliş" in msg
     assert "📍 <b>Giriş:</b> 104.00" in msg and "🎯 <b>TP3:</b> 107.00 (+2.88%)" in msg and "🛑 <b>Stop:</b> 103.00 (-0.96%)" in msg
     short = {"rule": "top_sweep", "d": -1, "stop": 959.22, "why": "test"}
     msg = sniper.message("ZEC", "15dk", short, sniper.levels(949.72, -1, 959.22, 5.0), lambda p: f"{p:.2f}",
