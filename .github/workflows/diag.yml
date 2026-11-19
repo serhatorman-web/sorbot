@@ -1,0 +1,12 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 scanner.py > o.txt 2>&1 || true
+          SORBOT_TF=15m python3 scanner.py > o15.txt 2>&1 || true
+          for f in o.txt o15.txt; do grep -E "Traceback|Error" $f | sed 's/^/PV| /'; awk '/----- TELEGRAM MESAJI/{p=1;n++} p&&n<=2{print "PV| "$0} /^------------------------------------------$/{if(p)p=0}' $f; done
