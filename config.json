@@ -441,7 +441,7 @@
   },
   "live_images": {
     "_aciklama": "Sinyali beklemeden: her taramada o zaman diliminin son kapanan mumunda kırılan trend çizgileri (trendlines) ve tamamlanan grafik formasyonları (formations) Sorbot Grafikler kanalına resim olarak gönderilir. Her olay bir kez; taramada en fazla max_per_scan resim (önce majörler).",
-    "enabled": true,
+    "enabled": false,
     "trendlines": true,
     "formations": true,
     "max_per_scan": 15
