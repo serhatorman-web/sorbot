@@ -2808,12 +2808,11 @@ def build_message(res, direction, cfg, now_utc):
     if res.get("votes"):
         lines += ([] if lines and lines[-1] == SEP else [""]) + indicator_list_lines(res, direction)
         # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
-        # ICHIMOKU, HACİM PROFİLİ ve PRICE ACTION kullanıcı isteğiyle kaldırıldı; PIVOTS tekrar açıldı
+        # PIVOTS, ICHIMOKU, HACİM PROFİLİ ve PRICE ACTION kullanıcı isteğiyle kaldırıldı (pivotlar grafik resimlerinde)
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
         for block in (trendline_lines(res), volume_lines(res, cfg),
-                      pivot_lines(res, direction, cfg),       # 📍 PIVOTS tekrar açıldı (kullanıcı isteği)
                       (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
                       (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
