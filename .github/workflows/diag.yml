@@ -1,0 +1,9 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: SORBOT_TF=15m python3 scanner.py > out15.txt 2>&1; python3 scanner.py > out1h.txt 2>&1; for f in out15.txt out1h.txt; do awk '/gönderilmedi → Sorbot Nokta Atışı/{p=1;n++} p&&n<=2{print "NA| "$0} /^------------------------------------------$/{if(p)p=0}' $f; grep -E "Traceback|Nokta atışı:|hatası" $f | sed 's/^/NA| /'; done

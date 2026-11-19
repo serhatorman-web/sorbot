@@ -185,7 +185,7 @@ def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None, m15=No
     return "\n".join(lines)
 
 
-def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, tr_tz, tf_ms):
+def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, tr_tz, tf_ms, render=None):
     """Bu taramanın zaman diliminde son kapanan mumdaki Nokta Atışı sinyallerini gönderir."""
     sc = cfg.get("sniper", {})
     tf = cfg["timeframe"]
@@ -221,9 +221,9 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
             if seen.get(key, 0) >= now - cool:
                 continue
-            cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c])))
+            cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
     sent, htf_cache = 0, {}
-    for meta, sig, rc, a, close, t_open, own_tr in cands:
+    for meta, sig, rc, a, close, t_open, own_tr, r in cands:
         if sent >= sc.get("max_per_scan", 10):
             break
         sym = meta["symbol"]
@@ -240,7 +240,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         if rc.get("htf") and htf != sig["d"]:
             continue
         tr = {}
-        for k in ("15m", "1h"):                  # 15dk ve 1 saatlik trend (4 saatlik yukarıda)
+        for k in (() if render else ("15m", "1h")):    # Supertrend formatında trend tablosu zaten var                  # 15dk ve 1 saatlik trend (4 saatlik yukarıda)
             if k == tf:
                 tr[k] = own_tr
                 continue
@@ -252,8 +252,11 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         lv = levels(close, sig["d"], sig["stop"], a, rc.get("min_stop_pct", 0.0))
         prec = meta.get("precision")
         t_close = datetime.fromtimestamp((t_open + tf_ms) / 1000, tr_tz).strftime("%d.%m.%Y %H:%M")
-        msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc,
-                      tr.get("1h"), tr.get("15m"))
+        if render:                                 # Supertrend sinyalleriyle aynı format (kullanıcı isteği)
+            msg = render(r, sig, lv, rc)
+        else:
+            msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc,
+                          tr.get("1h"), tr.get("15m"))
         try:
             if notifier.send_sniper(msg):
                 seen[key] = now

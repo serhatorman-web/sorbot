@@ -1068,6 +1068,9 @@ def stop_distance(f, i, s, risk_cfg, method=None):
 
 def levels(res, direction, cfg, method=None):
     f, i = res["f"], res["i"]
+    sn = res.get("sniper_sig")
+    if sn and sn["dir"] == direction:         # 🎯 Nokta Atışı: kendi giriş / stop / TP'leri
+        return sn["entry"], sn["stop"], sn["tp"], sn["stop_label"]
     entry = f["c"][i]
     s = 1 if direction == "long" else -1
     ps = res.get("pivot_sig")
@@ -2604,6 +2607,9 @@ def build_message(res, direction, cfg, now_utc):
         head = "🔷 <b>SSL</b> · " + head
     if (res.get("pivot_sig") or {}).get("dir") == direction:
         head = "📍 <b>PIVOT</b> · " + head
+    sn = res.get("sniper_sig") if (res.get("sniper_sig") or {}).get("dir") == direction else None
+    if sn:
+        head = "🎯 <b>NOKTA ATIŞI</b> · " + head
     # teknik görünüm (Güçlü AL / AL / Nötr / SAT / Güçlü SAT, yüzdeli) + trend uyum satırları; güven skoru yok
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True):
@@ -2611,13 +2617,19 @@ def build_message(res, direction, cfg, now_utc):
     top = []
     for x in align:
         top += [x, ""]
+    if sn:                                     # 🎯 Nokta Atışı: sinyalin sebebi ve geçmiş test sonucu
+        top += [f"🎯 <b>{sn['rule_name']}</b>: {sn['why']}", ""]
+        if sn.get("test"):
+            top += [sn["test"], ""]
     # bant: BTC / ETH kendi bandı; diğerleri LONG 🟩 / SHORT 🟥 (PUMP / DUMP SİNYALİ gibi)
-    banner = banner_lines(meta, cfg, direction)
+    banner = [] if sn else banner_lines(meta, cfg, direction)
     if not banner:
         bar = ("🟩" if direction == "long" else "🟥") * 10
         title = "📈 <b>LONG SİNYALİ</b>" if direction == "long" else "📉 <b>SHORT SİNYALİ</b>"
+        if sn:
+            title = f"{sn['icon']} <b>{sn['title']} · {'LONG' if direction == 'long' else 'SHORT'}</b>"
         tf_s = TF_SHORT.get(cfg.get('timeframe', '1h'), cfg.get('timeframe', ''))
-        name = banner_name(meta)
+        name = display_name(meta) if sn else banner_name(meta)
         if name:      # 🟥… / 🇺🇸 NVDA · 📉 SHORT SİNYALİ · 15dk / 🟥…  (hisse, altcoin, emtia)
             title = f"{name} · {title}"
         banner = [bar, f"{title} · {tf_s}", bar, ""]
@@ -2703,6 +2715,29 @@ def build_message(res, direction, cfg, now_utc):
     put_time_top(lines, t_close)
     lines += ["", "Yatırım tavsiyesi değildir."]
     return plain_font("\n".join(lines))
+
+
+def build_sniper_message(api, r, sig, lv, rc, cfg, now_utc, now_ms):
+    """🎯 Nokta Atışı sinyali, Supertrend sinyalleriyle aynı formatta (kullanıcı isteği): bant, işlem skoru,
+    giriş / stop / TP'ler, indikatörler, trend tablosu, trend çizgisi, hacim, formasyonlar, piyasa durumu."""
+    d = "long" if sig["d"] == 1 else "short"
+    cat, short = sniper.RULES[sig["rule"]]
+    icon, title, _ = sniper.CATS[cat]
+    if "tf" not in r:
+        fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
+    if "vp" not in r:
+        compute_volume_profile(r, cfg)
+    floor = r["f"]["c"][r["i"]] * rc.get("min_stop_pct", 0.0) / 100
+    r["sniper_sig"] = {
+        "dir": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"],
+        "stop_label": "%1 alt sınırı" if floor and abs(lv["risk"] - floor) < 1e-12 else "yapı stopu (son tepe/dip ötesi)",
+        "icon": icon, "title": title, "rule_name": short, "why": sig["why"][0].upper() + sig["why"][1:],
+        "test": (f"📊 Geçmiş test: TP1 %{rc['test_tp1']} · ortalama {rc['test_r']:+.2f}R (işlem başına, ücret düşülmüş)"
+                 if "test_r" in rc else "")}
+    try:
+        return build_message(r, d, cfg, now_utc)
+    finally:
+        r.pop("sniper_sig", None)
 
 
 def build_radar_message(res, rd, cfg, now_utc):
@@ -3444,7 +3479,8 @@ def main():
 
     # ---- 🎯 Nokta Atışı sinyalleri (ayrı kanal) ----
     try:
-        n_sn = sniper.scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, TR_TZ, tf_ms(cfg))
+        n_sn = sniper.scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, TR_TZ, tf_ms(cfg),
+                           render=lambda r_, sig_, lv_, rc_: build_sniper_message(api, r_, sig_, lv_, rc_, cfg, now_utc, now_ms))
         if cfg.get("sniper", {}).get("enabled"):
             print(f"Nokta atışı: {n_sn} sinyal")
     except Exception as e:  # noqa: BLE001
