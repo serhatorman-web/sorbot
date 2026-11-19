@@ -230,6 +230,17 @@ def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None, m15=No
     return "\n".join(lines)
 
 
+def still_open(rec, f, i):
+    """Gönderilmiş sinyal hâlâ açık mı: sinyal mumundan sonra fiyat ne stopa ne TP3'e değdi."""
+    d = rec["d"]
+    for k in range(i, -1, -1):
+        if f["t"][k] <= rec["t"]:
+            break
+        if (f["l"][k] <= rec["stop"] or f["h"][k] >= rec["tp3"]) if d == 1 else (f["h"][k] >= rec["stop"] or f["l"][k] <= rec["tp3"]):
+            return False
+    return True
+
+
 def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, tr_tz, tf_ms, render=None):
     """Bu taramanın zaman diliminde son kapanan mumdaki Nokta Atışı sinyallerini gönderir."""
     sc = cfg.get("sniper", {})
@@ -240,6 +251,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
     rules = {k: v for k, v in sc.get("rules", {}).get(tf, {}).items() if not k.startswith("_") and v.get("enabled")}
     seen = state.setdefault("sniper", {})
     cool = sc.get("cooldown_bars", 0) * tf_ms / 1000          # 0 = bekleme yok (kullanıcı isteği)
+    opened = state.setdefault("sniper_open", {})            # açık sinyaller: aynı hareketin tekrarını önler
     cands = []
     for r in results:
         meta, f, i = r["meta"], r["f"], r["i"]
@@ -268,6 +280,9 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
             if cool and sig["rule"] not in SSL_RULES and seen.get(key, 0) >= now - cool:
                 continue
+            ok_key = f"{meta['symbol']}|{tf}|{sig['rule']}|{sig['d']}"
+            if ok_key in opened and still_open(opened[ok_key], f, i):
+                continue                    # aynı kuralın aynı yöndeki sinyali stop / TP3 olmadan tekrar gönderilmez
             cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
     sent, sent_other, htf_cache = 0, 0, {}
     # SSL sistemi (kullanıcının stratejisi) önce gönderilir: taramada en fazla max_per_scan sinyal gittiği için
@@ -311,10 +326,13 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         try:
             if notifier.send_sniper(msg, sym, meta.get("type")):
                 seen[key] = now
+                opened[f"{sym}|{tf}|{sig['rule']}|{sig['d']}"] = {"t": t_open, "d": sig["d"], "stop": lv["stop"],
+                                                                "tp3": lv["tp"][-1], "at": now}
                 sent += 1
                 sent_other += 0 if is_ssl else 1
                 print(f"  → Nokta atışı: {sym} {RULES[sig['rule']][0]} {sig['rule']} ({tf})")
         except Exception as e:  # noqa: BLE001
             print(f"  Nokta atışı gönderilemedi ({sym}): {e}")
     state["sniper"] = {k: v for k, v in seen.items() if v >= now - 3 * 86400}
+    state["sniper_open"] = {k: v for k, v in opened.items() if v.get("at", 0) >= now - 3 * 86400}
     return sent

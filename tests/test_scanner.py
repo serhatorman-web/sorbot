@@ -1442,3 +1442,15 @@ def test_sniper_channel_routing():
     n.sniper_major, n.sniper_equity = "", ""
     assert n.sniper_chat_for("BTCUSDT", "COIN")[0] == "A"          # majör kanalı yokken eski kanal
     assert n.sniper_chat_for("NVDAUSDT", "EQUITY")[0] == ""        # Nasdaq kanalı yokken gönderilmez
+
+
+def test_sniper_still_open():
+    """Aynı kuralın sinyali stop / TP3 olmadan tekrar gönderilmez."""
+    import sniper
+    f = {"t": [0, 1, 2, 3], "h": [10, 10.5, 10.6, 10.4], "l": [9.5, 9.6, 9.7, 9.8]}
+    rec = {"t": 0, "d": -1, "stop": 11.0, "tp3": 8.0}            # SHORT: ne stop ne TP3
+    assert sniper.still_open(rec, f, 3) is True
+    f["h"][2] = 11.2                                              # stop oldu → yeni sinyal serbest
+    assert sniper.still_open(rec, f, 3) is False
+    rec = {"t": 0, "d": 1, "stop": 9.0, "tp3": 10.55}            # LONG: TP3'e ulaştı
+    assert sniper.still_open(rec, {"t": [0, 1, 2], "h": [10, 10.5, 10.6], "l": [9.5, 9.6, 9.7]}, 2) is False
