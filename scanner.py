@@ -2041,6 +2041,17 @@ def follow_through(cs, kb, d, upto):
     return None
 
 
+def trade_plan(h, l, c, a, d, min_stop_pct=1.0):
+    """Grafik resmindeki işlem planı: giriş = son kapanış, stop = son 10 mumun dibi/tepesi ötesi (0.2 ATR tampon,
+    0.5–3 ATR arası, en az %min_stop_pct), TP1/2/3 = 1R/2R/3R (Nokta Atışı ile aynı)."""
+    ai = a[-1] or 0
+    if not ai:
+        return None
+    stop = (min(l[-10:]) - 0.2 * ai) if d == 1 else (max(h[-10:]) + 0.2 * ai)
+    lv = sniper.levels(c[-1], d, stop, ai, min_stop_pct)
+    return {"d": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"]}
+
+
 def live_images(results, cfg, state, now):
     """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
     formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
@@ -2059,6 +2070,8 @@ def live_images(results, cfg, state, now):
         if len(cs) < 60:
             continue
         h = [x["h"] for x in cs]; l = [x["l"] for x in cs]; c = [x["c"] for x in cs]
+        a_all = ta.atr(h, l, c, 14)
+        draw_plan = lc.get("trade_plan", True)
         n = len(c)
         prec = meta.get("precision")
         name = display_name(meta)
@@ -2100,6 +2113,8 @@ def live_images(results, cfg, state, now):
                 kind = "Düşen" if d == 1 else "Yükselen"
                 what = "retest tamamlandı" if kind_key == "rt" else "kırıldı"
                 try:
+                    if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
+                        g["plan"] = trade_plan(h, l, c, a_all, d)
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}", prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Trend çizgisi resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
@@ -2155,6 +2170,8 @@ def live_images(results, cfg, state, now):
                 d = g["kirilim"]
                 yonu = "yukarı" if d == 1 else "aşağı"
                 try:
+                    if draw_plan:
+                        g = dict(g, plan=trade_plan(h, l, c, a_all, d))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)", prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Formasyon resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)

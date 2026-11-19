@@ -76,12 +76,29 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if lvl is not None:
         ax.text(end + 1, lvl, f" Kırılım {_fmt(lvl, prec)}", color=LINE, fontsize=9, va="center", zorder=7,
                 bbox=dict(facecolor=BG, edgecolor="none", pad=1))
+    # işlem planı: giriş / TP1-2-3 / stop ve kâr (yeşil) – zarar (kırmızı) bölgeleri (kullanıcı isteği)
+    plan = g.get("plan")
+    x_right = end + int((end - start) * 0.22) + 4
+    extra = [tgt] if tgt is not None else []
+    if plan:
+        e, sl, tps, pd_ = plan["entry"], plan["stop"], plan["tp"], plan["d"]
+        x0, x1 = end - 1, x_right - 1
+        ax.add_patch(plt.Rectangle((x0, min(e, tps[-1])), x1 - x0, abs(tps[-1] - e), color=UP, alpha=0.16, zorder=1))
+        ax.add_patch(plt.Rectangle((x0, min(e, sl)), x1 - x0, abs(e - sl), color=DOWN, alpha=0.20, zorder=1))
+        pc = lambda v: (v / e - 1) * 100 * pd_
+        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [("Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
+        for name, v, colr, ls in rows:
+            ax.plot([x0, x1], [v, v], color=colr, linestyle=ls, linewidth=1.1, zorder=4)
+            lab = f"{name} {_fmt(v, prec)}" + ("" if name == "Giriş" else f" ({pc(v):+.2f}%)")
+            ax.text(x1, v, lab + " ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
+                    bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
+        extra += [sl, tps[-1]]
     # eksenler
-    lows = [cs[k]["l"] for k in xs] + ([tgt] if tgt is not None else [])
-    highs = [cs[k]["h"] for k in xs] + ([tgt] if tgt is not None else [])
+    lows = [cs[k]["l"] for k in xs] + extra
+    highs = [cs[k]["h"] for k in xs] + extra
     pad = (max(highs) - min(lows)) * 0.06
     ax.set_ylim(min(lows) - pad, max(highs) + pad)
-    ax.set_xlim(start - 1, end + int((end - start) * 0.22) + 4)
+    ax.set_xlim(start - 1, x_right)
     ticks = list(range(start, end, max(1, (end - start) // 6)))
     ax.set_xticks(ticks)
     ax.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
