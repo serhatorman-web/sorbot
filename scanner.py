@@ -2042,7 +2042,8 @@ def follow_through(cs, kb, d, upto):
 
 
 def lvl_now(g, d):
-    """Formasyonun kırılım seviyesi (boyun / kenar)."""
+    """Formasyonun kırılım mumundaki seviyesi (boyun / kenar). Eğimli çizgilerde (kama, kanal, eğik boyun) son mumdaki
+    değer değil, kırılım mumundaki değer: giriş kırılımın olduğu yerde (kullanıcı isteği)."""
     return g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
 
 
@@ -2241,7 +2242,7 @@ def live_images(results, cfg, state, now):
                     g["supertrend"] = st_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
-                        g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1), risk_cfg=cfg["risk"])
+                        g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(kb), risk_cfg=cfg["risk"])
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}"
                                                    + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
@@ -2307,7 +2308,7 @@ def live_images(results, cfg, state, now):
                     if st_bg:
                         g = dict(g, supertrend=st_bg)
                     if draw_plan:
-                        g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d), risk_cfg=cfg["risk"]))
+                        g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=lvl_now(g, d), risk_cfg=cfg["risk"]))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
                                                    + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
