@@ -65,6 +65,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                     clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
     # arka planda pivot indikatörü (bilgi amaçlı): her dönemin P / R1-R3 / S1-S3 çizgileri, mumların arkasında
     bg = [sg for sg in (g.get("pivot_bg") or []) if sg["k1"] >= start]
+    if g.get("pivot_current_only") and bg:     # sadece içinde bulunulan dönem (eski dönem çizgileri yok)
+        bg = bg[-1:]
     x_full = end + int((end - start) * 0.22) + 4          # grafiğin sağ kenarı
     for j, sg in enumerate(bg):
         last = j == len(bg) - 1
@@ -168,6 +170,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # eksenler
     if pv:
         extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
+    if bg and g.get("pivot_current_only"):     # P, R1, S1 her resimde görünsün
+        extra += [bg[-1][nm] for nm in ("P", "R1", "S1")]
     if bg:                                     # fiyatın hemen üstündeki ve altındaki pivot da görünsün
         lv_ = [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3")]
         hi_p, lo_p = max(cs[k]["h"] for k in xs), min(cs[k]["l"] for k in xs)

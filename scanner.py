@@ -2231,6 +2231,7 @@ def live_images(results, cfg, state, now):
                     g["pivots"] = pv_draw
                 if pv_bg:
                     g["pivot_bg"] = pv_bg
+                    g["pivot_current_only"] = lc.get("pivot_current_only", False)
                 if st_bg:
                     g["supertrend"] = st_bg
                 try:
@@ -2297,7 +2298,7 @@ def live_images(results, cfg, state, now):
                     if pv_draw:
                         g = dict(g, pivots=pv_draw)
                     if pv_bg:
-                        g = dict(g, pivot_bg=pv_bg)
+                        g = dict(g, pivot_bg=pv_bg, pivot_current_only=lc.get("pivot_current_only", False))
                     if st_bg:
                         g = dict(g, supertrend=st_bg)
                     if draw_plan:
