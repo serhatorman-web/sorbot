@@ -2671,6 +2671,9 @@ def build_message(res, direction, cfg, now_utc):
                   "", f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}{st_note}"]
     elif res.get("votes"):
         st_word = "AL" if direction == "long" else "SAT"
+        if sn:                                 # Nokta Atışı: Supertrend'in gerçek durumu (tetik değil)
+            st_now = f["st_dir"][i]
+            st_word = "AL" if st_now == 1 else ("SAT" if st_now == -1 else "—")
         if psig:
             lines += ["", SEP, f"📌 Tetik: Pivot {'üstünde' if direction == 'long' else 'altında'} kapanış "
                                f"+ Supertrend, DynaRange, QQE MOD onayı"]
