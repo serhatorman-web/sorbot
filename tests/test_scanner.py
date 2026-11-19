@@ -1376,3 +1376,10 @@ def test_sniper_pump_and_levels():
                          "19.11.2026 14:00", -1, {})
     assert "🎯 <b>TP1:</b> 940.22 (+1.00%)" in msg and "🎯 <b>TP3:</b> 921.22 (+3.00%)" in msg
     assert "🛑 <b>Stop:</b> 959.22 (-1.00%)" in msg
+
+
+def test_pnl_short_tp_positive():
+    """SHORT sinyalde TP'ler kâr (+), stop zarar (−) yazılır."""
+    assert f"{scanner.pnl(940.22, 949.72, 'short'):+.2f}" == "+1.00"
+    assert f"{scanner.pnl(959.22, 949.72, 'short'):+.2f}" == "-1.00"
+    assert f"{scanner.pnl(105, 100, 'long'):+.2f}" == "+5.00" and f"{scanner.pnl(95, 100, 'long'):+.2f}" == "-5.00"
