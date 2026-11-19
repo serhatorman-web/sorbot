@@ -73,8 +73,10 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             colr = PIVOT if nm == "P" else PIV_COL
             ax.plot([x0, x1], [sg[nm], sg[nm]], color=colr, linewidth=1.5 if nm == "P" else 1.2, alpha=0.95, zorder=1)
             if last:                             # etiketler (TradingView gibi) içinde bulunulan dönemin başında
-                ax.text(x0, sg[nm], f"{nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=8, va="center",
-                        ha="right", zorder=6, clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.3, alpha=0.6))
+                at_edge = x0 - start < 12          # dönem resmin solundan başlıyorsa etiket çizginin üstüne (kesilmesin)
+                ax.text(x0 + (1 if at_edge else 0), sg[nm], f" {nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7.5,
+                        va="bottom" if at_edge else "center", ha="left" if at_edge else "right", zorder=6, clip_on=True,
+                        bbox=dict(facecolor=BG, edgecolor="none", pad=0.3, alpha=0.6))
     # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
     stl = g.get("supertrend")
     if stl:
@@ -166,6 +168,16 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # eksenler
     if pv:
         extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
+    if bg:                                     # fiyatın hemen üstündeki ve altındaki pivot da görünsün
+        lv_ = [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3")]
+        hi_p, lo_p = max(cs[k]["h"] for k in xs), min(cs[k]["l"] for k in xs)
+        up_ = [v for v in lv_ if v > hi_p]
+        dn_ = [v for v in lv_ if v < lo_p]
+        span = hi_p - lo_p
+        if up_ and min(up_) - hi_p <= span * 0.6:
+            extra.append(min(up_))
+        if dn_ and lo_p - max(dn_) <= span * 0.6:
+            extra.append(max(dn_))
     lows = [cs[k]["l"] for k in xs] + extra
     highs = [cs[k]["h"] for k in xs] + extra
     pad = (max(highs) - min(lows)) * 0.06
