@@ -1336,7 +1336,8 @@ def test_signal_sections_only_sent_images():
     tl = scanner.trendline_lines(res)
     assert len(tl) == 2 and "15dk" in tl[1] and "🖼 resim kanalda (12:00)" in tl[1]
     fl = scanner.formation_lines(res)
-    assert len(fl) == 2 and "Alçalan Üçgen" in fl[1] and "🖼 resim kanalda (12:00)" in fl[1]
+    assert len(fl) == 3 and "Yutan Boğa (mum)" in fl[1] and "🖼" not in fl[1]
+    assert "Alçalan Üçgen" in fl[2] and "🖼 resim kanalda (12:00)" in fl[2]
     # kanaldaki resim açıklamasıyla aynı ifade
     k1, k2 = f"XUSDT|15m|tl|falling|{cs[97]['t']}", f"XUSDT|15m|fm|Alçalan Üçgen|{cs[98]['t']}"
     scanner.SENT_TXT = {k1: "Düşen trend çizgisi (2 temas) 1.0000 seviyesinden 2 mum önce kırıldı; fiyat kırılım mumunun "
@@ -1345,7 +1346,8 @@ def test_signal_sections_only_sent_images():
     assert scanner.trendline_lines(res)[1] == ("🟢 15dk: Düşen trend çizgisi (2 temas) 1.0000 seviyesinden 2 mum önce "
                                                "kırıldı; fiyat kırılım mumunun tepesinin üstünde kapattı → retestsiz devam, "
                                                "yükseliş sürüyor · 🖼 resim kanalda (12:00)")
-    assert scanner.formation_lines(res)[1] == ("🔴 15dk · Alçalan Üçgen → 1.0000 aşağı hacimle (1.8x) kırıldı, "
+    assert scanner.formation_lines(res)[2] == ("🔴 15dk · Alçalan Üçgen → 1.0000 aşağı hacimle (1.8x) kırıldı, "
                                                "düşüş beklenebilir · hedef 0.9000 · 🖼 resim kanalda (12:00)")
     scanner.SENT_IMGS = {}
-    assert scanner.trendline_lines(res) == [] and scanner.formation_lines(res) == []
+    assert scanner.trendline_lines(res) == []
+    assert scanner.formation_lines(res) == ["🧩 <b>FORMASYONLAR</b>", "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti"]

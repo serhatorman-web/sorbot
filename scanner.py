@@ -2238,7 +2238,7 @@ def formation_lines(res):
         if not fm:
             continue
         name = TF_NAMES.get(tf, tf)
-        for ad, yon in ([] if SENT_IMGS is not None else fm["mum"]):   # eşleştirmede mum formasyonları yazılmaz (resmi yok)
+        for ad, yon in fm["mum"]:          # mum formasyonları (resmi yok) eşleştirmede de yazılır (kullanıcı isteği)
             if yon == 0:               # nötr mumlar (doji, topaç) yön vermez – yazılmaz (kullanıcı isteği)
                 continue
             res_txt = {1: "yükseliş işareti", -1: "düşüş işareti", 0: "kararsızlık, yön belirsiz"}[yon]
