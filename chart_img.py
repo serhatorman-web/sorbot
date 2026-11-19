@@ -65,14 +65,42 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                     clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
     # arka planda pivot indikatörü (bilgi amaçlı): her dönemin P / R1-R3 / S1-S3 çizgileri, mumların arkasında
     bg = [sg for sg in (g.get("pivot_bg") or []) if sg["k1"] >= start]
+    x_full = end + int((end - start) * 0.22) + 4          # grafiğin sağ kenarı
     for j, sg in enumerate(bg):
-        x0, x1 = max(sg["k0"], start), (n + 2 if j == len(bg) - 1 else sg["k1"] + 0.5)
+        last = j == len(bg) - 1
+        x0, x1 = max(sg["k0"], start), (x_full if last else sg["k1"] + 0.5)   # son dönem sağ kenara kadar
         for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
-            colr = TXT if nm == "P" else PIV_COL
-            ax.plot([x0, x1], [sg[nm], sg[nm]], color=colr, linewidth=0.9, alpha=0.55, zorder=1)
-            if j == len(bg) - 1:                 # etiketler sadece içinde bulunulan dönemde
-                ax.text(x0, sg[nm], f"{nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7, alpha=0.8, va="center",
-                        ha="right", zorder=1, clip_on=True)
+            colr = PIVOT if nm == "P" else PIV_COL
+            ax.plot([x0, x1], [sg[nm], sg[nm]], color=colr, linewidth=1.5 if nm == "P" else 1.2, alpha=0.95, zorder=1)
+            if last:                             # etiketler (TradingView gibi) içinde bulunulan dönemin başında
+                ax.text(x0, sg[nm], f"{nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=8, va="center",
+                        ha="right", zorder=6, clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.3, alpha=0.6))
+    # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
+    stl = g.get("supertrend")
+    if stl:
+        line, dirs = stl
+        rng_ = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
+        k = start
+        while k < end:
+            if line[k] is None or dirs[k] == 0:
+                k += 1
+                continue
+            j2 = k
+            while j2 + 1 < end and dirs[j2 + 1] == dirs[k] and line[j2 + 1] is not None:
+                j2 += 1
+            colr = UP if dirs[k] == 1 else DOWN
+            xs_ = list(range(k, j2 + 1))
+            ys_ = [line[q] for q in xs_]
+            ax.plot(xs_, ys_, color=colr, linewidth=1.3, zorder=2)
+            mid = [(cs[q]["h"] + cs[q]["l"]) / 2 for q in xs_]
+            ax.fill_between(xs_, ys_, mid, color=colr, alpha=0.08, zorder=1)
+            if k > start and dirs[k - 1] == -dirs[k]:        # yön değişimi
+                y = line[k]
+                ax.annotate("Buy" if dirs[k] == 1 else "Sell", xy=(k, y),
+                            xytext=(k, y + (-0.07 if dirs[k] == 1 else 0.07) * rng_), color="white", fontsize=7,
+                            ha="center", va="center", zorder=8,
+                            bbox=dict(boxstyle="round,pad=0.25", facecolor=colr, edgecolor="none"))
+            k = j2 + 1
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
     if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
         ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)

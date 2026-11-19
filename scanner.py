@@ -2112,6 +2112,9 @@ def live_images(results, cfg, state, now):
             pv_bg = pivot_segments(f, lo, i, tf) if lc.get("pivot_background", True) else []
         except Exception:  # noqa: BLE001
             pv_bg = []
+        # resimde Supertrend indikatörü (kullanıcı isteği)
+        st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
+                 if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
         pvb = None
         if lc.get("pivots", False) and i >= 1:      # pivot kırılım resimleri kapalı (kullanıcı: sadece arka planda)
@@ -2172,6 +2175,8 @@ def live_images(results, cfg, state, now):
                     g["pivots"] = pv_draw
                 if pv_bg:
                     g["pivot_bg"] = pv_bg
+                if st_bg:
+                    g["supertrend"] = st_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1))
@@ -2237,6 +2242,8 @@ def live_images(results, cfg, state, now):
                         g = dict(g, pivots=pv_draw)
                     if pv_bg:
                         g = dict(g, pivot_bg=pv_bg)
+                    if st_bg:
+                        g = dict(g, supertrend=st_bg)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d)))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
