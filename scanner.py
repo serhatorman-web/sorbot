@@ -1999,10 +1999,14 @@ def live_images(results, cfg, state, now):
         name = display_name(meta)
         plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", name)).strip()
         prio = 0 if meta["symbol"] in majors else 1
+        vr = f["v"][i] / f["vol_ma"][i - 1] if f["vol_ma"][i - 1] else 0     # kırılım mumunun hacmi
+        vol_ok = vr >= lc.get("volume_x", 1.5)
         # ── trend çizgisi kırılımı (son mumda) ──
-        if lc.get("trendlines", True):
+        if lc.get("trendlines", True) and vol_ok:
             for ev in ta.trendlines_close(h, l, c):
                 if ev["state"] != "broken" or ev["bars_ago"] != 0:
+                    continue
+                if ev["touches"] < lc.get("min_touches", 3) or ev["b"] - ev["a"] < lc.get("min_span", 30):
                     continue
                 key = f"{meta['symbol']}|{tf}|tl|{ev['type']}|{cs[-1]['t']}"
                 if key in seen:
@@ -2024,13 +2028,16 @@ def live_images(results, cfg, state, now):
                     icon = "🟢" if d == 1 else "🔴"
                     mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
-                           f"{fmt_price(ln(n - 1), prec)} seviyesinden kapanışla kırıldı → {mv}, retest beklenebilir")
+                           f"({ev['touches']} temas) {fmt_price(ln(n - 1), prec)} seviyesinden hacimle ({vr:.1f}x) "
+                           f"kapanışla kırıldı → {mv}, retest beklenebilir")
                     out.append((prio, png, cap, meta["symbol"], key))
         # ── grafik formasyonu kırılımı (son mumda) ──
-        if lc.get("formations", True):
+        if lc.get("formations", True) and vol_ok:
             a = ta.atr(h, l, c, 14)
             for g in pt.chart_patterns(h, l, c, a):
                 if g["durum"] != "kirildi" or (g.get("ciz") or {}).get("kb") != n - 1:
+                    continue
+                if g["ad"] in lc.get("exclude", []):
                     continue
                 key = f"{meta['symbol']}|{tf}|fm|{g['ad']}|{cs[-1]['t']}"
                 if key in seen:
@@ -2047,7 +2054,8 @@ def live_images(results, cfg, state, now):
                     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
                     mv = "yükseliş" if d == 1 else "düşüş"
                     cap = (f"<b>🧩 FORMASYON TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
-                           f"{yonu} kırıldı, {mv} beklenebilir" + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
+                           f"{yonu} hacimle ({vr:.1f}x) kırıldı, {mv} beklenebilir"
+                           + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
                     out.append((prio, png, cap, meta["symbol"], key))
     out.sort(key=lambda x: x[0])
     return out
