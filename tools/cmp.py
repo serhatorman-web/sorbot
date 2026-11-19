@@ -2,7 +2,7 @@
 import json, sys, time, urllib.request, urllib.parse
 from datetime import datetime, timedelta, timezone
 sys.path.insert(0, "."); sys.path.insert(0, "tools")
-import scanner, indicators as new, ind_old as old
+import scanner, ind_new as new, ind_old as old
 BASE = "https://www.binance.com"
 get = lambda path, p: json.load(urllib.request.urlopen(urllib.request.Request(BASE + path + "?" + urllib.parse.urlencode(p), headers={"User-Agent": "x"}), timeout=30))
 TSI = timezone(timedelta(hours=3))
