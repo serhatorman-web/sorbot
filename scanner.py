@@ -1993,7 +1993,7 @@ def image_head(res, cfg, direction, rd=None):
 def divergence_images(res, cfg):
     """Mesajda yazılan RSI uyumsuzluklarının resimleri (fiyat + RSI, iki pivot birleştirilmiş): [(png, açıklama)]."""
     dc = cfg.get("divergence_images", {})
-    if not dc.get("enabled", True):
+    if not dc.get("enabled", True) or not cfg.get("rsi_divergence", {}).get("enabled", True):
         return []
     meta = res.get("meta", {})
     prec = meta.get("precision")
@@ -2479,7 +2479,8 @@ def build_message(res, direction, cfg, now_utc):
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
-        for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
+        for block in (trendline_lines(res), volume_lines(res, cfg),
+                      (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
                       (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
             if block:
@@ -2560,7 +2561,8 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
-    for block in (trendline_lines(res), volume_lines(res, cfg), divergence_lines(res),     # PRICE ACTION kapalı (kullanıcı isteği)
+    for block in (trendline_lines(res), volume_lines(res, cfg),
+                      (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
                   (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                   (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
         if block:

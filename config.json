@@ -444,6 +444,10 @@
     "enabled": true,
     "max": 3
   },
+  "rsi_divergence": {
+    "_aciklama": "Sinyallerde RSI UYUMSUZLUK bölümü (ve Sorbot Grafikler'deki uyumsuzluk resimleri). Kullanıcı isteğiyle kapalı; true yapılırsa geri gelir.",
+    "enabled": false
+  },
   "divergence_images": {
     "_aciklama": "RSI UYUMSUZLUK satırlarının resmi (fiyat ve RSI'da iki dip/tepe birleştirilmiş) Sorbot Grafikler kanalına gönderilir (en fazla max).",
     "enabled": true,
