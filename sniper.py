@@ -267,6 +267,9 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
                 continue
             cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
     sent, htf_cache = 0, {}
+    # SSL sistemi (kullanıcının stratejisi) önce gönderilir: taramada en fazla max_per_scan sinyal gittiği için
+    # alfabetik sırada geride kalan SSL sinyalleri diğer kurallar yüzünden düşmesin
+    cands.sort(key=lambda x: 0 if x[1]["rule"] in ("ssl_top", "ssl_bottom") else 1)
     for meta, sig, rc, a, close, t_open, own_tr, r in cands:
         if sent >= sc.get("max_per_scan", 10):
             break
