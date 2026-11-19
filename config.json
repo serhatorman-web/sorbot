@@ -486,7 +486,7 @@
   },
   "sniper": {
     "_aciklama": "🎯 Nokta Atışı: ayrı kanal (telegram.sniper_chat_id). Her zaman dilimi için kategori başına geçmiş testte en iyi çıkan kural. htf: sadece 4 saatlik trend yönünde; min_stop_pct: stop en az bu kadar % uzakta (işlem ücretinin payını düşürür). test_tp1 / test_r: 80 coin geçmiş test sonucu (15dk 90 gün, 1s 1 yıl), mesajda gösterilir.",
-    "enabled": true,
+    "enabled": false,
     "timeframes": [
       "15m",
       "1h",
