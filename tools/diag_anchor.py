@@ -28,24 +28,28 @@ def anchors(close, a, n):
     lo = max(0, n - 200)
     out = {}
     out["A"] = max(range(lo, n - 1 - MIN_SEP), key=lambda k: close[k])
-    j = None
-    for k in range(n - 1 - 2 * MIN_SEP, lo + 12, -1):
-        if a[k] and close[k - 12] - close[k] >= 3 * a[k]:
-            j = k
-            break
-    out["B"] = max(range(j, n - 1 - MIN_SEP), key=lambda k: close[k]) if j else out["A"]
+    # B: son 2 gündeki en belirgin tepe = tepeden sonra en çok düşülen (sonraki daha yüksek kapanışa kadar)
+    best, bp = None, -1
+    for p in _pivots(close, 6, 6, "high"):
+        if p < n - 192 or p > n - 1 - MIN_SEP:
+            continue
+        nxt = next((k for k in range(p + 1, n) if close[k] > close[p]), n)
+        prom = (close[p] - min(close[p:nxt])) / (a[p] or 1)
+        if prom > bp:
+            best, bp = p, prom
+    out["B"] = best if best is not None else out["A"]
     out["C"] = max(range(n - 96, n - 1 - MIN_SEP), key=lambda k: close[k])
     return out
 
 
 def ts(t):
-    return dt.datetime.utcfromtimestamp(t / 1000 + 3 * 3600).strftime("%d.%m %H:%M")
+    return dt.datetime.fromtimestamp(t / 1000 + 3 * 3600, dt.timezone.utc).strftime("%d.%m %H:%M")
 
 
 api = Binance()
 now = int(time.time() * 1000)
 COL = {"A": "#f5c518", "B": "#00d1ff", "C": "#ff4fd8"}
-NAME = {"A": "A · şimdiki (200 mumun en yükseği)", "B": "B · son sert düşüşten sonraki tepe", "C": "C · son 1 gün (96 mum)"}
+NAME = {"A": "A · şimdiki (200 mumun en yükseği)", "B": "B · son 2 günün en belirgin tepesi", "C": "C · son 1 gün (96 mum)"}
 for sym in SYMS:
     cs = parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": TF, "limit": 300}), now)
     h = [x["h"] for x in cs]; l = [x["l"] for x in cs]; c = [x["c"] for x in cs]
@@ -77,4 +81,6 @@ for sym in SYMS:
     ax.set_title(f"{sym} · 15dk · düşen çizgi: 3 seçenek (▲ = kırılım)", color="white")
     ax.legend(facecolor="#131722", labelcolor="white", fontsize=8, loc="lower left")
     buf = io.BytesIO(); fig.savefig(buf, format="png", facecolor=fig.get_facecolor()); plt.close(fig)
-    print(f"IM| {sym} " + base64.b64encode(buf.getvalue()).decode())
+    b = base64.b64encode(buf.getvalue()).decode()
+    for i in range(0, len(b), 3000):
+        print(f"IM| {sym} {i // 3000:04d} {b[i:i + 3000]}", flush=True)
