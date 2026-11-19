@@ -102,7 +102,7 @@ def levels(entry, d, stop, a, min_stop_pct=0.0):
 
 
 def htf_trend(cs4):
-    """Son kapanmış 4 saatlik muma göre trend: +1 yükseliş, -1 düşüş, 0 belirsiz."""
+    """Son kapanmış muma göre trend (4 saat / 1 saat): +1 yükseliş, -1 düşüş, 0 belirsiz (EMA50 / EMA200)."""
     c = [x["c"] for x in cs4]
     if len(c) < 210:
         return 0
@@ -114,12 +114,12 @@ def htf_trend(cs4):
     return 0
 
 
-def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule):
+def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule, h1=None):
     cat, short = RULES[sig["rule"]]
     icon, title, side = CATS[cat]
     d = sig["d"]
     p = lambda x: (x / lv["entry"] - 1) * 100 * d      # işlem yönüne göre: TP'ler kâr (+), stop zarar (−)
-    htf_txt = {1: "🟢 yükseliş", -1: "🔴 düşüş", 0: "⚪ yatay"}[htf]
+    tr_txt = {1: "🟢 yükseliş", -1: "🔴 düşüş", 0: "⚪ yatay"}
     lines = [f"{icon} <b>{title} · {side}</b> · {tf_name}",
              f"{name} · {short}",
              "━━━━━━━━━━━━━━━━",
@@ -129,7 +129,8 @@ def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule):
     lines += [f"🛑 <b>Stop:</b> {fmt(lv['stop'])} ({p(lv['stop']):+.2f}%)",
               "━━━━━━━━━━━━━━━━",
               f"📝 {sig['why'][0].upper() + sig['why'][1:]}",
-              f"🧭 4 saatlik trend: {htf_txt}",
+              *([f"🧭 1 saatlik trend: {tr_txt[h1]}"] if h1 is not None else []),     # 15dk sinyalde (kullanıcı isteği)
+              f"🧭 4 saatlik trend: {tr_txt[htf]}",
               *([f"📊 Geçmiş test: TP1 %{cfg_rule['test_tp1']} · ortalama {cfg_rule['test_r']:+.2f}R "
                  f"(işlem başına, ücret düşülmüş)"] if "test_r" in cfg_rule else []),
               "⚖️ TP1'de stop girişe, TP2'de stop TP1'e çekilir",
@@ -183,10 +184,17 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         htf = htf_cache[sym]
         if rc.get("htf") and htf != sig["d"]:
             continue
+        h1 = None
+        if tf == "15m":
+            try:
+                h1 = htf_trend(parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": "1h", "limit": 260}),
+                                            now * 1000))
+            except Exception:  # noqa: BLE001
+                h1 = 0
         lv = levels(close, sig["d"], sig["stop"], a, rc.get("min_stop_pct", 0.0))
         prec = meta.get("precision")
         t_close = datetime.fromtimestamp((t_open + tf_ms) / 1000, tr_tz).strftime("%d.%m.%Y %H:%M")
-        msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc)
+        msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc, h1)
         try:
             if notifier.send_sniper(msg):
                 seen[key] = now
