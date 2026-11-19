@@ -2046,21 +2046,75 @@ def lvl_now(g, d):
     return g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
 
 
-def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None):
-    """Grafik resmindeki işlem planı: giriş = kırılım seviyesi (fiyat seviyeden uzakta kapattıysa geri dönüşte giriş;
-    kullanıcı isteği), yoksa son kapanış; stop = son 10 mumun dibi/tepesi ötesi (0.2 ATR tampon, 0.5–3 ATR arası,
-    en az %min_stop_pct), TP1/2/3 = 1R/2R/3R (Nokta Atışı ile aynı)."""
+def sr_levels(h, l, a, left=5, right=3, tol_atr=0.5):
+    """Grafikteki gerçek destek / dirençler: tepe ve dipler (sol 5, sağ 3 mum), birbirine 0.5 ATR'den yakın olanlar
+    tek seviye sayılır. Döner: [(seviye, temas sayısı)] fiyata göre sıralı."""
+    n = len(h)
+    pts = []
+    for k in range(left, n - right):
+        if h[k] == max(h[k - left:k + right + 1]):
+            pts.append(h[k])
+        if l[k] == min(l[k - left:k + right + 1]):
+            pts.append(l[k])
+    tol = (a[-1] or 0) * tol_atr
+    out = []
+    for p in sorted(pts):
+        if out and p - out[-1][2] <= tol:
+            lv, cnt, last = out[-1]
+            out[-1] = ((lv * cnt + p) / (cnt + 1), cnt + 1, p)
+        else:
+            out.append((p, 1, p))
+    return [(lv, cnt) for lv, cnt, _ in out]
+
+
+def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True):
+    """Grafik resmindeki işlem planı (kullanıcı isteği: gerçek destek / dirence göre):
+    giriş = kırılım seviyesi (kapanış seviyenin ötesindeyse geri dönüşte), yoksa son kapanış;
+    stop = sinyalin tersindeki en yakın gerçek destek (SHORT: direnç) ötesi (0.2 ATR tampon, en az %min_stop_pct,
+    0.5–4 ATR arası; uygun seviye yoksa son 10 mumun dibi / tepesi);
+    TP1/2/3 = sinyal yönündeki en yakın 3 gerçek direnç (SHORT: destek), seviyenin 0.1 ATR önünde; seviye yetmezse
+    eksik TP'ler bir önceki TP'den stop mesafesi kadar ileride."""
     ai = a[-1] or 0
     if not ai:
         return None
     entry, at_level = c[-1], False
     if level is not None and (c[-1] - level) * d > 0:      # kapanış kırılımın ötesinde → giriş kırılım seviyesinde
         entry, at_level = level, True
-    stop = (min(l[-10:]) - 0.2 * ai) if d == 1 else (max(h[-10:]) + 0.2 * ai)
-    if (entry - stop) * d <= 0:
-        stop = entry - d * ai
-    lv = sniper.levels(entry, d, stop, ai, min_stop_pct)
-    return {"d": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"], "at_level": at_level}
+    floor = max(entry * min_stop_pct / 100, 0.5 * ai)
+    stop, stop_sr = None, False
+    lv_all = sr_levels(h, l, a) if use_sr else []
+    if use_sr:
+        behind = [lv for lv, _ in lv_all if (entry - lv) * d > 0]          # girişin gerisindeki seviyeler
+        behind.sort(key=lambda lv: abs(entry - lv))
+        for lv in behind:
+            cand = lv - d * 0.2 * ai
+            dist = (entry - cand) * d
+            if dist >= floor and dist <= 4 * ai:
+                stop, stop_sr = cand, True
+                break
+    if stop is None:
+        stop = (min(l[-10:]) - 0.2 * ai) if d == 1 else (max(h[-10:]) + 0.2 * ai)
+        if (entry - stop) * d < floor:
+            stop = entry - d * floor
+        if (entry - stop) * d > 3 * ai:
+            stop = entry - d * 3 * ai
+    risk = (entry - stop) * d
+    tps, tp_sr = [], []
+    if use_sr:
+        ahead = sorted((lv for lv, _ in lv_all if (lv - entry) * d > 0.3 * ai), key=lambda lv: abs(lv - entry))
+        for lv in ahead:
+            t = lv - d * 0.1 * ai
+            if tps and abs(t - tps[-1]) < 0.5 * ai:            # birbirine çok yakın seviyeler tek hedef
+                continue
+            tps.append(t)
+            tp_sr.append(True)
+            if len(tps) == 3:
+                break
+    while len(tps) < 3:                                      # seviye yetmezse: önceki hedeften stop mesafesi kadar
+        tps.append((tps[-1] if tps else entry) + d * risk)
+        tp_sr.append(False)
+    return {"d": d, "entry": entry, "stop": stop, "tp": tps, "at_level": at_level,
+            "stop_sr": stop_sr, "tp_sr": tp_sr}
 
 
 def pivot_segments(f, lo, i, tf):

@@ -139,17 +139,23 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if plan:
         e, sl, tps, pd_ = plan["entry"], plan["stop"], plan["tp"], plan["d"]
         x0, x1 = end - 1, x_right - 1
-        ax.add_patch(plt.Rectangle((x0, min(e, tps[-1])), x1 - x0, abs(tps[-1] - e), color=UP, alpha=0.16, zorder=1))
+        far = max(tps, key=lambda v: abs(v - e))
+        ax.add_patch(plt.Rectangle((x0, min(e, far)), x1 - x0, abs(far - e), color=UP, alpha=0.16, zorder=1))
         ax.add_patch(plt.Rectangle((x0, min(e, sl)), x1 - x0, abs(e - sl), color=DOWN, alpha=0.20, zorder=1))
         pc = lambda v: (v / e - 1) * 100 * pd_
-        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [
-            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
+        srm = plan.get("tp_sr") or [False] * len(tps)
+        rows = [(f"TP{k}" + (" · direnç" if srm[k - 1] and pd_ == 1 else " · destek" if srm[k - 1] else ""), v, UP, "--")
+                for k, v in enumerate(tps, 1)] + [
+            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"),
+            ("Stop" + ((" · destek altı" if pd_ == 1 else " · direnç üstü") if plan.get("stop_sr") else ""), sl, DOWN, "-")]
         for name, v, colr, ls in rows:
             ax.plot([x0, x1], [v, v], color=colr, linestyle=ls, linewidth=1.1, zorder=4)
-            lab = f"{name} {_fmt(v, prec)}" + ("" if name.startswith("Giriş") else f" ({pc(v):+.2f}%)")
+            base_, _, tag_ = name.partition(" · ")
+            lab = (f"{base_} {_fmt(v, prec)}" + ("" if base_.startswith("Giriş") else f" ({pc(v):+.2f}%)")
+                   + (f" · {tag_}" if tag_ else ""))
             ax.text(x1, v, lab + " ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
                     bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
-        extra += [sl, tps[-1]]
+        extra += [sl, max(tps, key=lambda v: abs(v - e))]
     # eksenler
     if pv:
         extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
