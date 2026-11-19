@@ -9,7 +9,7 @@ import indicators as ta
 
 COST, NSYM = 0.0012, 80
 TFS = {"15m": (90, 96), "1h": (365, 72)}
-TF_MS = {"15m": 900000, "1h": 3600000}
+TF_MS = {"15m": 900000, "1h": 3600000, "4h": 14400000}
 
 
 def fetch(api, sym, tf, days, now):
@@ -99,6 +99,7 @@ def run(args):
                 tags.append("f) SSL + QQE MOD + DynaRange teyidi")
                 if htf[i] == dd:
                     tags.append("g) SSL + QQE + DynaRange + 4s trend")
+            tags = [x for x in tags if x[0] in "deg"]
             for tg in tags:
                 for floor, sn in ((0.0, "stop yapı"), (0.01, "stop yapı, en az %1")):
                     nm = f"{tg} | {sn}"
