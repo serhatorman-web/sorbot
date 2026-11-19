@@ -4,7 +4,7 @@ on:
 jobs:
   d:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/diag_base.py
+      - run: python3 tools/diag_sslex.py
+      - run: SORBOT_TF=15m python3 scanner.py 2>&1 | grep -E "Traceback|Error|hatası|Bitti|Nokta" || true

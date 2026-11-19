@@ -1384,3 +1384,27 @@ def test_pnl_short_tp_positive():
     assert f"{scanner.pnl(940.22, 949.72, 'short'):+.2f}" == "+1.00"
     assert f"{scanner.pnl(959.22, 949.72, 'short'):+.2f}" == "-1.00"
     assert f"{scanner.pnl(105, 100, 'long'):+.2f}" == "+5.00" and f"{scanner.pnl(95, 100, 'long'):+.2f}" == "-5.00"
+
+
+
+def test_sniper_ssl_system_short():
+    """Kullanıcının SSL sistemi: tepede SSL Sell → çizgi kırmızı → Supertrend hâlâ AL iken SHORT."""
+    import sniper
+    n = 120
+    c = [100.0 + k * 0.05 for k in range(n)]
+    h = [x + 0.3 for x in c]; l = [x - 0.3 for x in c]; a = [0.5] * n
+    col = [1] * n                       # uzun süre mavi
+    ssl = [x - 1 for x in c]            # fiyat çizginin üstünde
+    st_dir = [1] * n                    # Supertrend AL
+    w, i = 114, 117
+    h[w] = max(h[w - 48:w]) + 0.1       # tepede
+    c[w] = ssl[w] - 0.5                 # SSL Sell (aşağı kesiş)
+    for k in range(w + 1, i + 1):
+        ssl[k] = c[k] + 1
+    col[i - 1], col[i] = 0, -1          # gri → kırmızı
+    p = {"min_regime": 15, "near_atr": 1.0, "warn_bars": 10}
+    sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p)
+    assert sig and sig["rule"] == "ssl_top" and sig["d"] == -1 and sig["warn"] == w
+    assert sig["stop"] > max(h[w:i + 1]) and "tepede SSL Sell" in sig["why"]
+    st_dir[i] = -1                      # Supertrend zaten SAT → erken giriş değil
+    assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p) is None

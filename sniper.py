@@ -25,7 +25,53 @@ RULES = {
     "dn_rsi": ("trend_dn", "RSI 60→50"),
     "pump5": ("pump", "5x hacim patlaması"), "pump3": ("pump", "3x hacim kırılımı"),
     "dump5": ("dump", "5x hacim patlaması"), "dump3": ("dump", "3x hacim kırılımı"),
+    "ssl_top": ("tepe", "SSL Sell + çizgi kırmızı"), "ssl_bottom": ("dip", "SSL Buy + çizgi mavi"),
 }
+
+
+def ssl_baseline(h, l, c, n=55, mult=0.2):
+    """SSL Hybrid baseline (HMA n) rengi: +1 mavi (kapanış üst bandın üstünde), -1 kırmızı (alt bandın altında), 0 gri.
+    Bant: baseline ± EMA(true range, n) x mult (SSL Hybrid Keltner ayarı)."""
+    bb = ta.hma(c, n)
+    rma = ta.ema([x or 0 for x in ta.true_range(h, l, c)], n)
+    col = [0] * len(c)
+    for i in range(len(c)):
+        if bb[i] is not None and rma[i] is not None:
+            col[i] = 1 if c[i] > bb[i] + rma[i] * mult else (-1 if c[i] < bb[i] - rma[i] * mult else 0)
+    return bb, col
+
+
+def ssl_system(h, l, c, ssl, st_dir, a, col, i, p):
+    """Kullanıcının SSL sistemi (SHORT; LONG tersi): tepede SSL Sell (çıkış çizgisi aşağı kesilir, son 48 mumun
+    zirvesine ≤ near_atr ATR) → en fazla warn_bars mum içinde fiyat baseline'ın altında kapatır, çizgi kırmızıya
+    döner (önceki renk en az min_regime mum sürmüş) → Supertrend henüz AL iken SHORT. Döner: sinyal dict ya da None."""
+    if i < 60 or col[i] == 0 or col[i] == col[i - 1] or not a[i]:
+        return None
+    d = col[i]
+    if p.get("supertrend_opposite", True) and st_dir[i] != -d:
+        return None
+    k = i - 1
+    while k > 0 and col[k] != d:
+        k -= 1
+    if next((col[j] for j in range(i - 1, k, -1) if col[j] != 0), 0) != -d or i - 1 - k < p.get("min_regime", 15):
+        return None
+    w = None
+    for j in range(i, max(1, i - p.get("warn_bars", 10)) - 1, -1):
+        if ssl[j] is None or ssl[j - 1] is None:
+            break
+        if (c[j] - ssl[j]) * d > 0 and (c[j - 1] - ssl[j - 1]) * d <= 0:
+            w = j
+            break
+    if w is None or not a[w]:
+        return None
+    gap = ((max(h[w - 48:w + 1]) - h[w]) if d == -1 else (l[w] - min(l[w - 48:w + 1]))) / a[w]
+    if gap > p.get("near_atr", 1.0):
+        return None
+    stop = (max(h[w:i + 1]) + 0.2 * a[i]) if d == -1 else (min(l[w:i + 1]) - 0.2 * a[i])
+    return {"rule": "ssl_top" if d == -1 else "ssl_bottom", "d": d, "stop": stop, "warn": w,
+            "why": (f"{'tepede SSL Sell' if d == -1 else 'dipte SSL Buy'} geldi ({i - w} mum önce), fiyat SSL çizgisinin "
+                    f"{'altında' if d == -1 else 'üstünde'} kapattı → çizgi {'kırmızı' if d == -1 else 'mavi'}; "
+                    f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)")}
 
 
 def features(o, h, l, c, v):
@@ -159,7 +205,15 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         if n < 260:
             continue
         x = features(o, h, l, c, v)
-        for sig in setups(o, h, l, c, v, n - 1, x):
+        sigs = setups(o, h, l, c, v, n - 1, x)
+        sp = rules.get("ssl_top") or rules.get("ssl_bottom")
+        if sp and f.get("ssl") and f.get("st_dir"):
+            _, col = ssl_baseline(h, l, c, sp.get("hma", 55))
+            ss = ssl_system(h, l, c, f["ssl"][lo:i + 1], f["st_dir"][lo:i + 1], x["a"], col, n - 1, sp)
+            if ss:
+                ss["time"] = f["t"][lo + ss["warn"]]
+                sigs.append(ss)
+        for sig in sigs:
             rc = rules.get(sig["rule"])
             if not rc:
                 continue
