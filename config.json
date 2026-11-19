@@ -446,7 +446,7 @@
     "formations": true,
     "max_per_scan": 15,
     "volume_x": 1.5,
-    "min_touches": 3,
+    "min_touches": 2,
     "min_span": 30,
     "exclude": ["Fincan Kulp", "Ters Fincan Kulp"]
   },
