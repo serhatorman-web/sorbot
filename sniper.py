@@ -115,7 +115,7 @@ def confirm_lines(d, q, dy):
     else:
         l2 = f"⚪ 2. teyit: DynaRange nötr → {mv} teyit edilmedi"
     end = ("✅ İki teyit de onaylıyor → işleme girilebilir" if q == d and dv == d
-           else "⚠️ Teyitler zıt → işleme girmek riskli, bekle")
+           else "⏳ Teyitler henüz gelmedi → gelince ayrıca bildirilecek")
     return [l1, l2, end]
 
 
@@ -252,6 +252,8 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
     seen = state.setdefault("sniper", {})
     cool = sc.get("cooldown_bars", 0) * tf_ms / 1000          # 0 = bekleme yok (kullanıcı isteği)
     opened = state.setdefault("sniper_open", {})            # açık sinyaller: aynı hareketin tekrarını önler
+    pending = state.setdefault("ssl_pending", {})           # teyidi beklenen erken SSL sinyalleri
+    followups = []
     cands = []
     for r in results:
         meta, f, i = r["meta"], r["f"], r["i"]
@@ -273,6 +275,18 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             if ss:
                 ss["time"] = f["t"][lo + ss["warn"]]
                 sigs.append(ss)
+            pk = f"{meta['symbol']}|{tf}"
+            pend = pending.get(pk)
+            if pend and f.get("qqe") and f.get("dyna"):      # erken SSL sinyalinin teyidi geldi mi?
+                d, k_last = pend["d"], i
+                hit_stop = any((f["l"][k] <= pend["stop"]) if d == 1 else (f["h"][k] >= pend["stop"])
+                               for k in range(i, -1, -1) if f["t"][k] > pend["t"])
+                age = sum(1 for k in range(i, -1, -1) if f["t"][k] > pend["t"])
+                if hit_stop or col[-1] == -d or age > sp.get("followup_bars", 12):
+                    pending.pop(pk, None)                   # stop oldu / çizgi döndü / çok geç → bildirim yok
+                elif f["qqe"][k_last] == d and (f["dyna"][k_last] or 0) * d > 0:
+                    followups.append((meta, pend, c[-1], f["t"][i]))
+                    pending.pop(pk, None)
         for sig in sigs:
             rc = rules.get(sig["rule"])
             if not rc:
@@ -332,11 +346,39 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
                 done_now.add((sym, sig["d"]))
                 opened[f"{sym}|{tf}|{sig['d']}"] = {"t": t_open, "d": sig["d"], "stop": lv["stop"],
                                                                 "tp3": lv["tp"][-1], "at": now}
+                if is_ssl and "⏳" in sig["why"]:          # teyit gelince ayrıca bildirilecek
+                    pending[f"{sym}|{tf}"] = {"t": t_open, "d": sig["d"], "entry": lv["entry"], "stop": lv["stop"],
+                                              "tp": lv["tp"], "rule": sig["rule"], "at": now,
+                                              "t_close": t_close}
                 sent += 1
                 sent_other += 0 if is_ssl else 1
                 print(f"  → Nokta atışı: {sym} {RULES[sig['rule']][0]} {sig['rule']} ({tf})")
         except Exception as e:  # noqa: BLE001
             print(f"  Nokta atışı gönderilemedi ({sym}): {e}")
+    for meta, pend, close, t_open in followups:
+        d = pend["d"]
+        pc = lambda v: (v / pend["entry"] - 1) * 100 * d
+        prec = meta.get("precision")
+        fp_ = lambda v: fmt_price(v, prec)
+        t_now = datetime.fromtimestamp((t_open + tf_ms) / 1000, tr_tz).strftime("%d.%m.%Y %H:%M")
+        hit = [k for k, tp in enumerate(pend["tp"], 1) if (close - tp) * d >= 0]
+        msg = "\n".join([
+            f"✅ <b>SSL TEYİDİ GELDİ · {'LONG' if d == 1 else 'SHORT'}</b> · {tf_name}",
+            f"{display_name(meta)} · {RULES[pend['rule']][1]} ({pend['t_close']} sinyali)",
+            "━━━━━━━━━━━━━━━━",
+            *confirm_lines(d, d, d),
+            "━━━━━━━━━━━━━━━━",
+            f"📍 Sinyal girişi: {fp_(pend['entry'])} · şimdi {fp_(close)} ({pc(close):+.2f}%)",
+            f"🛑 Stop: {fp_(pend['stop'])} ({pc(pend['stop']):+.2f}%)",
+            " · ".join(f"🎯 TP{k}: {fp_(tp)}" for k, tp in enumerate(pend["tp"], 1)),
+            *([f"✅ TP{hit[-1]} seviyesi geçildi"] if hit else []),
+            f"🕒 {t_now} mum kapanışı"])
+        try:
+            if notifier.send_sniper(msg, meta["symbol"], meta.get("type")):
+                print(f"  → SSL teyidi: {meta['symbol']} ({tf})")
+        except Exception as e:  # noqa: BLE001
+            print(f"  SSL teyidi gönderilemedi ({meta['symbol']}): {e}")
+    state["ssl_pending"] = {k: v for k, v in pending.items() if v.get("at", 0) >= now - 3 * 86400}
     state["sniper"] = {k: v for k, v in seen.items() if v >= now - 3 * 86400}
     state["sniper_open"] = {k: v for k, v in opened.items() if v.get("at", 0) >= now - 3 * 86400}
     return sent

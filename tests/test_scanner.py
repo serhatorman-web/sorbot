@@ -1413,7 +1413,7 @@ def test_sniper_ssl_system_short():
     qqe, dyna = [1] * n, [1.0] * n
     sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe, dyna)      # teyitler zıt: yine gelir, ❌ ile
     assert sig and "❌ 1. teyit: QQE MOD mavi → satıcılar zayıf" in sig["why"]
-    assert "❌ 2. teyit: DynaRange yeşil → düşüş teyit edilmedi" in sig["why"] and "⚠️ Teyitler zıt" in sig["why"]
+    assert "❌ 2. teyit: DynaRange yeşil → düşüş teyit edilmedi" in sig["why"] and "⏳ Teyitler henüz gelmedi" in sig["why"]
     p["confirm_required"] = True
     assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe, dyna) is None      # teyit beklenirse gelmez
     for k in (i + 1, i + 2):            # çizgi kırmızı kalır, fiyat SSL altında
