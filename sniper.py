@@ -147,13 +147,6 @@ def levels(entry, d, stop, a, min_stop_pct=0.0):
     return {"entry": entry, "stop": entry - d * risk, "tp": [entry + d * k * risk for k in (1, 2, 3)], "risk": risk}
 
 
-def levels_atr(entry, d, a, risk_cfg):
-    """Supertrend sinyalleriyle aynı: stop = giriş ∓ sl_atr_mult x ATR (1.5), TP'ler bu mesafenin 1R / 2R / 3R katı."""
-    risk = risk_cfg.get("sl_atr_mult", 1.5) * a
-    return {"entry": entry, "stop": entry - d * risk, "risk": risk,
-            "tp": [entry + d * k * risk for k in risk_cfg.get("tp_r_multiples", [1.0, 2.0, 3.0])]}
-
-
 def htf_trend(cs4):
     """Son kapanmış muma göre trend (4 saat / 1 saat): +1 yükseliş, -1 düşüş, 0 belirsiz (EMA50 / EMA200)."""
     c = [x["c"] for x in cs4]
@@ -256,7 +249,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
                                                now * 1000))
             except Exception:  # noqa: BLE001
                 tr[k] = 0
-        lv = levels_atr(close, sig["d"], a, cfg.get("risk", {}))     # Supertrend sinyalleriyle aynı oran
+        lv = levels(close, sig["d"], sig["stop"], a, rc.get("min_stop_pct", 0.0))
         prec = meta.get("precision")
         t_close = datetime.fromtimestamp((t_open + tf_ms) / 1000, tr_tz).strftime("%d.%m.%Y %H:%M")
         msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc,
