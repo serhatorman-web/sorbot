@@ -29,7 +29,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     n = len(cs)
     idx = [k for (k, _) in ciz.get("noktalar", [])] + [k for seg in ciz.get("cizgiler", []) for (k, _) in seg]
     start = max(0, min(idx + [n - 60]) - 12)
-    start = max(start, n - 160)
+    start = max(start, n - 300)                 # 1. temas noktası her zaman resimde görünsün
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
     fig, ax = plt.subplots(figsize=(9, 4.8), dpi=110)
