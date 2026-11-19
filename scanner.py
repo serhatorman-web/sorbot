@@ -2101,7 +2101,9 @@ def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True):
     risk = (entry - stop) * d
     tps, tp_sr = [], []
     if use_sr:
-        ahead = sorted((lv for lv, _ in lv_all if (lv - entry) * d > 0.3 * ai), key=lambda lv: abs(lv - entry))
+        # çok yakın seviyeler hedef olmaz: TP1 en az stop mesafesinin yarısı kadar uzakta
+        ahead = sorted((lv for lv, _ in lv_all if (lv - entry) * d > max(0.3 * ai, 0.5 * risk)),
+                       key=lambda lv: abs(lv - entry))
         for lv in ahead:
             t = lv - d * 0.1 * ai
             if tps and abs(t - tps[-1]) < 0.5 * ai:            # birbirine çok yakın seviyeler tek hedef

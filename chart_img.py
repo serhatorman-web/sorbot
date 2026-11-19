@@ -115,7 +115,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         rng = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
         col = UP if d == 1 else DOWN
         y = cs[kb]["c"]
-        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 6, y + (0.18 if d == 1 else -0.18) * rng),
+        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),
                     color=col, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=col), zorder=6)
     rt = ciz.get("retest")
     if rt is not None and start <= rt < end:
@@ -148,12 +148,21 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                 for k, v in enumerate(tps, 1)] + [
             ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"),
             ("Stop" + ((" · destek altı" if pd_ == 1 else " · direnç üstü") if plan.get("stop_sr") else ""), sl, DOWN, "-")]
+        # etiketler üst üste binmesin: aralarında en az %4,5 yükseklik
+        lo_y = min([cs[k]["l"] for k in xs] + [sl] + tps)
+        hi_y = max([cs[k]["h"] for k in xs] + [sl] + tps)
+        gap = (hi_y - lo_y) * 0.045
+        ys = {}
+        prev = None
+        for name, v, *_ in sorted(rows, key=lambda r_: r_[1]):
+            y = v if prev is None else max(v, prev + gap)
+            ys[name] = prev = y
         for name, v, colr, ls in rows:
             ax.plot([x0, x1], [v, v], color=colr, linestyle=ls, linewidth=1.1, zorder=4)
             base_, _, tag_ = name.partition(" · ")
             lab = (f"{base_} {_fmt(v, prec)}" + ("" if base_.startswith("Giriş") else f" ({pc(v):+.2f}%)")
                    + (f" · {tag_}" if tag_ else ""))
-            ax.text(x1, v, lab + " ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
+            ax.text(x1, ys.get(name, v), lab + " ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
                     bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
         extra += [sl, max(tps, key=lambda v: abs(v - e))]
     # eksenler
