@@ -48,6 +48,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         a0 = max(k1, start)
         ext = 3 if k2 >= n - 1 else 0             # sona kadar uzanan çizgiler biraz ileri uzatılır (direk uzatılmaz)
         ax.plot([a0, k2 + ext], [p1 + m * (a0 - k1), p2 + m * ext], color=LINE, linewidth=1.6, zorder=4)
+    zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
+    if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
+        ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)
     for k, p in ciz.get("noktalar", []):
         if k >= start:
             ax.plot(k, p, "o", color=PIVOT, markersize=5, markeredgecolor=LINE, zorder=5)
@@ -86,10 +89,11 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         ax.add_patch(plt.Rectangle((x0, min(e, tps[-1])), x1 - x0, abs(tps[-1] - e), color=UP, alpha=0.16, zorder=1))
         ax.add_patch(plt.Rectangle((x0, min(e, sl)), x1 - x0, abs(e - sl), color=DOWN, alpha=0.20, zorder=1))
         pc = lambda v: (v / e - 1) * 100 * pd_
-        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [("Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
+        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [
+            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
         for name, v, colr, ls in rows:
             ax.plot([x0, x1], [v, v], color=colr, linestyle=ls, linewidth=1.1, zorder=4)
-            lab = f"{name} {_fmt(v, prec)}" + ("" if name == "Giriş" else f" ({pc(v):+.2f}%)")
+            lab = f"{name} {_fmt(v, prec)}" + ("" if name.startswith("Giriş") else f" ({pc(v):+.2f}%)")
             ax.text(x1, v, lab + " ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
                     bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
         extra += [sl, tps[-1]]

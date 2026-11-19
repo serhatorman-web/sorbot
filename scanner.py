@@ -2041,15 +2041,26 @@ def follow_through(cs, kb, d, upto):
     return None
 
 
-def trade_plan(h, l, c, a, d, min_stop_pct=1.0):
-    """Grafik resmindeki işlem planı: giriş = son kapanış, stop = son 10 mumun dibi/tepesi ötesi (0.2 ATR tampon,
-    0.5–3 ATR arası, en az %min_stop_pct), TP1/2/3 = 1R/2R/3R (Nokta Atışı ile aynı)."""
+def lvl_now(g, d):
+    """Formasyonun kırılım seviyesi (boyun / kenar)."""
+    return g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
+
+
+def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None):
+    """Grafik resmindeki işlem planı: giriş = kırılım seviyesi (fiyat seviyeden uzakta kapattıysa geri dönüşte giriş;
+    kullanıcı isteği), yoksa son kapanış; stop = son 10 mumun dibi/tepesi ötesi (0.2 ATR tampon, 0.5–3 ATR arası,
+    en az %min_stop_pct), TP1/2/3 = 1R/2R/3R (Nokta Atışı ile aynı)."""
     ai = a[-1] or 0
     if not ai:
         return None
+    entry, at_level = c[-1], False
+    if level is not None and (c[-1] - level) * d > 0:      # kapanış kırılımın ötesinde → giriş kırılım seviyesinde
+        entry, at_level = level, True
     stop = (min(l[-10:]) - 0.2 * ai) if d == 1 else (max(h[-10:]) + 0.2 * ai)
-    lv = sniper.levels(c[-1], d, stop, ai, min_stop_pct)
-    return {"d": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"]}
+    if (entry - stop) * d <= 0:
+        stop = entry - d * ai
+    lv = sniper.levels(entry, d, stop, ai, min_stop_pct)
+    return {"d": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"], "at_level": at_level}
 
 
 def live_images(results, cfg, state, now):
@@ -2114,7 +2125,7 @@ def live_images(results, cfg, state, now):
                 what = "retest tamamlandı" if kind_key == "rt" else "kırıldı"
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
-                        g["plan"] = trade_plan(h, l, c, a_all, d)
+                        g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}", prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Trend çizgisi resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
@@ -2171,7 +2182,7 @@ def live_images(results, cfg, state, now):
                 yonu = "yukarı" if d == 1 else "aşağı"
                 try:
                     if draw_plan:
-                        g = dict(g, plan=trade_plan(h, l, c, a_all, d))
+                        g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d)))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)", prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Formasyon resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)

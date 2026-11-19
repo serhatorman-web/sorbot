@@ -187,6 +187,17 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                     return k
             return None
 
+        def ext_between(k0, k1):
+            """k0..k1 arasındaki en derin dip (tepeler için) / en yüksek tepe (dipler için) – çizim için."""
+            rng = range(max(0, k0), max(k0 + 1, k1))
+            return min(rng, key=lambda k: Q(k) * sgn)
+
+        def zigzag(pts, kb):
+            """Formasyonun kırık çizgisi: önceki hareket → tepeler/dipler → kırılım mumu (kullanıcı isteği)."""
+            pre = ext_between(pts[0][0] - 20, pts[0][0])
+            end = kb if kb is not None else n - 1
+            return [(pre, Q(pre))] + pts + [(end, c[end])]
+
         def came_from(k0, neck):
             """Formasyondan önce fiyat boyun çizgisinin öbür tarafından gelmiş olmalı (önceki trend)."""
             seg = c[max(0, k0 - 30):k0]
@@ -211,7 +222,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                                   "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
                                   "seviye": nk, "hedef": nk - sgn * height, "_simdi": neck_at(n - 1),
                                   "ciz": {"noktalar": [(p1, P(p1)), (n1, Q(n1)), (p2, P(p2)), (n2, Q(n2)), (p3, P(p3))],
-                                          "cizgiler": [((n1, neck_at(n1)), (n - 1, neck_at(n - 1)))], "kb": kb}})
+                                          "cizgiler": [((n1, neck_at(n1)), (n - 1, neck_at(n - 1)))], "kb": kb,
+                                          "zigzag": zigzag([(p1, P(p1)), (n1, Q(n1)), (p2, P(p2)), (n2, Q(n2)),
+                                                            (p3, P(p3))], kb)}})
                     return
         # Üçlü tepe / dip
         if len(piv) >= 3:
@@ -223,12 +236,15 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                 lim = max(vals) if sgn == 1 else min(vals)
                 if height >= 2.5 * a and after_ok(p3, lim) and came_from(p1, neck):
                     kb = neck_break(p3, lambda k: neck)
+                    v1, v2 = ext_between(p1, p2), ext_between(p2, p3)
                     if recent(kb):
                         found.append({"ad": "Üçlü Tepe" if sgn == 1 else "Üçlü Dip", "yon": -sgn,
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
                                       "seviye": neck, "hedef": neck - sgn * height, "_simdi": neck,
                                       "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2)), (p3, P(p3))],
-                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
+                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb,
+                                              "zigzag": zigzag([(p1, P(p1)), (v1, Q(v1)), (p2, P(p2)), (v2, Q(v2)),
+                                                                (p3, P(p3))], kb)}})
                         return
         # İkili tepe / dip
         if len(piv) >= 2:
@@ -244,7 +260,9 @@ def chart_patterns(h, l, c, atr, window=150, fresh=10):
                                       "durum": "kirildi" if kb is not None else "olusuyor", "kirilim": -sgn if kb else 0,
                                       "seviye": neck, "hedef": neck - sgn * height, "_simdi": neck,
                                       "ciz": {"noktalar": [(p1, P(p1)), (p2, P(p2))],
-                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb}})
+                                              "cizgiler": [((p1, neck), (n - 1, neck))], "kb": kb,
+                                              "zigzag": zigzag([(p1, P(p1)), (ext_between(p1, p2), Q(ext_between(p1, p2))),
+                                                                (p2, P(p2))], kb)}})
 
     tops(ph, 1)
     tops(pl, -1)
