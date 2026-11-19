@@ -29,6 +29,9 @@ RULES = {
 }
 
 
+SSL_RULES = ("ssl_top", "ssl_bottom")
+
+
 def ssl_baseline(h, l, c, n=55, mult=0.2):
     """SSL Hybrid baseline (HMA n) rengi: +1 mavi (kapanış üst bandın üstünde), -1 kırmızı (alt bandın altında), 0 gri.
     Bant: baseline ± EMA(true range, n) x mult (SSL Hybrid Keltner ayarı)."""
@@ -263,19 +266,20 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             if not rc:
                 continue
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
-            if seen.get(key, 0) >= now - cool:
+            if sig["rule"] not in SSL_RULES and seen.get(key, 0) >= now - cool:
                 continue
             cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
-    sent, htf_cache = 0, {}
+    sent, sent_other, htf_cache = 0, 0, {}
     # SSL sistemi (kullanıcının stratejisi) önce gönderilir: taramada en fazla max_per_scan sinyal gittiği için
     # alfabetik sırada geride kalan SSL sinyalleri diğer kurallar yüzünden düşmesin
-    cands.sort(key=lambda x: 0 if x[1]["rule"] in ("ssl_top", "ssl_bottom") else 1)
+    cands.sort(key=lambda x: 0 if x[1]["rule"] in SSL_RULES else 1)
     for meta, sig, rc, a, close, t_open, own_tr, r in cands:
-        if sent >= sc.get("max_per_scan", 10):
-            break
+        is_ssl = sig["rule"] in SSL_RULES             # SSL sinyallerine sınır yok (kullanıcı isteği)
+        if not is_ssl and sent_other >= sc.get("max_per_scan", 10):
+            continue
         sym = meta["symbol"]
         key = f"{sym}|{tf}|{sig['d']}"
-        if seen.get(key, 0) >= now - cool:          # aynı sembolde aynı yönde iki kural aynı anda: tek sinyal
+        if not is_ssl and seen.get(key, 0) >= now - cool:   # aynı sembolde aynı yönde iki kural aynı anda: tek sinyal
             continue
         if sym not in htf_cache:
             try:
@@ -308,6 +312,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             if notifier.send_sniper(msg, sym, meta.get("type")):
                 seen[key] = now
                 sent += 1
+                sent_other += 0 if is_ssl else 1
                 print(f"  → Nokta atışı: {sym} {RULES[sig['rule']][0]} {sig['rule']} ({tf})")
         except Exception as e:  # noqa: BLE001
             print(f"  Nokta atışı gönderilemedi ({sym}): {e}")
