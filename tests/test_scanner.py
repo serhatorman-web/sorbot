@@ -1435,6 +1435,7 @@ def test_sniper_channel_routing():
     n = scanner.Notifier.__new__(scanner.Notifier)
     n.major_symbols, n.equity_types = {"BTCUSDT"}, {"EQUITY", "KR_EQUITY", "HK_EQUITY"}
     n.sniper_chat, n.sniper_major, n.sniper_equity, n.sniper_commodity = "A", "M", "N", "E"
+    n.sniper_main = False
     assert n.sniper_chat_for("BTCUSDT", "COIN")[0] == "M"
     assert n.sniper_chat_for("NVDAUSDT", "EQUITY")[0] == "N"
     assert n.sniper_chat_for("XAUUSDT", "COMMODITY")[0] == "E"
@@ -1442,6 +1443,10 @@ def test_sniper_channel_routing():
     n.sniper_major, n.sniper_equity = "", ""
     assert n.sniper_chat_for("BTCUSDT", "COIN")[0] == "A"          # majör kanalı yokken eski kanal
     assert n.sniper_chat_for("NVDAUSDT", "EQUITY")[0] == ""        # Nasdaq kanalı yokken gönderilmez
+    # SSL Hybrid sinyalleri Supertrend kanallarına
+    n.sniper_main, n.chat_id, n.major_chat, n.equity_chat, n.commodity_chat, n.bulletin_chat = True, "ANA", "MAJ", "NAS", "EMT", "BUL"
+    assert [n.sniper_chat_for(s_, t_)[0] for s_, t_ in (("BTCUSDT", "COIN"), ("NVDAUSDT", "EQUITY"), ("XAUUSDT", "COMMODITY"),
+                                                         ("SUIUSDT", "COIN"))] == ["MAJ", "NAS", "EMT", "ANA"]
 
 
 def test_sniper_still_open():

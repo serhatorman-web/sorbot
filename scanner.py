@@ -2637,7 +2637,7 @@ def build_message(res, direction, cfg, now_utc):
         head = "📍 <b>PIVOT</b> · " + head
     sn = res.get("sniper_sig") if (res.get("sniper_sig") or {}).get("dir") == direction else None
     if sn:
-        head = "🎯 <b>NOKTA ATIŞI</b> · " + head
+        head = sn.get("head", "🎯 <b>NOKTA ATIŞI</b>") + " · " + head
     # teknik görünüm (Güçlü AL / AL / Nötr / SAT / Güçlü SAT, yüzdeli) + trend uyum satırları; güven skoru yok
     align = [x for x in (trend_alignment_line(res, direction), own_tf_alignment_line(res, direction, cfg)) if x]
     if res.get("votes") and cfg.get("technical_rating", {}).get("enabled", True):
@@ -2752,6 +2752,9 @@ def build_sniper_message(api, r, sig, lv, rc, cfg, now_utc, now_ms):
     d = "long" if sig["d"] == 1 else "short"
     cat, short = sniper.RULES[sig["rule"]]
     icon, title, _ = sniper.CATS[cat]
+    is_ssl = sig["rule"] in sniper.SSL_RULES
+    if is_ssl:                                  # Supertrend kanallarında ayırt edilsin
+        icon, title = "🔷", "SSL HYBRID"
     if "tf" not in r:
         fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
     if "vp" not in r:
@@ -2760,7 +2763,8 @@ def build_sniper_message(api, r, sig, lv, rc, cfg, now_utc, now_ms):
     r["sniper_sig"] = {
         "dir": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"],
         "stop_label": "%1 alt sınırı" if floor and abs(lv["risk"] - floor) < 1e-12 else "yapı stopu (son tepe/dip ötesi)",
-        "icon": icon, "title": title, "rule_name": short, "why": sig["why"][0].upper() + sig["why"][1:],
+        "icon": icon, "title": title, "rule_name": short,
+        "head": "🔷 <b>SSL HYBRID</b>" if is_ssl else "🎯 <b>NOKTA ATIŞI</b>", "why": sig["why"][0].upper() + sig["why"][1:],
         "test": (f"📊 Geçmiş test: TP1 %{rc['test_tp1']} · ortalama {rc['test_r']:+.2f}R (işlem başına, ücret düşülmüş)"
                  if "test_r" in rc else "")}
     try:
@@ -2948,6 +2952,8 @@ class Notifier:
         self.sniper_major = str(tg.get("sniper_major_chat_id") or "").strip()
         self.sniper_equity = str(tg.get("sniper_equity_chat_id") or "").strip()
         self.sniper_commodity = str(tg.get("sniper_commodity_chat_id") or "").strip()
+        # SSL Hybrid sinyalleri Supertrend kanallarına (altcoin / majör / Nasdaq / emtia) – kullanıcı isteği
+        self.sniper_main = bool(tg.get("sniper_to_main_channels"))
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
@@ -2979,6 +2985,10 @@ class Notifier:
 
     def sniper_chat_for(self, symbol=None, typ=None):
         """Nokta Atışı kanalı: Supertrend sinyalleriyle aynı ayrım (majör / Nasdaq / emtia / altcoin)."""
+        if self.sniper_main:                         # Supertrend sinyallerinin kanalları
+            chat = self.chat_for(symbol, typ)
+            return chat, ("Majör Coinler" if chat == self.major_chat else "Nasdaq" if chat == self.equity_chat
+                          else "Emtia" if chat == self.commodity_chat else "ana (altcoin)")
         if symbol and symbol in self.major_symbols:
             if self.sniper_major:
                 return self.sniper_major, "Nokta Atışı Majör"

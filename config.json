@@ -439,10 +439,11 @@
     "commodity_chat_id": "-1004440589259",
     "bulletin_chat_id": "-1003810871076",
     "charts_chat_id": "-1004459493821",
-    "sniper_chat_id": "-1003945734565",
-    "sniper_major_chat_id": "-1003960540461",
-    "sniper_equity_chat_id": "-1004499921586",
-    "sniper_commodity_chat_id": "-1004347224133"
+    "sniper_chat_id": "",
+    "sniper_to_main_channels": true,
+    "sniper_major_chat_id": "",
+    "sniper_equity_chat_id": "",
+    "sniper_commodity_chat_id": ""
   },
   "live_images": {
     "_aciklama": "Sinyali beklemeden: her taramada o zaman diliminin son kapanan mumunda kırılan trend çizgileri (trendlines), retesti tamamlanan trend çizgileri (retests, hacim şartı yok) ve tamamlanan grafik formasyonları (formations) Sorbot Grafikler kanalına resim olarak gönderilir. Koşullar: kırılım mumunun hacmi ≥ volume_x, trend çizgisinde en az min_touches temas ve min_span mum uzunluk, exclude listesindeki formasyonlar gönderilmez. Her olay bir kez; taramada en fazla max_per_scan resim (önce majörler).",
@@ -486,7 +487,7 @@
   },
   "sniper": {
     "_aciklama": "🎯 Nokta Atışı: ayrı kanal (telegram.sniper_chat_id). Her zaman dilimi için kategori başına geçmiş testte en iyi çıkan kural. htf: sadece 4 saatlik trend yönünde; min_stop_pct: stop en az bu kadar % uzakta (işlem ücretinin payını düşürür). test_tp1 / test_r: 80 coin geçmiş test sonucu (15dk 90 gün, 1s 1 yıl), mesajda gösterilir.",
-    "enabled": false,
+    "enabled": true,
     "timeframes": [
       "15m",
       "1h",
@@ -506,42 +507,42 @@
         "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
         "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
         "dip_stretch": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 51,
           "test_r": -0.01
         },
         "top_sweep": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 55,
           "test_r": 0.09
         },
         "up_rsi": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 52,
           "test_r": 0.01
         },
         "dn_breakdown": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 52,
           "test_r": 0.02
         },
         "pump5": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 50,
           "test_r": 0.05
         },
         "dump5": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 51,
@@ -552,49 +553,49 @@
         "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5, "test_tp1": 50, "test_r": -0.05},
         "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5, "test_tp1": 50, "test_r": -0.05},
         "dip_stretch": {
-          "enabled": true,
+          "enabled": false,
           "htf": false,
           "min_stop_pct": 1.0,
           "test_tp1": 50,
           "test_r": -0.01
         },
         "top_sweep": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 50,
           "test_r": -0.02
         },
         "up_ema20": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 51,
           "test_r": 0.0
         },
         "dn_rsi": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 52,
           "test_r": 0.06
         },
         "dn_ema20": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 52,
           "test_r": 0.03
         },
         "pump5": {
-          "enabled": true,
+          "enabled": false,
           "htf": false,
           "min_stop_pct": 0.0,
           "test_tp1": 50,
           "test_r": 0.03
         },
         "dump3": {
-          "enabled": true,
+          "enabled": false,
           "htf": true,
           "min_stop_pct": 1.0,
           "test_tp1": 46,
@@ -604,14 +605,14 @@
       "4h": {
         "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5},
         "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5},
-        "dip_sweep": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "top_sweep": {"enabled": true, "htf": true, "min_stop_pct": 1.0},
-        "up_breakout": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "dn_breakdown": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "dn_ema20": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "pump5": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "pump3": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
-        "dump3": {"enabled": true, "htf": true, "min_stop_pct": 1.0}
+        "dip_sweep": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "top_sweep": {"enabled": false, "htf": true, "min_stop_pct": 1.0},
+        "up_breakout": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "dn_breakdown": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "dn_ema20": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "pump5": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "pump3": {"enabled": false, "htf": false, "min_stop_pct": 1.0},
+        "dump3": {"enabled": false, "htf": true, "min_stop_pct": 1.0}
       }
     }
   }

@@ -1,0 +1,13 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 scanner.py > o.txt 2>&1 || true
+          grep -E "Traceback|Error|hatası|Nokta atışı|Bitti" o.txt | sed 's/^/DR| /' || true
+          awk '/gönderilmedi → Sorbot .*kanalı\) -----/ && /SSL|Majör|Nasdaq|Emtia|ana/ {p=1;n++} p&&n<=1{print "DR| "$0} /^------------------------------------------$/{if(p)p=0}' o.txt | head -40
+          grep -n "SSL HYBRID" o.txt | head -5 | sed 's/^/DR| /'
