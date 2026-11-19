@@ -41,26 +41,39 @@ def ssl_baseline(h, l, c, n=55, mult=0.2):
     return bb, col
 
 
-def ssl_system(h, l, c, ssl, st_dir, a, col, i, p):
+def ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe=None, dyna=None):
     """Kullanıcının SSL sistemi (SHORT; LONG tersi): tepede SSL Sell (çıkış çizgisi aşağı kesilir, son 48 mumun
     zirvesine ≤ near_atr ATR) → en fazla warn_bars mum içinde fiyat baseline'ın altında kapatır, çizgi kırmızıya
-    döner (önceki renk en az min_regime mum sürmüş) → Supertrend henüz AL iken SHORT. Döner: sinyal dict ya da None."""
-    if i < 60 or col[i] == 0 or col[i] == col[i - 1] or not a[i]:
+    döner (önceki renk en az min_regime mum sürmüş) → 1. teyit QQE MOD pembe, 2. teyit DynaRange kırmızı (çizgi
+    döndükten sonra en fazla confirm_bars mum içinde, ilk kez ikisi birlikte sağlandığı mumda) → Supertrend henüz
+    AL iken SHORT. Döner: sinyal dict ya da None."""
+    if i < 60 or col[i] == 0 or not a[i]:
         return None
     d = col[i]
+    conf = p.get("confirm", True) and qqe is not None and dyna is not None
+    # çizginin bu renge döndüğü mum (j): teyitler için en fazla confirm_bars mum beklenir
+    j = i
+    while j > 0 and col[j - 1] == d and i - j <= p.get("confirm_bars", 5):
+        j -= 1
+    if col[j - 1] == d or (not conf and j != i):
+        return None
     if p.get("supertrend_opposite", True) and st_dir[i] != -d:
         return None
-    k = i - 1
+    if conf:
+        ok = lambda k: qqe[k] == d and dyna[k] is not None and dyna[k] * d > 0
+        if not ok(i) or any(ok(k) for k in range(j, i)):
+            return None
+    k = j - 1
     while k > 0 and col[k] != d:
         k -= 1
-    if next((col[j] for j in range(i - 1, k, -1) if col[j] != 0), 0) != -d or i - 1 - k < p.get("min_regime", 15):
+    if next((col[q] for q in range(j - 1, k, -1) if col[q] != 0), 0) != -d or j - 1 - k < p.get("min_regime", 15):
         return None
     w = None
-    for j in range(i, max(1, i - p.get("warn_bars", 10)) - 1, -1):
-        if ssl[j] is None or ssl[j - 1] is None:
+    for q in range(j, max(1, j - p.get("warn_bars", 10)) - 1, -1):
+        if ssl[q] is None or ssl[q - 1] is None:
             break
-        if (c[j] - ssl[j]) * d > 0 and (c[j - 1] - ssl[j - 1]) * d <= 0:
-            w = j
+        if (c[q] - ssl[q]) * d > 0 and (c[q - 1] - ssl[q - 1]) * d <= 0:
+            w = q
             break
     if w is None or not a[w]:
         return None
@@ -68,10 +81,13 @@ def ssl_system(h, l, c, ssl, st_dir, a, col, i, p):
     if gap > p.get("near_atr", 1.0):
         return None
     stop = (max(h[w:i + 1]) + 0.2 * a[i]) if d == -1 else (min(l[w:i + 1]) - 0.2 * a[i])
-    return {"rule": "ssl_top" if d == -1 else "ssl_bottom", "d": d, "stop": stop, "warn": w,
-            "why": (f"{'tepede SSL Sell' if d == -1 else 'dipte SSL Buy'} geldi ({i - w} mum önce), fiyat SSL çizgisinin "
-                    f"{'altında' if d == -1 else 'üstünde'} kapattı → çizgi {'kırmızı' if d == -1 else 'mavi'}; "
-                    f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)")}
+    why = (f"{'tepede SSL Sell' if d == -1 else 'dipte SSL Buy'} geldi ({i - w} mum önce), fiyat SSL çizgisinin "
+           f"{'altında' if d == -1 else 'üstünde'} kapattı → çizgi {'kırmızı' if d == -1 else 'mavi'}; "
+           f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)")
+    if conf:
+        why += (f"\n✅ 1. teyit: QQE MOD {'pembe → satıcılar güçlü' if d == -1 else 'mavi → alıcılar güçlü'}"
+                f"\n✅ 2. teyit: DynaRange {'kırmızı → düşüş teyit edildi' if d == -1 else 'yeşil → yükseliş teyit edildi'}")
+    return {"rule": "ssl_top" if d == -1 else "ssl_bottom", "d": d, "stop": stop, "warn": w, "why": why}
 
 
 def features(o, h, l, c, v):
@@ -210,7 +226,9 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         sp = rules.get("ssl_top") or rules.get("ssl_bottom")
         if sp and f.get("ssl") and f.get("st_dir"):
             _, col = ssl_baseline(h, l, c, sp.get("hma", 55))
-            ss = ssl_system(h, l, c, f["ssl"][lo:i + 1], f["st_dir"][lo:i + 1], x["a"], col, n - 1, sp)
+            ss = ssl_system(h, l, c, f["ssl"][lo:i + 1], f["st_dir"][lo:i + 1], x["a"], col, n - 1, sp,
+                            (f.get("qqe") or [None] * len(f["c"]))[lo:i + 1] if f.get("qqe") else None,
+                            f["dyna"][lo:i + 1] if f.get("dyna") else None)
             if ss:
                 ss["time"] = f["t"][lo + ss["warn"]]
                 sigs.append(ss)
