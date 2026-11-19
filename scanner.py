@@ -2619,8 +2619,6 @@ def build_message(res, direction, cfg, now_utc):
         top += [x, ""]
     if sn:                                     # 🎯 Nokta Atışı: sinyalin sebebi ve geçmiş test sonucu
         top += [f"🎯 <b>{sn['rule_name']}</b>: {sn['why']}", ""]
-        if sn.get("test"):
-            top += [sn["test"], ""]
     # bant: BTC / ETH kendi bandı; diğerleri LONG 🟩 / SHORT 🟥 (PUMP / DUMP SİNYALİ gibi)
     banner = [] if sn else banner_lines(meta, cfg, direction)
     if not banner:
