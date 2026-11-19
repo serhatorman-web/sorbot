@@ -6,9 +6,7 @@ import scanner as S
 base = S.load_json(S.CONFIG_PATH, None)
 api = S.Binance()
 now = int(time.time() * 1000)
-for tf, syms in (("15m", ["SOLUSDT", "XRPUSDT", "DOGEUSDT", "SUIUSDT"]),
-                 ("1h", ["ETHUSDT", "BNBUSDT", "LINKUSDT", "AVAXUSDT"]),
-                 ("4h", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT"])):
+for tf, syms in (("1h", ["ARUSDT"]),):
     cfg = S.apply_tf_profile(base, tf) if tf != "1h" else base
     meta_all, *_ = S.build_universe(api, cfg)
     metas = {m["symbol"]: m for m in meta_all}
