@@ -280,16 +280,19 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
             if cool and sig["rule"] not in SSL_RULES and seen.get(key, 0) >= now - cool:
                 continue
-            ok_key = f"{meta['symbol']}|{tf}|{sig['rule']}|{sig['d']}"
-            if ok_key in opened and still_open(opened[ok_key], f, i):
-                continue                    # aynı kuralın aynı yöndeki sinyali stop / TP3 olmadan tekrar gönderilmez
+            ok_key = f"{meta['symbol']}|{tf}|{sig['d']}"
+            if sig["rule"] not in SSL_RULES and ok_key in opened and still_open(opened[ok_key], f, i):
+                continue                    # aynı coinde aynı yönde açık sinyal varken (stop / TP3 olmadan) yenisi gelmez
             cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
     sent, sent_other, htf_cache = 0, 0, {}
     # SSL sistemi (kullanıcının stratejisi) önce gönderilir: taramada en fazla max_per_scan sinyal gittiği için
     # alfabetik sırada geride kalan SSL sinyalleri diğer kurallar yüzünden düşmesin
     cands.sort(key=lambda x: 0 if x[1]["rule"] in SSL_RULES else 1)
+    done_now = set()
     for meta, sig, rc, a, close, t_open, own_tr, r in cands:
         is_ssl = sig["rule"] in SSL_RULES             # SSL sinyallerine sınır yok (kullanıcı isteği)
+        if (meta["symbol"], sig["d"]) in done_now:    # aynı mumda aynı coin + yön için tek mesaj (SSL önce)
+            continue
         if not is_ssl and sc.get("max_per_scan", 0) and sent_other >= sc["max_per_scan"]:   # 0 = sınır yok
             continue
         sym = meta["symbol"]
@@ -326,7 +329,8 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
         try:
             if notifier.send_sniper(msg, sym, meta.get("type")):
                 seen[key] = now
-                opened[f"{sym}|{tf}|{sig['rule']}|{sig['d']}"] = {"t": t_open, "d": sig["d"], "stop": lv["stop"],
+                done_now.add((sym, sig["d"]))
+                opened[f"{sym}|{tf}|{sig['d']}"] = {"t": t_open, "d": sig["d"], "stop": lv["stop"],
                                                                 "tp3": lv["tp"][-1], "at": now}
                 sent += 1
                 sent_other += 0 if is_ssl else 1
