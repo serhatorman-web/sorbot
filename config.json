@@ -489,7 +489,8 @@
     "enabled": true,
     "timeframes": [
       "15m",
-      "1h"
+      "1h",
+      "4h"
     ],
     "types": [
       "COIN",
@@ -599,6 +600,18 @@
           "test_tp1": 46,
           "test_r": -0.08
         }
+      },
+      "4h": {
+        "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5},
+        "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 0, "near_atr": 1.0, "supertrend_opposite": false, "confirm_required": false, "followup_bars": 12, "confirm_bars": 5},
+        "dip_sweep": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "top_sweep": {"enabled": true, "htf": true, "min_stop_pct": 1.0},
+        "up_breakout": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "dn_breakdown": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "dn_ema20": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "pump5": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "pump3": {"enabled": true, "htf": false, "min_stop_pct": 1.0},
+        "dump3": {"enabled": true, "htf": true, "min_stop_pct": 1.0}
       }
     }
   }

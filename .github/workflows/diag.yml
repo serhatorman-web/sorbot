@@ -1,0 +1,9 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: SORBOT_TF=4h python3 scanner.py > o.txt 2>&1; grep -E "Traceback|Error|hatası|Nokta atışı|Bitti" o.txt | sed 's/^/DR| /'; awk '/gönderilmedi → Sorbot Nokta Atışı/{p=1;n++} p&&n<=1{print "DR| "$0} /^------------------------------------------$/{if(p)p=0}' o.txt | head -60
