@@ -63,6 +63,16 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             ax.plot([x0, n + 2], [v, v], color=colr, linewidth=1.3 if nm == "P" else 1.0, zorder=3)
             ax.text(x0, v, f"{nm} ({_fmt(v, prec)}) ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
                     clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
+    # arka planda pivot indikatörü (bilgi amaçlı): her dönemin P / R1-R3 / S1-S3 çizgileri, mumların arkasında
+    bg = [sg for sg in (g.get("pivot_bg") or []) if sg["k1"] >= start]
+    for j, sg in enumerate(bg):
+        x0, x1 = max(sg["k0"], start), (n + 2 if j == len(bg) - 1 else sg["k1"] + 0.5)
+        for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
+            colr = TXT if nm == "P" else PIV_COL
+            ax.plot([x0, x1], [sg[nm], sg[nm]], color=colr, linewidth=0.9, alpha=0.55, zorder=1)
+            if j == len(bg) - 1:                 # etiketler sadece içinde bulunulan dönemde
+                ax.text(x0, sg[nm], f"{nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7, alpha=0.8, va="center",
+                        ha="right", zorder=1, clip_on=True)
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
     if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
         ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)

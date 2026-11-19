@@ -2063,6 +2063,23 @@ def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None):
     return {"d": d, "entry": lv["entry"], "stop": lv["stop"], "tp": lv["tp"], "at_level": at_level}
 
 
+def pivot_segments(f, lo, i, tf):
+    """Resmin arka planı için pivot seviyeleri (TradingView Pivots gibi): penceredeki her dönem için önceki dönemin
+    H-L-C'sinden P, R1-R3, S1-S3. Döner: [{k0, k1, P, R1.., S3}] (k0 / k1: resimdeki mum sırası)."""
+    segs, cur = [], None
+    for k in range(lo, i + 1):
+        per = 86_400_000 if TF_MS.get(tf, HOUR_MS) <= 15 * 60 * 1000 else 7 * 86_400_000
+        st = pivot_period_start(f["t"][k], per)
+        if cur and cur["start"] == st:
+            cur["k1"] = k - lo
+            continue
+        pv = pivot_from_bars(f, k, tf)
+        cur = dict({nm: pv[nm] for nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3")}, start=st, k0=k - lo, k1=k - lo) if pv else None
+        if cur:
+            segs.append(cur)
+    return segs
+
+
 def live_images(results, cfg, state, now):
     """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
     formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
@@ -2090,9 +2107,14 @@ def live_images(results, cfg, state, now):
         prio = 0 if meta["symbol"] in majors else 1
         vr = f["v"][i] / f["vol_ma"][i - 1] if f["vol_ma"][i - 1] else 0     # kırılım mumunun hacmi
         vol_ok = vr >= lc.get("volume_x", 1.5)
+        # arka planda pivot indikatörü (bilgi amaçlı; kullanıcı isteği)
+        try:
+            pv_bg = pivot_segments(f, lo, i, tf) if lc.get("pivot_background", True) else []
+        except Exception:  # noqa: BLE001
+            pv_bg = []
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
         pvb = None
-        if lc.get("pivots", True) and i >= 1:
+        if lc.get("pivots", False) and i >= 1:      # pivot kırılım resimleri kapalı (kullanıcı: sadece arka planda)
             pv = pivot_from_bars(f, i, tf)
             if pv:
                 P = pv["P"]
@@ -2148,6 +2170,8 @@ def live_images(results, cfg, state, now):
                 pv_draw, pv_txt = pv_note(d)
                 if pv_draw:
                     g["pivots"] = pv_draw
+                if pv_bg:
+                    g["pivot_bg"] = pv_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1))
@@ -2211,6 +2235,8 @@ def live_images(results, cfg, state, now):
                 try:
                     if pv_draw:
                         g = dict(g, pivots=pv_draw)
+                    if pv_bg:
+                        g = dict(g, pivot_bg=pv_bg)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d)))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
