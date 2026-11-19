@@ -1411,13 +1411,18 @@ def test_sniper_ssl_system_short():
     # QQE MOD + DynaRange teyidi: çizgi döndüğü mumda yoksa, ilk kez ikisi birlikte sağlanınca (≤5 mum) sinyal
     st_dir[i] = 1
     qqe, dyna = [1] * n, [1.0] * n
-    assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe, dyna) is None      # teyit yok
+    sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe, dyna)      # teyitler zıt: yine gelir, ❌ ile
+    assert sig and "❌ 1. teyit: QQE MOD mavi → satıcılar zayıf" in sig["why"]
+    assert "❌ 2. teyit: DynaRange yeşil → düşüş teyit edilmedi" in sig["why"] and "⚠️ Teyitler zıt" in sig["why"]
+    p["confirm_required"] = True
+    assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe, dyna) is None      # teyit beklenirse gelmez
     for k in (i + 1, i + 2):            # çizgi kırmızı kalır, fiyat SSL altında
         col[k], c[k], ssl[k] = -1, c[i] - 0.1, c[i] + 1
     qqe[i + 1], qqe[i + 2], dyna[i + 1], dyna[i + 2] = -1, -1, 1.0, -1.0
     assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i + 1, p, qqe, dyna) is None  # sadece QQE pembe
     sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i + 2, p, qqe, dyna)          # ikisi birlikte
-    assert sig and sig["d"] == -1 and "1. teyit: QQE MOD pembe" in sig["why"] and "2. teyit: DynaRange kırmızı" in sig["why"]
+    assert sig and sig["d"] == -1 and "✅ 1. teyit: QQE MOD pembe" in sig["why"] and "✅ 2. teyit: DynaRange kırmızı" in sig["why"]
+    assert "✅ İki teyit de onaylıyor" in sig["why"]
 
 
 def test_sniper_channel_routing():

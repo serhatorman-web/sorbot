@@ -50,7 +50,8 @@ def ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe=None, dyna=None):
     if i < 60 or col[i] == 0 or not a[i]:
         return None
     d = col[i]
-    conf = p.get("confirm", True) and qqe is not None and dyna is not None
+    show = qqe is not None and dyna is not None
+    conf = show and p.get("confirm_required", False)     # False: teyitler beklenmez, sadece ✅ / ❌ ile yazılır
     # çizginin bu renge döndüğü mum (j): teyitler için en fazla confirm_bars mum beklenir
     j = i
     while j > 0 and col[j - 1] == d and i - j <= p.get("confirm_bars", 5):
@@ -84,10 +85,34 @@ def ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe=None, dyna=None):
     why = (f"{'tepede SSL Sell' if d == -1 else 'dipte SSL Buy'} geldi ({i - w} mum önce), fiyat SSL çizgisinin "
            f"{'altında' if d == -1 else 'üstünde'} kapattı → çizgi {'kırmızı' if d == -1 else 'mavi'}; "
            f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)")
-    if conf:
-        why += (f"\n✅ 1. teyit: QQE MOD {'pembe → satıcılar güçlü' if d == -1 else 'mavi → alıcılar güçlü'}"
-                f"\n✅ 2. teyit: DynaRange {'kırmızı → düşüş teyit edildi' if d == -1 else 'yeşil → yükseliş teyit edildi'}")
+    if show:
+        why += "\n" + "\n".join(confirm_lines(d, qqe[i], dyna[i]))
     return {"rule": "ssl_top" if d == -1 else "ssl_bottom", "d": d, "stop": stop, "warn": w, "why": why}
+
+
+def confirm_lines(d, q, dy):
+    """SSL sinyalinin teyitleri: uyan ✅, zıt ❌, nötr ⚪; ikisi de uymuyorsa uyarı (kullanıcı isteği)."""
+    up = d == 1
+    mv = "yükseliş" if up else "düşüş"
+    side = "alıcılar" if up else "satıcılar"
+    qc = {1: "mavi", -1: "pembe"}.get(q, "gri")
+    if q == d:
+        l1 = f"✅ 1. teyit: QQE MOD {qc} → {side} güçlü"
+    elif q == -d:
+        l1 = f"❌ 1. teyit: QQE MOD {qc} → {side} zayıf"
+    else:
+        l1 = "⚪ 1. teyit: QQE MOD gri → yön belirsiz"
+    dv = 0 if dy is None else (1 if dy > 0 else (-1 if dy < 0 else 0))
+    dc = {1: "yeşil", -1: "kırmızı"}.get(dv, "nötr")
+    if dv == d:
+        l2 = f"✅ 2. teyit: DynaRange {dc} → {mv} teyit edildi"
+    elif dv == -d:
+        l2 = f"❌ 2. teyit: DynaRange {dc} → {mv} teyit edilmedi"
+    else:
+        l2 = f"⚪ 2. teyit: DynaRange nötr → {mv} teyit edilmedi"
+    end = ("✅ İki teyit de onaylıyor → işleme girilebilir" if q == d and dv == d
+           else "⚠️ Teyitler zıt → işleme girmek riskli, bekle")
+    return [l1, l2, end]
 
 
 def features(o, h, l, c, v):
