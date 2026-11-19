@@ -88,11 +88,25 @@ def events(f, col, i, lookback=10):
         if (c[k] - ssl[k]) * d > 0 and (c[k - 1] - ssl[k - 1]) * d <= 0:
             warn = i - k
             break
-    out = [("1) Çizgi rengi döndü (tümü)", d)]
-    if warn is not None:
-        out.append(("2) Önce SSL Sell/Buy uyarısı, sonra çizgi döndü", d))
-        if f["st_dir"][i] == -d:
-            out.append(("3) Uyarı + çizgi döndü + Supertrend henüz ters (erken giriş)", d))
+    out = []
+    if warn is None or f["st_dir"][i] != -d:
+        return out
+    # önceki rejim kaç mum sürdü (ters renk + gri)
+    k = i - 1
+    while k > 0 and col[k] != d:
+        k -= 1
+    reg = i - 1 - k
+    h, l, a = f["h"], f["l"], f["atr"]
+    w = i - warn
+    near = ((max(h[w - 48:w + 1]) - h[w]) / a[w] <= 1.0) if d == -1 else ((l[w] - min(l[w - 48:w + 1])) / a[w] <= 1.0)
+    out.append(("3) Uyarı + çizgi döndü + Supertrend ters", d))
+    for m in (15, 30):
+        if reg >= m:
+            out.append((f"4) 3 + önceki trend ≥{m} mum", d))
+            if near:
+                out.append((f"5) 3 + önceki trend ≥{m} mum + uyarı tepede/dipte (48 mum ucu ≤1 ATR)", d))
+    if near:
+        out.append(("6) 3 + uyarı tepede/dipte", d))
     return out
 
 
@@ -154,7 +168,7 @@ if __name__ == "__main__":
     base = S.load_json(S.CONFIG_PATH, None)
     api = S.Binance()
     now = int(time.time() * 1000)
-    for sym in ("SKYUSDT",):
+    for sym in ():
         show(api, sym, now, base)
     info = api.get("/fapi/v1/exchangeInfo")
     ok = {s["symbol"] for s in info["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"
