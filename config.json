@@ -501,8 +501,8 @@
     "max_per_scan": 10,
     "rules": {
       "15m": {
-        "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": true, "confirm_required": true, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
-        "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": true, "confirm_required": true, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
+        "ssl_bottom": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": false, "confirm_required": true, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
+        "ssl_top": {"enabled": true, "htf": false, "min_stop_pct": 1.0, "hma": 55, "warn_bars": 10, "min_regime": 30, "near_atr": 99, "supertrend_opposite": false, "confirm_required": true, "confirm_bars": 5, "test_tp1": 53, "test_r": 0.0},
         "dip_stretch": {
           "enabled": true,
           "htf": true,

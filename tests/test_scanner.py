@@ -1423,6 +1423,11 @@ def test_sniper_ssl_system_short():
     sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i + 2, p, qqe, dyna)          # ikisi birlikte
     assert sig and sig["d"] == -1 and "✅ 1. teyit: QQE MOD pembe" in sig["why"] and "✅ 2. teyit: DynaRange kırmızı" in sig["why"]
     assert "✅ İki teyit de onaylıyor" in sig["why"]
+    st_dir[i + 2] = -1                  # Supertrend de SAT: şart kapalıysa (15dk) yine gelir
+    assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i + 2, p, qqe, dyna) is None
+    p["supertrend_opposite"] = False
+    sig = sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i + 2, p, qqe, dyna)
+    assert sig and "Supertrend de SAT" in sig["why"] and "erken giriş" not in sig["why"]
 
 
 def test_sniper_channel_routing():

@@ -84,7 +84,8 @@ def ssl_system(h, l, c, ssl, st_dir, a, col, i, p, qqe=None, dyna=None):
     stop = (max(h[w:i + 1]) + 0.2 * a[i]) if d == -1 else (min(l[w:i + 1]) - 0.2 * a[i])
     why = (f"{'tepede SSL Sell' if d == -1 else 'dipte SSL Buy'} geldi ({i - w} mum önce), fiyat SSL çizgisinin "
            f"{'altında' if d == -1 else 'üstünde'} kapattı → çizgi {'kırmızı' if d == -1 else 'mavi'}; "
-           f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)")
+           + (f"Supertrend henüz {'AL' if d == -1 else 'SAT'} (erken giriş)" if st_dir[i] == -d
+              else f"Supertrend de {'SAT' if d == -1 else 'AL'}"))
     if show:
         why += "\n" + "\n".join(confirm_lines(d, qqe[i], dyna[i]))
     return {"rule": "ssl_top" if d == -1 else "ssl_bottom", "d": d, "stop": stop, "warn": w, "why": why}
