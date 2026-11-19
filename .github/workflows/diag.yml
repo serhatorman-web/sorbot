@@ -1,0 +1,10 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet --user matplotlib || true
+      - run: python3 tools/diag_anchor.py
