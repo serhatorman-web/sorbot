@@ -1371,3 +1371,8 @@ def test_sniper_pump_and_levels():
                          "19.11.2026 14:00", 1, {})
     assert msg.splitlines()[0] == "🚀 <b>PUMP · LONG</b> · 15dk"
     assert "📍 <b>Giriş:</b> 104.00" in msg and "🎯 <b>TP3:</b> 107.00 (+2.88%)" in msg and "🛑 <b>Stop:</b> 103.00 (-0.96%)" in msg
+    short = {"rule": "top_sweep", "d": -1, "stop": 959.22, "why": "test"}
+    msg = sniper.message("ZEC", "15dk", short, sniper.levels(949.72, -1, 959.22, 5.0), lambda p: f"{p:.2f}",
+                         "19.11.2026 14:00", -1, {})
+    assert "🎯 <b>TP1:</b> 940.22 (+1.00%)" in msg and "🎯 <b>TP3:</b> 921.22 (+3.00%)" in msg
+    assert "🛑 <b>Stop:</b> 959.22 (-1.00%)" in msg

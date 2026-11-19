@@ -118,7 +118,7 @@ def message(name, tf_name, sig, lv, fmt, t_close, htf, cfg_rule):
     cat, short = RULES[sig["rule"]]
     icon, title, side = CATS[cat]
     d = sig["d"]
-    p = lambda x: (x / lv["entry"] - 1) * 100
+    p = lambda x: (x / lv["entry"] - 1) * 100 * d      # işlem yönüne göre: TP'ler kâr (+), stop zarar (−)
     htf_txt = {1: "🟢 yükseliş", -1: "🔴 düşüş", 0: "⚪ yatay"}[htf]
     lines = [f"{icon} <b>{title} · {side}</b> · {tf_name}",
              f"{name} · {short}",
