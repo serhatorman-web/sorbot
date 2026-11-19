@@ -1,0 +1,14 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/diag_radar.py
+      - run: |
+          for k in start early momentum; do for d in long short; do
+            echo "PV| ===== $k $d"
+            PREVIEW=1 PREVIEW_SYMBOL=SOLUSDT PREVIEW_DIR=$d PREVIEW_RADAR=$k python3 scanner.py 2>&1 | grep -E "SİNYALİ|UYARI|HAREKETİ|Giriş:|Stop:|TP1:|TP2:|TP3:|Fiyat:|Kırılım seviyesi|Traceback|Error" | sed 's/^/PV| /'
+          done; done
