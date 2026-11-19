@@ -50,6 +50,7 @@
       "timeframe": "1d",
       "state_file": "state_1d.json", "min_candles": 210,
       "signal_supertrend": {
+        "enabled": false,
         "cooldown_hours": 24
       },
       "pump_radar": {

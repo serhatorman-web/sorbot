@@ -3367,7 +3367,8 @@ def main():
         sig_cfg.update(cfg.get("signal_supertrend", {}))
     maxn = sig_cfg["max_signals_per_run"]
     sent = 0
-    for score, d, r in picks[:maxn]:
+    st_picks = picks if sig_cfg.get("enabled", True) else []     # tf_profiles: Supertrend sinyali kapalı (ör. 1 gün)
+    for score, d, r in st_picks[:maxn]:
         fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
         compute_volume_profile(r, cfg)
         msg = build_message(r, d, cfg, now_utc)
@@ -3380,7 +3381,7 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"  Telegram hatası: {e}", file=sys.stderr)
 
-    rest = picks[maxn:]
+    rest = st_picks[maxn:]
     if rest:
         # özet liste de her sembolün kendi kanalına gider (Majör / Nasdaq / Emtia / Altcoin)
         groups = {}
