@@ -2001,36 +2001,49 @@ def live_images(results, cfg, state, now):
         prio = 0 if meta["symbol"] in majors else 1
         vr = f["v"][i] / f["vol_ma"][i - 1] if f["vol_ma"][i - 1] else 0     # kırılım mumunun hacmi
         vol_ok = vr >= lc.get("volume_x", 1.5)
-        # ── trend çizgisi kırılımı (son mumda) ──
-        if lc.get("trendlines", True) and vol_ok:
+        # ── trend çizgisi: kırılım (son mumda, hacimli) ve retest tamamlandı (son mumda) ──
+        if lc.get("trendlines", True):
             for ev in ta.trendlines_close(h, l, c):
-                if ev["state"] != "broken" or ev["bars_ago"] != 0:
+                if ev["state"] != "broken":
                     continue
-                if ev["touches"] < lc.get("min_touches", 3) or ev["b"] - ev["a"] < lc.get("min_span", 30):
+                if ev["touches"] < lc.get("min_touches", 2) or ev["b"] - ev["a"] < lc.get("min_span", 30):
                     continue
-                key = f"{meta['symbol']}|{tf}|tl|{ev['type']}|{cs[-1]['t']}"
+                is_break = ev["bars_ago"] == 0 and vol_ok
+                is_retest = lc.get("retests", True) and ev.get("rc") == n - 1
+                if not (is_break or is_retest):
+                    continue
+                key = f"{meta['symbol']}|{tf}|{'tl' if is_break else 'rt'}|{ev['type']}|{cs[-1]['t']}"
                 if key in seen:
                     continue
                 a_, b_ = ev["a"], ev["b"]
                 m = (c[b_] - c[a_]) / (b_ - a_)
                 ln = lambda k: c[b_] + m * (k - b_)
                 d = 1 if ev["type"] == "falling" else -1
-                g = {"kirilim": d, "seviye": ln(n - 1), "hedef": None,
+                kb = n - 1 - ev["bars_ago"]
+                g = {"kirilim": d, "seviye": ln(kb), "hedef": None,
                      "ciz": {"noktalar": [(a_, c[a_]), (b_, c[b_])], "cizgiler": [((a_, c[a_]), (n - 1, ln(n - 1)))],
-                             "kb": n - 1, "retest": None}}
+                             "kb": kb, "retest": ev.get("rt") if is_retest else None}}
                 kind = "Düşen" if d == 1 else "Yükselen"
+                what = "kırıldı" if is_break else "retest tamamlandı"
                 try:
-                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi kırıldı", prec)
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}", prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Trend çizgisi resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
                     png = None
-                if png:
-                    icon = "🟢" if d == 1 else "🔴"
+                if not png:
+                    continue
+                icon = "🟢" if d == 1 else "🔴"
+                if is_break:
                     mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
                            f"({ev['touches']} temas) {fmt_price(ln(n - 1), prec)} seviyesinden hacimle ({vr:.1f}x) "
                            f"kapanışla kırıldı → {mv}, retest beklenebilir")
-                    out.append((prio, png, cap, meta["symbol"], key))
+                else:
+                    mv = "yükseliş başlayabilir" if d == 1 else "düşüş başlayabilir"
+                    cap = (f"<b>✅ RETEST TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
+                           f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesinden {ev['bars_ago']} mum önce kırıldı, "
+                           f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
+                out.append((prio, png, cap, meta["symbol"], key))
         # ── grafik formasyonu kırılımı (son mumda) ──
         if lc.get("formations", True) and vol_ok:
             a = ta.atr(h, l, c, 14)

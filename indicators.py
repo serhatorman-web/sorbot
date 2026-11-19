@@ -599,7 +599,7 @@ def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.
             k += 1
         if last - brk > recent:
             continue
-        state, touch, moved = "none", None, False
+        state, touch, moved, conf = "none", None, False, None
         for k in range(brk + 1, n):
             m = k - 1
             far = (close[m] - ln(m)) if kind == "falling" else (ln(m) - close[m])
@@ -616,12 +616,12 @@ def trendlines_close(high, low, close, window=200, piv=3, min_sep=10, tol_atr=0.
                 if touch is not None:
                     state = "touch"
             elif (kind == "falling" and close[k] > high[touch]) or (kind == "rising" and close[k] < low[touch]):
-                state = "confirmed"
+                state, conf = "confirmed", k
                 break
         if state == "none" and a[last] and abs(close[last] - ln(last)) > away_atr * a[last]:
             state = "away"
         out.append({"type": kind, "state": "broken", "touches": touches, "level": ln(last), "bars_ago": last - brk,
-                    "retest": state, "a": A, "b": p, "rt": touch})
+                    "retest": state, "a": A, "b": p, "rt": touch, "rc": conf})
     return out
 
 
