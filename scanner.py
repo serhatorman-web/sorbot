@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo
 import indicators as ta
 import patterns as pt
 import chart_img
+import sniper
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -2872,6 +2873,8 @@ class Notifier:
         self.bulletin_chat = (os.environ.get("TELEGRAM_CHAT_ID_BULLETIN") or str(tg.get("bulletin_chat_id") or "")).strip()
         # Trend çizgisi ve formasyon resimleri ayrı kanala ("Sorbot Grafikler"); tanımlı değilse sinyalin kanalına
         self.charts_chat = (os.environ.get("TELEGRAM_CHAT_ID_CHARTS") or str(tg.get("charts_chat_id") or "")).strip()
+        # 🎯 Nokta Atışı sinyalleri ayrı kanala ("Sorbot Nokta Atışı"); tanımlı değilse gönderilmez
+        self.sniper_chat = (os.environ.get("TELEGRAM_CHAT_ID_SNIPER") or str(tg.get("sniper_chat_id") or "")).strip()
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
@@ -2899,6 +2902,14 @@ class Notifier:
             return True
         ok = send_telegram(text, self.token, chat)
         time.sleep(1.1)   # Telegram grup limiti: ~20 mesaj/dk
+        return ok
+
+    def send_sniper(self, text):
+        if self.dry or not self.sniper_chat:
+            print(f"\n----- TELEGRAM MESAJI (gönderilmedi → Sorbot Nokta Atışı kanalı) -----\n{text}\n" + "-" * 42)
+            return self.dry               # kanal tanımlı değilse gönderilmiş sayılmaz
+        ok = send_telegram(text, self.token, self.sniper_chat)
+        time.sleep(1.1)
         return ok
 
     def send_photo(self, png, caption, symbol=None, typ=None):
@@ -3425,6 +3436,14 @@ def main():
     except Exception as e:  # noqa: BLE001
         print(f"  Anlık grafik resimleri hatası: {e}", file=sys.stderr)
     state["img"] = {k: v for k, v in state.get("img", {}).items() if v >= now - 3 * 86400}
+
+    # ---- 🎯 Nokta Atışı sinyalleri (ayrı kanal) ----
+    try:
+        n_sn = sniper.scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fmt_price, TR_TZ, tf_ms(cfg))
+        if cfg.get("sniper", {}).get("enabled"):
+            print(f"Nokta atışı: {n_sn} sinyal")
+    except Exception as e:  # noqa: BLE001
+        print(f"  Nokta atışı hatası: {e}", file=sys.stderr)
     state["img_txt"] = {k: v for k, v in state.get("img_txt", {}).items() if k in state["img"]}
 
     # Eski kayıtları temizle. Deneme modunda kayıt tutulmaz (gerçek sinyalleri engellemesin).

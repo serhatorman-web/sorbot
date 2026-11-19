@@ -478,5 +478,115 @@
   "price_action": {
     "_aciklama": "Sinyallerde PRICE ACTION bölümü (formasyonlar, FVG, order block). RSI uyumsuzluğun altında; order block'lar kapalı (order_blocks.enabled false).",
     "enabled": false
+  },
+  "sniper": {
+    "_aciklama": "🎯 Nokta Atışı: ayrı kanal (telegram.sniper_chat_id). Her zaman dilimi için kategori başına geçmiş testte en iyi çıkan kural. htf: sadece 4 saatlik trend yönünde; min_stop_pct: stop en az bu kadar % uzakta (işlem ücretinin payını düşürür). test_tp1 / test_r: 80 coin geçmiş test sonucu (15dk 90 gün, 1s 1 yıl), mesajda gösterilir.",
+    "enabled": true,
+    "timeframes": [
+      "15m",
+      "1h"
+    ],
+    "types": [
+      "COIN"
+    ],
+    "cooldown_bars": 8,
+    "max_per_scan": 10,
+    "rules": {
+      "15m": {
+        "dip_stretch": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 51,
+          "test_r": -0.01
+        },
+        "top_sweep": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 55,
+          "test_r": 0.09
+        },
+        "up_rsi": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 52,
+          "test_r": 0.01
+        },
+        "dn_breakdown": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 52,
+          "test_r": 0.02
+        },
+        "pump5": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 50,
+          "test_r": 0.05
+        },
+        "dump5": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 51,
+          "test_r": 0.02
+        }
+      },
+      "1h": {
+        "dip_stretch": {
+          "enabled": true,
+          "htf": false,
+          "min_stop_pct": 1.0,
+          "test_tp1": 50,
+          "test_r": -0.01
+        },
+        "top_sweep": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 50,
+          "test_r": -0.02
+        },
+        "up_ema20": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 51,
+          "test_r": 0.0
+        },
+        "dn_rsi": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 52,
+          "test_r": 0.06
+        },
+        "dn_ema20": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 52,
+          "test_r": 0.03
+        },
+        "pump5": {
+          "enabled": true,
+          "htf": false,
+          "min_stop_pct": 0.0,
+          "test_tp1": 50,
+          "test_r": 0.03
+        },
+        "dump3": {
+          "enabled": true,
+          "htf": true,
+          "min_stop_pct": 1.0,
+          "test_tp1": 46,
+          "test_r": -0.08
+        }
+      }
+    }
   }
 }

@@ -1351,3 +1351,23 @@ def test_signal_sections_only_sent_images():
     scanner.SENT_IMGS = {}
     assert scanner.trendline_lines(res) == []
     assert scanner.formation_lines(res) == ["🧩 <b>FORMASYONLAR</b>", "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti"]
+
+
+def test_sniper_pump_and_levels():
+    """🎯 Nokta atışı: 5x hacimli zirve kırılımı pump5 olarak yakalanır; seviyeler 1R/2R/3R."""
+    import sniper
+    n = 300
+    o = [100.0] * n; c = [100.0 + (0.2 if k % 2 else -0.2) for k in range(n)]
+    h = [x + 0.5 for x in c]; l = [x - 0.5 for x in c]; v = [100.0] * n
+    o[-1], c[-1], h[-1], l[-1], v[-1] = 100.0, 104.0, 104.2, 99.9, 900.0
+    x = sniper.features(o, h, l, c, v)
+    sig = [s for s in sniper.setups(o, h, l, c, v, n - 1, x) if s["rule"] == "pump5"]
+    assert sig and sig[0]["d"] == 1 and "hacim 9.0x" in sig[0]["why"]
+    lv = sniper.levels(104.0, 1, 103.0, 1.0)
+    assert lv["stop"] == 103.0 and lv["tp"] == [105.0, 106.0, 107.0]
+    lv = sniper.levels(100.0, -1, 100.2, 1.0, min_stop_pct=1.0)       # dar stop %1'e genişler
+    assert abs(lv["stop"] - 101.0) < 1e-9 and abs(lv["tp"][2] - 97.0) < 1e-9
+    msg = sniper.message("🪙 <b>SUI</b>", "15dk", sig[0], sniper.levels(104.0, 1, 103.0, 1.0), lambda p: f"{p:.2f}",
+                         "19.11.2026 14:00", 1, {})
+    assert msg.splitlines()[0] == "🚀 <b>PUMP · LONG</b> · 15dk"
+    assert "📍 <b>Giriş:</b> 104.00" in msg and "🎯 <b>TP3:</b> 107.00 (+2.88%)" in msg and "🛑 <b>Stop:</b> 103.00 (-0.96%)" in msg
