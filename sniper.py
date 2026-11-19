@@ -239,7 +239,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
     tf_name = {"15m": "15dk", "1h": "1 saat", "4h": "4 saat"}.get(tf, tf)
     rules = {k: v for k, v in sc.get("rules", {}).get(tf, {}).items() if not k.startswith("_") and v.get("enabled")}
     seen = state.setdefault("sniper", {})
-    cool = sc.get("cooldown_bars", 8) * tf_ms / 1000
+    cool = sc.get("cooldown_bars", 0) * tf_ms / 1000          # 0 = bekleme yok (kullanıcı isteği)
     cands = []
     for r in results:
         meta, f, i = r["meta"], r["f"], r["i"]
@@ -266,7 +266,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             if not rc:
                 continue
             key = f"{meta['symbol']}|{tf}|{sig['d']}"
-            if sig["rule"] not in SSL_RULES and seen.get(key, 0) >= now - cool:
+            if cool and sig["rule"] not in SSL_RULES and seen.get(key, 0) >= now - cool:
                 continue
             cands.append((meta, sig, rc, x["a"][n - 1], c[-1], f["t"][i], htf_trend([{"c": q} for q in c]), r))
     sent, sent_other, htf_cache = 0, 0, {}
@@ -275,11 +275,11 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
     cands.sort(key=lambda x: 0 if x[1]["rule"] in SSL_RULES else 1)
     for meta, sig, rc, a, close, t_open, own_tr, r in cands:
         is_ssl = sig["rule"] in SSL_RULES             # SSL sinyallerine sınır yok (kullanıcı isteği)
-        if not is_ssl and sent_other >= sc.get("max_per_scan", 10):
+        if not is_ssl and sc.get("max_per_scan", 0) and sent_other >= sc["max_per_scan"]:   # 0 = sınır yok
             continue
         sym = meta["symbol"]
         key = f"{sym}|{tf}|{sig['d']}"
-        if not is_ssl and seen.get(key, 0) >= now - cool:   # aynı sembolde aynı yönde iki kural aynı anda: tek sinyal
+        if cool and not is_ssl and seen.get(key, 0) >= now - cool:   # aynı sembolde aynı yönde iki kural aynı anda: tek sinyal
             continue
         if sym not in htf_cache:
             try:
