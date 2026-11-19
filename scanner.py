@@ -2067,7 +2067,7 @@ def sr_levels(h, l, a, left=5, right=3, tol_atr=0.5):
     return [(lv, cnt) for lv, cnt, _ in out]
 
 
-def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True):
+def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True, risk_cfg=None):
     """Grafik resmindeki işlem planı (kullanıcı isteği: gerçek destek / dirence göre):
     giriş = kırılım seviyesi (kapanış seviyenin ötesindeyse geri dönüşte), yoksa son kapanış;
     stop = sinyalin tersindeki en yakın gerçek destek (SHORT: direnç) ötesi (0.2 ATR tampon, en az %min_stop_pct,
@@ -2080,6 +2080,11 @@ def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True):
     entry, at_level = c[-1], False
     if level is not None and (c[-1] - level) * d > 0:      # kapanış kırılımın ötesinde → giriş kırılım seviyesinde
         entry, at_level = level, True
+    if risk_cfg is not None:                                 # Supertrend sinyalleriyle aynı (kullanıcı isteği)
+        risk = risk_cfg.get("sl_atr_mult", 1.5) * ai
+        return {"d": d, "entry": entry, "stop": entry - d * risk,
+                "tp": [entry + d * risk * r for r in risk_cfg.get("tp_r_multiples", [1, 2, 3])][:3],
+                "at_level": at_level, "stop_sr": False, "tp_sr": [False] * 3}
     floor = max(entry * min_stop_pct / 100, 0.5 * ai)
     stop, stop_sr = None, False
     lv_all = sr_levels(h, l, a) if use_sr else []
@@ -2236,7 +2241,7 @@ def live_images(results, cfg, state, now):
                     g["supertrend"] = st_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
-                        g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1))
+                        g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1), risk_cfg=cfg["risk"])
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}"
                                                    + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
@@ -2302,7 +2307,7 @@ def live_images(results, cfg, state, now):
                     if st_bg:
                         g = dict(g, supertrend=st_bg)
                     if draw_plan:
-                        g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d)))
+                        g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d), risk_cfg=cfg["risk"]))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
                                                    + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
@@ -2329,7 +2334,7 @@ def live_images(results, cfg, state, now):
             yonu = "yukarı" if d == 1 else "aşağı"
             try:
                 if draw_plan:
-                    g["plan"] = trade_plan(h, l, c, a_all, d, level=P)
+                    g["plan"] = trade_plan(h, l, c, a_all, d, level=P, risk_cfg=cfg["risk"])
                 png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {pvb['per']} pivot {yonu} kırıldı", prec)
             except Exception as e:  # noqa: BLE001
                 print(f"  Pivot resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
