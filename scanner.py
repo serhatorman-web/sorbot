@@ -2091,7 +2091,11 @@ def live_images(results, cfg, state, now):
                     if fm_ft is None:
                         continue
                 key = f"{meta['symbol']}|{tf}|fm|{g['ad']}|{cs[kb]['t']}"
-                if key in seen:
+                # aynı formasyon çizgileri biraz kayınca farklı kırılım mumu gibi görünebilir: aynı ad + yön son
+                # 10 mumda gönderildiyse tekrar gönderme
+                pre = f"{meta['symbol']}|{tf}|fm|{g['ad']}|"
+                win = 10 * tf_ms(cfg) / 1000
+                if key in seen or any(k.startswith(pre) and v >= now - win for k, v in seen.items()):
                     continue
                 d = g["kirilim"]
                 yonu = "yukarı" if d == 1 else "aşağı"
