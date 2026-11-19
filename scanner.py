@@ -1863,6 +1863,7 @@ def pa_names(direction):
 
 
 SENT_IMGS = None     # grafik kanalına giden resimler {anahtar: gönderim zamanı (sn)}; None = eşleştirme kapalı
+SENT_TXT = {}        # resim açıklamasının metni (sembol adı olmadan) – sinyalde kanalla aynı ifade yazılır
 
 
 def img_note(ts):
@@ -1876,8 +1877,8 @@ def tl_sent(res, ev):
     if SENT_IMGS is None or not (0 <= k < len(cs)):
         return None
     sym = res["meta"]["symbol"]
-    ts = [SENT_IMGS.get(f"{sym}|{ev['tf']}|{kk}|{ev['type']}|{cs[k]['t']}") for kk in ("tl", "rt")]
-    ts = [x for x in ts if x]
+    ts = [(SENT_IMGS.get(key), key) for key in (f"{sym}|{ev['tf']}|{kk}|{ev['type']}|{cs[k]['t']}" for kk in ("tl", "rt"))]
+    ts = [x for x in ts if x[0]]
     return max(ts) if ts else None
 
 
@@ -1888,7 +1889,7 @@ def fm_sent(res, tf, g, cs):
         return None
     pre = f"{res['meta']['symbol']}|{tf}|fm|{g['ad']}|"
     win = 10 * TF_MS.get(tf, HOUR_MS)
-    ts = [v for key, v in SENT_IMGS.items() if key.startswith(pre)
+    ts = [(v, key) for key, v in SENT_IMGS.items() if key.startswith(pre)
           and abs(int(key.rsplit("|", 1)[1]) - cs[kb]["t"]) <= win]
     return max(ts) if ts else None
 
@@ -1913,8 +1914,12 @@ def trendline_lines(res):
             brk = [(e, t) for e, t in brk if t]
             if not brk:
                 continue
-            ev, t = min(brk, key=lambda x: x[0]["bars_ago"])
+            ev, (t, key) = min(brk, key=lambda x: x[0]["bars_ago"])
             note = img_note(t)
+            if SENT_TXT.get(key):           # kanaldaki resmin açıklamasıyla aynı ifade (kullanıcı isteği)
+                icon = "🟢" if ev["type"] == "falling" else "🔴"
+                out.append(f"{icon} {TF_NAMES.get(tf, tf)}: {SENT_TXT[key]}{note}")
+                continue
         elif not brk:               # sadece kırılımlar yazılır; aktif (kırılmamış) çizgiler gelmez (kullanıcı isteği)
             continue
         else:
@@ -2109,7 +2114,7 @@ def live_images(results, cfg, state, now):
                     cap = (f"<b>✅ RETEST TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
                            f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesinden {ev['bars_ago']} mum önce kırıldı, "
                            f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
-                out.append((prio, png, cap, meta["symbol"], key))
+                out.append((prio, png, cap, meta["symbol"], key, cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
         # ── grafik formasyonu kırılımı (son mumda) ──
         if lc.get("formations", True):
             a = ta.atr(h, l, c, 14)
@@ -2156,7 +2161,8 @@ def live_images(results, cfg, state, now):
                               f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
                               f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
                            + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
-                    out.append((prio, png, cap, meta["symbol"], key))
+                    out.append((prio, png, cap, meta["symbol"], key,
+                                cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
     out.sort(key=lambda x: x[0])
     return out
 
@@ -2245,7 +2251,10 @@ def formation_lines(res):
                 t = fm_sent(res, tf, g, fm.get("cs"))
                 if not t:                  # resmi grafik kanalına gitmeyen formasyon yazılmaz (kullanıcı isteği)
                     continue
-                note = img_note(t)
+                note = img_note(t[0])
+                if SENT_TXT.get(t[1]):     # kanaldaki resmin açıklamasıyla aynı ifade (kullanıcı isteği)
+                    out.append(f"{FORM_ICON[g['kirilim']]} {name} · {SENT_TXT[t[1]]}{note}")
+                    continue
             ad, yon = g["ad"], g["yon"]
             if g["durum"] == "kirildi":
                 d = g["kirilim"]
@@ -3233,7 +3242,7 @@ def main():
 
     # Anlık grafik resimleri sinyallerden önce belirlenir (gönderim sonda): sinyal mesajındaki TREND ÇİZGİSİ ve
     # FORMASYONLAR bölümü sadece grafik kanalına resmi giden olayları yazar (kullanıcı isteği)
-    global SENT_IMGS
+    global SENT_IMGS, SENT_TXT
     lc_ = cfg.get("live_images", {})
     try:
         pre_imgs = live_images(results, cfg, state, now)
@@ -3246,11 +3255,15 @@ def main():
         for fn in (os.listdir(sdir) if os.path.isdir(sdir) else []):     # diğer zaman dilimlerinin gönderdiği resimler
             if fn.endswith(".json") and os.path.join(sdir, fn) != state_path:
                 try:
-                    SENT_IMGS.update(load_json(os.path.join(sdir, fn), {}).get("img", {}))
+                    js = load_json(os.path.join(sdir, fn), {})
+                    SENT_IMGS.update(js.get("img", {}))
+                    SENT_TXT.update(js.get("img_txt", {}))
                 except Exception:  # noqa: BLE001
                     pass
         SENT_IMGS.update(state.get("img", {}))
+        SENT_TXT.update(state.get("img_txt", {}))
         SENT_IMGS.update({x[4]: now for x in (pre_imgs or [])[:lc_.get("max_per_scan", 15)]})
+        SENT_TXT.update({x[4]: x[5] for x in (pre_imgs or [])[:lc_.get("max_per_scan", 15)]})
 
     sig_cfg = dict(cfg["signal"])
     if cfg.get("strategy") == "supertrend":
@@ -3400,10 +3413,11 @@ def main():
         imgs = pre_imgs
         mx = cfg.get("live_images", {}).get("max_per_scan", 15)
         n_img = 0
-        for _, png, cap, sym, key in imgs[:mx]:
+        for _, png, cap, sym, key, body in imgs[:mx]:
             try:
                 if notifier.send_photo(png, cap, sym):
                     state["img"][key] = now
+                    state.setdefault("img_txt", {})[key] = body
                     n_img += 1
             except Exception as e:  # noqa: BLE001
                 print(f"  Grafik resmi gönderilemedi ({sym}): {e}", file=sys.stderr)
@@ -3411,6 +3425,7 @@ def main():
     except Exception as e:  # noqa: BLE001
         print(f"  Anlık grafik resimleri hatası: {e}", file=sys.stderr)
     state["img"] = {k: v for k, v in state.get("img", {}).items() if v >= now - 3 * 86400}
+    state["img_txt"] = {k: v for k, v in state.get("img_txt", {}).items() if k in state["img"]}
 
     # Eski kayıtları temizle. Deneme modunda kayıt tutulmaz (gerçek sinyalleri engellemesin).
     cutoff = now - 7 * 86400
