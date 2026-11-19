@@ -1,0 +1,11 @@
+name: diag
+on:
+  workflow_dispatch: {}
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet --user matplotlib || true
+      - run: SORBOT_TF=15m python3 scanner.py 2>&1 | sed 's/^/DR| /'
+      - run: python3 scanner.py 2>&1 | sed 's/^/DR| /'

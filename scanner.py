@@ -1862,9 +1862,41 @@ def pa_names(direction):
 
 
 
+SENT_IMGS = None     # grafik kanalına giden resimler {anahtar: gönderim zamanı (sn)}; None = eşleştirme kapalı
+
+
+def img_note(ts):
+    return f" · 🖼 resim kanalda ({datetime.fromtimestamp(ts, TR_TZ).strftime('%H:%M')})"
+
+
+def tl_sent(res, ev):
+    """Bu trend çizgisi kırılımının (veya retestinin) resmi grafik kanalına gittiyse en son gönderim zamanı."""
+    cs = (res.get("tl_cs") or {}).get(ev["tf"]) or []
+    k = len(cs) - 1 - ev["bars_ago"]
+    if SENT_IMGS is None or not (0 <= k < len(cs)):
+        return None
+    sym = res["meta"]["symbol"]
+    ts = [SENT_IMGS.get(f"{sym}|{ev['tf']}|{kk}|{ev['type']}|{cs[k]['t']}") for kk in ("tl", "rt")]
+    ts = [x for x in ts if x]
+    return max(ts) if ts else None
+
+
+def fm_sent(res, tf, g, cs):
+    """Bu formasyonun resmi grafik kanalına gittiyse gönderim zamanı (aynı ad, kırılım mumu ±10 mum)."""
+    kb = (g.get("ciz") or {}).get("kb")
+    if SENT_IMGS is None or kb is None or not cs or not (0 <= kb < len(cs)):
+        return None
+    pre = f"{res['meta']['symbol']}|{tf}|fm|{g['ad']}|"
+    win = 10 * TF_MS.get(tf, HOUR_MS)
+    ts = [v for key, v in SENT_IMGS.items() if key.startswith(pre)
+          and abs(int(key.rsplit("|", 1)[1]) - cs[kb]["t"]) <= win]
+    return max(ts) if ts else None
+
+
 def trendline_lines(res):
     """Trend çizgisi kırılımları (kapanış/çizgi grafik, en az 2 temas). Her zaman dilimi için en son kırılım ve
-    retest durumu. Kırılmamış (aktif) çizgiler yazılmaz; kırılım yoksa bölüm çıkmaz."""
+    retest durumu. Kırılmamış (aktif) çizgiler yazılmaz; kırılım yoksa bölüm çıkmaz.
+    Grafik kanalı eşleştirmesi açıksa (SENT_IMGS) sadece resmi kanala gidenler yazılır (kullanıcı isteği)."""
     prec = res.get("meta", {}).get("precision")
     by_tf = {}
     for ev in res.get("tline") or []:
@@ -1875,9 +1907,18 @@ def trendline_lines(res):
         if not evs:
             continue
         brk = [e for e in evs if e["state"] == "broken"]
-        if not brk:                 # sadece kırılımlar yazılır; aktif (kırılmamış) çizgiler gelmez (kullanıcı isteği)
+        note = ""
+        if SENT_IMGS is not None and res.get("tl_cs"):
+            brk = [(e, tl_sent(res, e)) for e in brk]
+            brk = [(e, t) for e, t in brk if t]
+            if not brk:
+                continue
+            ev, t = min(brk, key=lambda x: x[0]["bars_ago"])
+            note = img_note(t)
+        elif not brk:               # sadece kırılımlar yazılır; aktif (kırılmamış) çizgiler gelmez (kullanıcı isteği)
             continue
-        ev = min(brk, key=lambda e: e["bars_ago"])
+        else:
+            ev = min(brk, key=lambda e: e["bars_ago"])
         name = TF_NAMES.get(tf, tf)
         move = "yükseliş" if ev["type"] == "falling" else "düşüş"
         head = (f"🟢 {name}: Düşen trend çizgisi kırıldı" if ev["type"] == "falling"
@@ -1886,7 +1927,7 @@ def trendline_lines(res):
         tail = {"confirmed": f"✅ Retest yapıldı → {move} başlayabilir",
                 "touch": "🔄 Retest ediliyor",
                 "away": f"Retest beklemeden güçlü kırılım → {move} sürüyor"}.get(ev["retest"], "⏳ Retest yapılmadı, bekle")
-        out.append(f"{head} · {tail}")
+        out.append(f"{head} · {tail}{note}")
     return (["📐 <b>TREND ÇİZGİSİ</b>"] + out) if out else []
 
 
@@ -2191,7 +2232,7 @@ def formation_lines(res):
         if not fm:
             continue
         name = TF_NAMES.get(tf, tf)
-        for ad, yon in fm["mum"]:
+        for ad, yon in ([] if SENT_IMGS is not None else fm["mum"]):   # eşleştirmede mum formasyonları yazılmaz (resmi yok)
             if yon == 0:               # nötr mumlar (doji, topaç) yön vermez – yazılmaz (kullanıcı isteği)
                 continue
             res_txt = {1: "yükseliş işareti", -1: "düşüş işareti", 0: "kararsızlık, yön belirsiz"}[yon]
@@ -2199,6 +2240,12 @@ def formation_lines(res):
         for g in fm["grafik"]:
             if g["durum"] != "kirildi":    # sadece kapanışla kırılmış (tamamlanmış) formasyonlar (kullanıcı isteği)
                 continue
+            note = ""
+            if SENT_IMGS is not None:
+                t = fm_sent(res, tf, g, fm.get("cs"))
+                if not t:                  # resmi grafik kanalına gitmeyen formasyon yazılmaz (kullanıcı isteği)
+                    continue
+                note = img_note(t)
             ad, yon = g["ad"], g["yon"]
             if g["durum"] == "kirildi":
                 d = g["kirilim"]
@@ -2206,7 +2253,7 @@ def formation_lines(res):
                 lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
                 yonu = "yukarı" if d == 1 else "aşağı"
                 tgt = f" · hedef {fp(g['hedef'])}" if g.get("hedef") else ""
-                out.append(f"{FORM_ICON[d]} {name} · {ad} → {fp(lvl)} {yonu} kırıldı, {mv} beklenebilir{tgt}")
+                out.append(f"{FORM_ICON[d]} {name} · {ad} → {fp(lvl)} {yonu} kırıldı, {mv} beklenebilir{tgt}{note}")
             else:
                 if "seviye" in g:      # tek tetik seviyesi (boyun / kenar)
                     mv = "yükseliş" if yon == 1 else "düşüş"
@@ -3184,6 +3231,27 @@ def main():
         print(f"En yüksek {key} skorları: " +
               ", ".join(f"{r['meta']['symbol']} {r[key]['score']}{'*' if r[key]['triggers'] else ''}" for r in top))
 
+    # Anlık grafik resimleri sinyallerden önce belirlenir (gönderim sonda): sinyal mesajındaki TREND ÇİZGİSİ ve
+    # FORMASYONLAR bölümü sadece grafik kanalına resmi giden olayları yazar (kullanıcı isteği)
+    global SENT_IMGS
+    lc_ = cfg.get("live_images", {})
+    try:
+        pre_imgs = live_images(results, cfg, state, now)
+    except Exception as e:  # noqa: BLE001
+        print(f"  Anlık grafik resimleri hatası: {e}", file=sys.stderr)
+        pre_imgs = None
+    if lc_.get("enabled", True) and lc_.get("signal_match", True):
+        SENT_IMGS = {}
+        sdir = os.path.dirname(state_path) or "."
+        for fn in (os.listdir(sdir) if os.path.isdir(sdir) else []):     # diğer zaman dilimlerinin gönderdiği resimler
+            if fn.endswith(".json") and os.path.join(sdir, fn) != state_path:
+                try:
+                    SENT_IMGS.update(load_json(os.path.join(sdir, fn), {}).get("img", {}))
+                except Exception:  # noqa: BLE001
+                    pass
+        SENT_IMGS.update(state.get("img", {}))
+        SENT_IMGS.update({x[4]: now for x in (pre_imgs or [])[:lc_.get("max_per_scan", 15)]})
+
     sig_cfg = dict(cfg["signal"])
     if cfg.get("strategy") == "supertrend":
         sig_cfg.update(cfg.get("signal_supertrend", {}))
@@ -3327,7 +3395,9 @@ def main():
 
     # ---- Anlık grafik resimleri: trend çizgisi kırılımı ve formasyon tamamlanması (sinyal beklenmez) ----
     try:
-        imgs = live_images(results, cfg, state, now)
+        if pre_imgs is None:
+            raise RuntimeError("resimler hesaplanamadı")
+        imgs = pre_imgs
         mx = cfg.get("live_images", {}).get("max_per_scan", 15)
         n_img = 0
         for _, png, cap, sym, key in imgs[:mx]:

@@ -8,6 +8,15 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import indicators as ta  # noqa: E402
 import scanner  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_sent_imgs():
+    """main() grafik kanalı eşleştirmesini (SENT_IMGS) açar; testler birbirini etkilemesin."""
+    scanner.SENT_IMGS = None
+    yield
+    scanner.SENT_IMGS = None
 
 
 def approx(a, b, tol):
@@ -1307,3 +1316,26 @@ def test_momentum_radar_dump():
     f = {"o": o, "h": h, "l": l, "c": c, "v": v, "vol_ma": ta.sma(v, 20), "atr": ta.atr(h, l, c, 14)}
     out = scanner.momentum_radar(f, n - 1, {"timeframe": "1h", "pump_radar": {"momentum": {"directions": ["long", "short"]}}})
     assert len(out) == 1 and out[0]["dir"] == "short" and out[0]["reasons"][1] == "2 günlük dip kırıldı", out
+
+
+def test_signal_sections_only_sent_images():
+    """Eşleştirme açıkken sinyalde sadece grafik kanalına resmi giden trend çizgisi / formasyon yazılır."""
+    cs = [{"t": k * 900000, "o": 1, "h": 1, "l": 1, "c": 1} for k in range(100)]
+    ev_a = {"tf": "15m", "type": "falling", "state": "broken", "bars_ago": 2, "retest": "none", "touches": 2}
+    ev_b = {"tf": "1h", "type": "rising", "state": "broken", "bars_ago": 1, "retest": "none", "touches": 2}
+    g = {"ad": "Alçalan Üçgen", "yon": -1, "durum": "kirildi", "kirilim": -1, "seviye": 1.0, "hedef": 0.9,
+         "ciz": {"kb": 97}}
+    res = {"meta": {"symbol": "XUSDT", "precision": 4}, "tline": [ev_a, ev_b], "tl_cs": {"15m": cs, "1h": cs},
+           "forms": {"15m": {"mum": [("Yutan Boğa", 1)], "grafik": [g], "cs": cs}}}
+    # eşleştirme kapalı: eskisi gibi hepsi
+    assert len(scanner.trendline_lines(res)) == 3
+    assert any("Yutan Boğa" in x for x in scanner.formation_lines(res))
+    # eşleştirme açık: sadece 15dk çizgi ve formasyonun resmi gitti
+    ts = 1763542800  # 19.11.2025 12:00 TSİ
+    scanner.SENT_IMGS = {f"XUSDT|15m|tl|falling|{cs[97]['t']}": ts, f"XUSDT|15m|fm|Alçalan Üçgen|{cs[98]['t']}": ts}
+    tl = scanner.trendline_lines(res)
+    assert len(tl) == 2 and "15dk" in tl[1] and "🖼 resim kanalda (12:00)" in tl[1]
+    fl = scanner.formation_lines(res)
+    assert len(fl) == 2 and "Alçalan Üçgen" in fl[1] and "🖼 resim kanalda (12:00)" in fl[1]
+    scanner.SENT_IMGS = {}
+    assert scanner.trendline_lines(res) == [] and scanner.formation_lines(res) == []
