@@ -488,7 +488,11 @@
       "1h"
     ],
     "types": [
-      "COIN"
+      "COIN",
+      "EQUITY",
+      "KR_EQUITY",
+      "HK_EQUITY",
+      "COMMODITY"
     ],
     "cooldown_bars": 8,
     "max_per_scan": 10,

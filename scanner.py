@@ -2916,6 +2916,10 @@ class Notifier:
         self.charts_chat = (os.environ.get("TELEGRAM_CHAT_ID_CHARTS") or str(tg.get("charts_chat_id") or "")).strip()
         # 🎯 Nokta Atışı sinyalleri ayrı kanala ("Sorbot Nokta Atışı"); tanımlı değilse gönderilmez
         self.sniper_chat = (os.environ.get("TELEGRAM_CHAT_ID_SNIPER") or str(tg.get("sniper_chat_id") or "")).strip()
+        # Supertrend sinyallerindeki gibi ayrı kanallar: majör coinler / Nasdaq / emtia (kullanıcı isteği)
+        self.sniper_major = str(tg.get("sniper_major_chat_id") or "").strip()
+        self.sniper_equity = str(tg.get("sniper_equity_chat_id") or "").strip()
+        self.sniper_commodity = str(tg.get("sniper_commodity_chat_id") or "").strip()
         self.dry = os.environ.get("DRY_RUN") == "1" or not (self.token and self.chat_id)
         if self.dry:
             why = "DRY_RUN açık" if os.environ.get("DRY_RUN") == "1" else "Telegram secret'ları tanımlı değil"
@@ -2945,11 +2949,24 @@ class Notifier:
         time.sleep(1.1)   # Telegram grup limiti: ~20 mesaj/dk
         return ok
 
-    def send_sniper(self, text):
-        if self.dry or not self.sniper_chat:
-            print(f"\n----- TELEGRAM MESAJI (gönderilmedi → Sorbot Nokta Atışı kanalı) -----\n{text}\n" + "-" * 42)
+    def sniper_chat_for(self, symbol=None, typ=None):
+        """Nokta Atışı kanalı: Supertrend sinyalleriyle aynı ayrım (majör / Nasdaq / emtia / altcoin)."""
+        if symbol and symbol in self.major_symbols:
+            if self.sniper_major:
+                return self.sniper_major, "Nokta Atışı Majör"
+            return self.sniper_chat, "Nokta Atışı"        # majör kanalı bağlanana kadar eski kanala
+        if typ in self.equity_types:
+            return self.sniper_equity, "Nokta Atışı Nasdaq"
+        if typ == "COMMODITY":
+            return self.sniper_commodity, "Nokta Atışı Emtia"
+        return self.sniper_chat, "Nokta Atışı"
+
+    def send_sniper(self, text, symbol=None, typ=None):
+        chat, where = self.sniper_chat_for(symbol, typ)
+        if self.dry or not chat:
+            print(f"\n----- TELEGRAM MESAJI (gönderilmedi → Sorbot {where} kanalı) -----\n{text}\n" + "-" * 42)
             return self.dry               # kanal tanımlı değilse gönderilmiş sayılmaz
-        ok = send_telegram(text, self.token, self.sniper_chat)
+        ok = send_telegram(text, self.token, chat)
         time.sleep(1.1)
         return ok
 

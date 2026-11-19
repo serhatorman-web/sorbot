@@ -258,7 +258,7 @@ def scan(api, results, cfg, state, notifier, now, parse_klines, display_name, fm
             msg = message(display_name(meta), tf_name, sig, lv, lambda p: fmt_price(p, prec), t_close, htf, rc,
                           tr.get("1h"), tr.get("15m"))
         try:
-            if notifier.send_sniper(msg):
+            if notifier.send_sniper(msg, sym, meta.get("type")):
                 seen[key] = now
                 sent += 1
                 print(f"  → Nokta atışı: {sym} {RULES[sig['rule']][0]} {sig['rule']} ({tf})")

@@ -1408,3 +1408,17 @@ def test_sniper_ssl_system_short():
     assert sig["stop"] > max(h[w:i + 1]) and "tepede SSL Sell" in sig["why"]
     st_dir[i] = -1                      # Supertrend zaten SAT → erken giriş değil
     assert sniper.ssl_system(h, l, c, ssl, st_dir, a, col, i, p) is None
+
+
+def test_sniper_channel_routing():
+    """Nokta Atışı kanalları Supertrend sinyalleri gibi ayrılır: majör / Nasdaq / emtia / altcoin."""
+    n = scanner.Notifier.__new__(scanner.Notifier)
+    n.major_symbols, n.equity_types = {"BTCUSDT"}, {"EQUITY", "KR_EQUITY", "HK_EQUITY"}
+    n.sniper_chat, n.sniper_major, n.sniper_equity, n.sniper_commodity = "A", "M", "N", "E"
+    assert n.sniper_chat_for("BTCUSDT", "COIN")[0] == "M"
+    assert n.sniper_chat_for("NVDAUSDT", "EQUITY")[0] == "N"
+    assert n.sniper_chat_for("XAUUSDT", "COMMODITY")[0] == "E"
+    assert n.sniper_chat_for("SUIUSDT", "COIN")[0] == "A"
+    n.sniper_major, n.sniper_equity = "", ""
+    assert n.sniper_chat_for("BTCUSDT", "COIN")[0] == "A"          # majör kanalı yokken eski kanal
+    assert n.sniper_chat_for("NVDAUSDT", "EQUITY")[0] == ""        # Nasdaq kanalı yokken gönderilmez
