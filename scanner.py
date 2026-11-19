@@ -2090,6 +2090,28 @@ def live_images(results, cfg, state, now):
         prio = 0 if meta["symbol"] in majors else 1
         vr = f["v"][i] / f["vol_ma"][i - 1] if f["vol_ma"][i - 1] else 0     # kırılım mumunun hacmi
         vol_ok = vr >= lc.get("volume_x", 1.5)
+        # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
+        pvb = None
+        if lc.get("pivots", True) and i >= 1:
+            pv = pivot_from_bars(f, i, tf)
+            if pv:
+                P = pv["P"]
+                pd_ = 1 if f["c"][i] > P >= f["c"][i - 1] else (-1 if f["c"][i] < P <= f["c"][i - 1] else 0)
+                pkey = f"{meta['symbol']}|{tf}|pv|{pd_}|{pv['start']}"
+                if pd_ and pkey not in seen:
+                    k0 = next((k for k in range(n) if cs[k]["t"] >= pv["start"]), n - 1)
+                    pvb = {"d": pd_, "pv": pv, "key": pkey, "used": False,
+                           "draw": dict({nm: pv[nm] for nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3")}, k0=k0),
+                           "per": "Günlük" if pv["tf"] == "1d" else "Haftalık"}
+
+        def pv_note(d_):
+            """Trend / formasyon kırılımıyla aynı mumda aynı yönde pivot da kırıldıysa resme ve yazıya eklenir."""
+            if not pvb or pvb["d"] != d_:
+                return None, ""
+            pvb["used"] = True
+            seen[pvb["key"]] = now
+            return pvb["draw"], (f"\n📍 Aynı mumda {pvb['per'].lower()} pivot P {fmt_price(pvb['pv']['P'], prec)} de "
+                                 f"{'yukarı' if d_ == 1 else 'aşağı'} kırıldı")
         # ── trend çizgisi: kırılım (son mumda, hacimli) ve retest tamamlandı (son mumda) ──
         if lc.get("trendlines", True):
             for ev in ta.trendlines_close(h, l, c):
@@ -2123,10 +2145,14 @@ def live_images(results, cfg, state, now):
                              "kb": kb, "retest": ev.get("rt") if kind_key == "rt" else None}}
                 kind = "Düşen" if d == 1 else "Yükselen"
                 what = "retest tamamlandı" if kind_key == "rt" else "kırıldı"
+                pv_draw, pv_txt = pv_note(d)
+                if pv_draw:
+                    g["pivots"] = pv_draw
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(n - 1))
-                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}", prec)
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}"
+                                                   + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Trend çizgisi resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
                     png = None
@@ -2149,7 +2175,8 @@ def live_images(results, cfg, state, now):
                     cap = (f"<b>✅ RETEST TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
                            f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesinden {ev['bars_ago']} mum önce kırıldı, "
                            f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
-                out.append((prio, png, cap, meta["symbol"], key, cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
+                body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
+                out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
         # ── grafik formasyonu kırılımı (son mumda) ──
         if lc.get("formations", True):
             a = ta.atr(h, l, c, 14)
@@ -2180,10 +2207,14 @@ def live_images(results, cfg, state, now):
                     continue
                 d = g["kirilim"]
                 yonu = "yukarı" if d == 1 else "aşağı"
+                pv_draw, pv_txt = pv_note(d)
                 try:
+                    if pv_draw:
+                        g = dict(g, pivots=pv_draw)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=g.get("_simdi") or lvl_now(g, d)))
-                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)", prec)
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
+                                                   + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Formasyon resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
                     png = None
@@ -2198,8 +2229,30 @@ def live_images(results, cfg, state, now):
                               f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
                               f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
                            + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
-                    out.append((prio, png, cap, meta["symbol"], key,
+                    out.append((prio, png, cap + pv_txt, meta["symbol"], key,
                                 cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
+        # ── pivot tek başına kırıldıysa sade pivot resmi ──
+        if pvb and not pvb["used"]:
+            d, P = pvb["d"], pvb["pv"]["P"]
+            g = {"kirilim": d, "seviye": P, "hedef": None, "pivots": pvb["draw"],
+                 "ciz": {"noktalar": [], "cizgiler": [], "kb": n - 1, "retest": None}}
+            yonu = "yukarı" if d == 1 else "aşağı"
+            try:
+                if draw_plan:
+                    g["plan"] = trade_plan(h, l, c, a_all, d, level=P)
+                png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {pvb['per']} pivot {yonu} kırıldı", prec)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Pivot resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
+                png = None
+            if png:
+                icon = "🟢" if d == 1 else "🔴"
+                pv = pvb["pv"]
+                tgts = ("R1", "R2", "R3") if d == 1 else ("S1", "S2", "S3")
+                cap = (f"<b>📍 PİVOT KIRILDI · {tf_n}</b>\n{icon} {name} · {pvb['per']} pivot P {fmt_price(P, prec)} "
+                       f"{yonu} kırıldı (kapanış {fmt_price(c[-1], prec)}) → {'yükseliş' if d == 1 else 'düşüş'} beklenebilir · "
+                       + " · ".join(f"{t_} {fmt_price(pv[t_], prec)}" for t_ in tgts))
+                out.append((prio + 1, png, cap, meta["symbol"], pvb["key"],
+                            cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
     out.sort(key=lambda x: x[0])
     return out
 

@@ -10,6 +10,7 @@ TSI = timezone(timedelta(hours=3))
 BG, GRID, TXT = "#131722", "#2a2e39", "#d1d4dc"
 UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
+PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
 
 
 def _fmt(p, prec):
@@ -28,6 +29,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     ciz = g.get("ciz") or {}
     n = len(cs)
     idx = [k for (k, _) in ciz.get("noktalar", [])] + [k for seg in ciz.get("cizgiler", []) for (k, _) in seg]
+    pv = g.get("pivots")
+    if pv:
+        idx.append(max(0, pv["k0"] - 6))
     start = max(0, min(idx + [n - 60]) - 12)
     start = max(start, n - 300)                 # 1. temas noktası her zaman resimde görünsün
     end = n                                   # son kapanmış muma kadar
@@ -48,6 +52,17 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         a0 = max(k1, start)
         ext = 3 if k2 >= n - 1 else 0             # sona kadar uzanan çizgiler biraz ileri uzatılır (direk uzatılmaz)
         ax.plot([a0, k2 + ext], [p1 + m * (a0 - k1), p2 + m * ext], color=LINE, linewidth=1.6, zorder=4)
+    # pivot seviyeleri (TradingView Pivots gibi: P beyaz, R/S turuncu, dönem başından itibaren)
+    if pv:
+        x0 = max(pv["k0"], start)
+        for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
+            v = pv.get(nm)
+            if v is None:
+                continue
+            colr = TXT if nm == "P" else PIV_COL
+            ax.plot([x0, n + 2], [v, v], color=colr, linewidth=1.3 if nm == "P" else 1.0, zorder=3)
+            ax.text(x0, v, f"{nm} ({_fmt(v, prec)}) ", color=colr, fontsize=8, va="center", ha="right", zorder=7,
+                    clip_on=True, bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
     if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
         ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)
@@ -98,6 +113,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                     bbox=dict(facecolor=BG, edgecolor="none", pad=0.5, alpha=0.7))
         extra += [sl, tps[-1]]
     # eksenler
+    if pv:
+        extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
     lows = [cs[k]["l"] for k in xs] + extra
     highs = [cs[k]["h"] for k in xs] + extra
     pad = (max(highs) - min(lows)) * 0.06
