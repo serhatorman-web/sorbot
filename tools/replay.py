@@ -1,25 +1,19 @@
-"""Geçmiş mumlarda anlık resim ne zaman gelirdi? (geçici)"""
+"""ACT 15dk yükselen kama: hangi mumda tanınıyor? (geçici)"""
 import json, sys, time, urllib.request, urllib.parse
 from datetime import datetime, timedelta, timezone
 sys.path.insert(0, ".")
-import scanner
-base = json.load(open("config.json", encoding="utf-8"))
+import scanner, indicators as ta, patterns as pt
 BASE = "https://www.binance.com"
 get = lambda path, p: json.load(urllib.request.urlopen(urllib.request.Request(BASE + path + "?" + urllib.parse.urlencode(p), headers={"User-Agent": "x"}), timeout=30))
 TSI = timezone(timedelta(hours=3))
 now = int(time.time() * 1000)
-for sym, tf, back in (("NATGASUSDT", "4h", 50), ("ACTUSDT", "15m", 60)):
-    cfg = json.loads(json.dumps(base)); cfg["timeframe"] = tf
-    cs = scanner.parse_klines(get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 499}), now)
-    meta = {"symbol": sym, "type": "COMMODITY" if sym == "NATGASUSDT" else "COIN", "precision": None}
-    state = {}
-    print(f"\n=== {sym} {tf}")
-    for end in range(len(cs) - back, len(cs)):
-        f = scanner.compute_features(cs[:end + 1], cfg)
-        for _, png, cap, s_, key in scanner.live_images([{"meta": meta, "f": f, "i": end}], cfg, state, 0):
-            state.setdefault("img", {})[key] = 0
-            t = datetime.fromtimestamp(cs[end]["t"] / 1000, TSI) + timedelta(milliseconds=scanner.tf_ms(cfg))
-            later = max(x["h"] for x in cs[end + 1:]) if end + 1 < len(cs) else None
-            lowl = min(x["l"] for x in cs[end + 1:]) if end + 1 < len(cs) else None
-            print(f"  {t:%d.%m %H:%M} gelir · kapanış {cs[end]['c']} | sonra en yüksek {later} en düşük {lowl}")
-            print("    " + cap.replace("\n", " | "))
+cs = scanner.parse_klines(get("/fapi/v1/klines", {"symbol": "ACTUSDT", "interval": "15m", "limit": 499}), now)
+v = [x["v"] for x in cs]; vma = ta.sma(v, 20)
+ts = lambda k: (datetime.fromtimestamp(cs[k]["t"] / 1000, TSI) + timedelta(minutes=15)).strftime("%d.%m %H:%M")
+for end in range(len(cs) - 30, len(cs)):
+    w = cs[end - 299:end + 1]
+    h = [x["h"] for x in w]; l = [x["l"] for x in w]; c = [x["c"] for x in w]
+    n = len(c); off = end - 299
+    gs = pt.chart_patterns(h, l, c, ta.atr(h, l, c, 14))
+    txt = "; ".join(f"{g['ad']} {g['durum']} kb={(ts(off + g['ciz']['kb']) if g['ciz'].get('kb') is not None else '-')}" for g in gs) or "-"
+    print(f"{ts(end)} kapanış {c[-1]} hacim {v[end] / vma[end - 1]:.1f}x | {txt}")
