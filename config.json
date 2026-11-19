@@ -439,9 +439,16 @@
     "bulletin_chat_id": "-1003810871076",
     "charts_chat_id": "-1004459493821"
   },
+  "live_images": {
+    "_aciklama": "Sinyali beklemeden: her taramada o zaman diliminin son kapanan mumunda kırılan trend çizgileri (trendlines) ve tamamlanan grafik formasyonları (formations) Sorbot Grafikler kanalına resim olarak gönderilir. Her olay bir kez; taramada en fazla max_per_scan resim (önce majörler).",
+    "enabled": true,
+    "trendlines": true,
+    "formations": true,
+    "max_per_scan": 15
+  },
   "trendline_images": {
     "_aciklama": "TREND ÇİZGİSİ bölümündeki kırılımların resmi (çizgi, temas noktaları, kırılım, retest) sinyalin hemen ardından gönderilir (en fazla max).",
-    "enabled": true,
+    "enabled": false,
     "max": 3
   },
   "rsi_divergence": {
@@ -456,7 +463,7 @@
   "formations": {
     "_aciklama": "Sinyallerde FORMASYONLAR bölümü (mum + grafik formasyonları, sinyal zaman dilimi ve üstü). RSI uyumsuzluğun altında. images: kırılan grafik formasyonunun resmi sinyalin hemen ardından gönderilir (en fazla images_max).",
     "enabled": true,
-    "images": true,
+    "images": false,
     "images_max": 3
   },
   "price_action": {

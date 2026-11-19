@@ -1976,6 +1976,83 @@ def trendline_images(res, cfg):
     return out[:tc.get("max", 3)]
 
 
+def live_images(results, cfg, state, now):
+    """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
+    formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
+    lc = cfg.get("live_images", {})
+    if not lc.get("enabled", True):
+        return []
+    tf = cfg["timeframe"]
+    tf_n = TF_NAMES.get(tf, tf)
+    seen = state.setdefault("img", {})
+    majors = set(cfg.get("telegram", {}).get("major_symbols", []))
+    out = []
+    for r in results:
+        meta, f, i = r["meta"], r["f"], r["i"]
+        lo = max(0, i + 1 - 300)
+        cs = [{"t": f["t"][k], "o": f["o"][k], "h": f["h"][k], "l": f["l"][k], "c": f["c"][k]} for k in range(lo, i + 1)]
+        if len(cs) < 60:
+            continue
+        h = [x["h"] for x in cs]; l = [x["l"] for x in cs]; c = [x["c"] for x in cs]
+        n = len(c)
+        prec = meta.get("precision")
+        name = display_name(meta)
+        plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", name)).strip()
+        prio = 0 if meta["symbol"] in majors else 1
+        # ── trend çizgisi kırılımı (son mumda) ──
+        if lc.get("trendlines", True):
+            for ev in ta.trendlines_close(h, l, c):
+                if ev["state"] != "broken" or ev["bars_ago"] != 0:
+                    continue
+                key = f"{meta['symbol']}|{tf}|tl|{ev['type']}|{cs[-1]['t']}"
+                if key in seen:
+                    continue
+                a_, b_ = ev["a"], ev["b"]
+                m = (c[b_] - c[a_]) / (b_ - a_)
+                ln = lambda k: c[b_] + m * (k - b_)
+                d = 1 if ev["type"] == "falling" else -1
+                g = {"kirilim": d, "seviye": ln(n - 1), "hedef": None,
+                     "ciz": {"noktalar": [(a_, c[a_]), (b_, c[b_])], "cizgiler": [((a_, c[a_]), (n - 1, ln(n - 1)))],
+                             "kb": n - 1, "retest": None}}
+                kind = "Düşen" if d == 1 else "Yükselen"
+                try:
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi kırıldı", prec)
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Trend çizgisi resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
+                    png = None
+                if png:
+                    icon = "🟢" if d == 1 else "🔴"
+                    mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
+                    cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
+                           f"{fmt_price(ln(n - 1), prec)} seviyesinden kapanışla kırıldı → {mv}, retest beklenebilir")
+                    out.append((prio, png, cap, meta["symbol"], key))
+        # ── grafik formasyonu kırılımı (son mumda) ──
+        if lc.get("formations", True):
+            a = ta.atr(h, l, c, 14)
+            for g in pt.chart_patterns(h, l, c, a):
+                if g["durum"] != "kirildi" or (g.get("ciz") or {}).get("kb") != n - 1:
+                    continue
+                key = f"{meta['symbol']}|{tf}|fm|{g['ad']}|{cs[-1]['t']}"
+                if key in seen:
+                    continue
+                d = g["kirilim"]
+                yonu = "yukarı" if d == 1 else "aşağı"
+                try:
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)", prec)
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Formasyon resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
+                    png = None
+                if png:
+                    icon = "🟢" if d == 1 else "🔴"
+                    lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
+                    mv = "yükseliş" if d == 1 else "düşüş"
+                    cap = (f"<b>🧩 FORMASYON TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
+                           f"{yonu} kırıldı, {mv} beklenebilir" + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
+                    out.append((prio, png, cap, meta["symbol"], key))
+    out.sort(key=lambda x: x[0])
+    return out
+
+
 def image_head(res, cfg, direction, rd=None):
     """Grafik kanalındaki resmin hangi sinyale ait olduğu: 📈 LONG SİNYALİ · 15dk / 🚀 PUMP SİNYALİ · 15dk."""
     tf_s = TF_SHORT.get(cfg.get("timeframe", "1h"), cfg.get("timeframe", ""))
@@ -3180,6 +3257,23 @@ def main():
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)
     print(f"Pump/Dump radarı: {len(radar)} aday")
+
+    # ---- Anlık grafik resimleri: trend çizgisi kırılımı ve formasyon tamamlanması (sinyal beklenmez) ----
+    try:
+        imgs = live_images(results, cfg, state, now)
+        mx = cfg.get("live_images", {}).get("max_per_scan", 15)
+        n_img = 0
+        for _, png, cap, sym, key in imgs[:mx]:
+            try:
+                if notifier.send_photo(png, cap, sym):
+                    state["img"][key] = now
+                    n_img += 1
+            except Exception as e:  # noqa: BLE001
+                print(f"  Grafik resmi gönderilemedi ({sym}): {e}", file=sys.stderr)
+        print(f"Anlık grafik resimleri: {len(imgs)} olay, {n_img} gönderildi")
+    except Exception as e:  # noqa: BLE001
+        print(f"  Anlık grafik resimleri hatası: {e}", file=sys.stderr)
+    state["img"] = {k: v for k, v in state.get("img", {}).items() if v >= now - 3 * 86400}
 
     # Eski kayıtları temizle. Deneme modunda kayıt tutulmaz (gerçek sinyalleri engellemesin).
     cutoff = now - 7 * 86400
