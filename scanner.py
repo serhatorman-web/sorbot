@@ -1976,6 +1976,16 @@ def trendline_images(res, cfg):
     return out[:tc.get("max", 3)]
 
 
+def follow_through(cs, kb, d, upto):
+    """Düşük hacimli kırılımın onayı: kırılımdan sonraki mumlardan biri (upto dahil) kırılım mumunun tepesinin
+    (yukarı) / dibinin (aşağı) ötesinde kapattıysa o mumun indeksi, yoksa None."""
+    lvl = cs[kb]["h"] if d == 1 else cs[kb]["l"]
+    for k in range(kb + 1, upto + 1):
+        if (cs[k]["c"] - lvl) * d > 0:
+            return k
+    return None
+
+
 def live_images(results, cfg, state, now):
     """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
     formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
@@ -2009,23 +2019,31 @@ def live_images(results, cfg, state, now):
                 min_span = lc.get("min_span_by_tf", {}).get(tf, lc.get("min_span", 30))
                 if ev["touches"] < lc.get("min_touches", 2) or ev["b"] - ev["a"] < min_span:
                     continue
+                kb = n - 1 - ev["bars_ago"]
+                d = 1 if ev["type"] == "falling" else -1
+                vr_k = f["v"][lo + kb] / f["vol_ma"][lo + kb - 1] if f["vol_ma"][lo + kb - 1] else 0
                 is_break = ev["bars_ago"] == 0 and vol_ok
+                # düşük hacimli kırılım: 1-3 mum içinde fiyat kırılım mumunun ötesinde kapattıysa (retestsiz devam)
+                ft = None
+                if (not is_break and lc.get("follow_through", True) and 1 <= ev["bars_ago"] <= lc.get("follow_bars", 3)
+                        and vr_k < lc.get("volume_x", 1.5)):
+                    ft = follow_through(cs, kb, d, n - 1)
+                    ft = ft if ft == n - 1 else None          # onay mumu tam şimdi kapandıysa
                 is_retest = lc.get("retests", True) and ev.get("rc") == n - 1
-                if not (is_break or is_retest):
+                if not (is_break or ft is not None or is_retest):
                     continue
-                key = f"{meta['symbol']}|{tf}|{'tl' if is_break else 'rt'}|{ev['type']}|{cs[-1]['t']}"
+                kind_key = "rt" if (is_retest and not is_break and ft is None) else "tl"
+                key = f"{meta['symbol']}|{tf}|{kind_key}|{ev['type']}|{cs[kb]['t']}"
                 if key in seen:
                     continue
                 a_, b_ = ev["a"], ev["b"]
                 m = (c[b_] - c[a_]) / (b_ - a_)
                 ln = lambda k: c[b_] + m * (k - b_)
-                d = 1 if ev["type"] == "falling" else -1
-                kb = n - 1 - ev["bars_ago"]
                 g = {"kirilim": d, "seviye": ln(kb), "hedef": None,
                      "ciz": {"noktalar": [(a_, c[a_]), (b_, c[b_])], "cizgiler": [((a_, c[a_]), (n - 1, ln(n - 1)))],
-                             "kb": kb, "retest": ev.get("rt") if is_retest else None}}
+                             "kb": kb, "retest": ev.get("rt") if kind_key == "rt" else None}}
                 kind = "Düşen" if d == 1 else "Yükselen"
-                what = "kırıldı" if is_break else "retest tamamlandı"
+                what = "retest tamamlandı" if kind_key == "rt" else "kırıldı"
                 try:
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {kind} trend çizgisi {what}", prec)
                 except Exception as e:  # noqa: BLE001
@@ -2039,6 +2057,12 @@ def live_images(results, cfg, state, now):
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
                            f"({ev['touches']} temas) {fmt_price(ln(n - 1), prec)} seviyesinden hacimle ({vr:.1f}x) "
                            f"kapanışla kırıldı → {mv}, retest beklenebilir")
+                elif ft is not None:
+                    mv = "yükseliş sürüyor" if d == 1 else "düşüş sürüyor"
+                    cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · ONAYLANDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
+                           f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesinden {ev['bars_ago']} mum önce kırıldı; "
+                           f"fiyat kırılım mumunun {'tepesinin üstünde' if d == 1 else 'dibinin altında'} kapattı → "
+                           f"retestsiz devam, {mv}")
                 else:
                     mv = "yükseliş başlayabilir" if d == 1 else "düşüş başlayabilir"
                     cap = (f"<b>✅ RETEST TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
@@ -2058,8 +2082,14 @@ def live_images(results, cfg, state, now):
                 if g["ad"] in lc.get("exclude", []):
                     continue
                 vr_k = f["v"][lo + kb] / f["vol_ma"][lo + kb - 1] if f["vol_ma"][lo + kb - 1] else 0
+                fm_ft = None
                 if vr_k < lc.get("volume_x", 1.5):
-                    continue
+                    # düşük hacimli kırılım: sonraki mumlardan biri kırılım mumunun ötesinde kapattıysa gönder
+                    if not lc.get("follow_through", True) or kb == n - 1:
+                        continue
+                    fm_ft = follow_through(cs, kb, g["kirilim"], n - 1)
+                    if fm_ft is None:
+                        continue
                 key = f"{meta['symbol']}|{tf}|fm|{g['ad']}|{cs[kb]['t']}"
                 if key in seen:
                     continue
@@ -2076,7 +2106,10 @@ def live_images(results, cfg, state, now):
                     mv = "yükseliş" if d == 1 else "düşüş"
                     ago = n - 1 - kb
                     cap = (f"<b>🧩 FORMASYON TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
-                           f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
+                           + (f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
+                              if fm_ft is None else
+                              f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
+                              f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
                            + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
                     out.append((prio, png, cap, meta["symbol"], key))
     out.sort(key=lambda x: x[0])
