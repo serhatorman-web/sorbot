@@ -144,10 +144,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         ax.add_patch(plt.Rectangle((x0, min(e, sl)), x1 - x0, abs(e - sl), color=DOWN, alpha=0.20, zorder=1))
         pc = lambda v: (v / e - 1) * 100 * pd_
         srm = plan.get("tp_sr") or [False] * len(tps)
-        rows = [(f"TP{k}" + (" · direnç" if srm[k - 1] and pd_ == 1 else " · destek" if srm[k - 1] else ""), v, UP, "--")
-                for k, v in enumerate(tps, 1)] + [
-            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"),
-            ("Stop" + ((" · destek altı" if pd_ == 1 else " · direnç üstü") if plan.get("stop_sr") else ""), sl, DOWN, "-")]
+        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [      # destek / direnç yazısı yok (kullanıcı)
+            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
         # etiketler üst üste binmesin: aralarında en az %4,5 yükseklik
         lo_y = min([cs[k]["l"] for k in xs] + [sl] + tps)
         hi_y = max([cs[k]["h"] for k in xs] + [sl] + tps)
