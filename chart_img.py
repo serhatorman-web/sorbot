@@ -106,7 +106,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
-    if m5 and m2:
+    if m5 and m2 and mas.get("_marks"):         # config live_images.crosses kapalıysa işaret yok
         rng_c = (max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) or 1
         for k in range(max(start, 1), min(end, len(m5), len(m2))):
             if None in (m5[k - 1], m2[k - 1], m5[k], m2[k]):

@@ -2183,6 +2183,8 @@ def live_images(results, cfg, state, now, intrabar=False):
         ma_bg = ({nm: f[k][lo:i + 1] for nm, k in (("EMA50", "ema50"), ("EMA200", "ema200"), ("MA50", "ma50"),
                                                      ("MA200", "ma200")) if f.get(k)}
                  if lc.get("moving_averages", True) else None)
+        if ma_bg is not None:
+            ma_bg["_marks"] = lc.get("crosses", False)
         st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
                  if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
