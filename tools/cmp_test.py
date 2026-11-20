@@ -124,7 +124,7 @@ def run(tf):
             e, sl, tps, _ = S.levels(res, dd, cfg)
             r = sim(f, i, s, e, sl, tps)
             if r:
-                out.append(("Supertrend", tf, r[0], r[1], abs(e - sl) / e * 100))
+                out.append(("Supertrend", tf, r[0], r[1], abs(e - sl) / e * 100, typ, s, f["t"][i]))
         # ── Nokta Atışı ──
         o, h, l, c, v = (f[k] for k in ("o", "h", "l", "c", "v"))
         x = N.features(o, h, l, c, v)
@@ -147,7 +147,7 @@ def run(tf):
                 if r:
                     done.add(sg["d"])
                     busy[sg["d"]] = r[2]           # açık sinyal kapanana kadar aynı yönde yenisi yok
-                    out.append(("Nokta Atışı", tf, r[0], r[1], lv["risk"] / c[i] * 100))
+                    out.append(("Nokta Atışı", tf, r[0], r[1], lv["risk"] / c[i] * 100, typ, sg["d"], f["t"][i]))
     return out
 
 
@@ -183,3 +183,12 @@ for sysn in ("Supertrend", "Nokta Atışı"):
     rep(sysn + " TUMU", [x for x in allr if x[0] == sysn])
     for tf in ("15m", "1h", "4h"):
         rep(f"{sysn} {tf}", [x for x in allr if x[0] == sysn and x[1] == tf])
+
+cut = now_ms - 30 * 86_400_000
+for sysn in ("Supertrend", "Nokta Atışı"):
+    for typ in ("COIN", "EQUITY", "COMMODITY"):
+        rep(f"{sysn} {typ}", [x for x in allr if x[0] == sysn and x[5] == typ])
+    rep(f"{sysn} long", [x for x in allr if x[0] == sysn and x[6] == 1])
+    rep(f"{sysn} short", [x for x in allr if x[0] == sysn and x[6] == -1])
+    rep(f"{sysn} son30gun", [x for x in allr if x[0] == sysn and x[7] >= cut])
+    rep(f"{sysn} once", [x for x in allr if x[0] == sysn and x[7] < cut])
