@@ -46,10 +46,12 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if g.get("supertrend"):
         _ln, _dr = g["supertrend"]
         kf = next((k for k in range(n - 1, 0, -1) if _dr[k] and _dr[k - 1] and _dr[k - 1] == -_dr[k]), None)
-        if kf is not None and kf < start:
+        if kf is not None and start - 60 <= kf < start:      # yakınsa resim o muma kadar genişler
             start = max(0, kf - 6)
-        elif kf is None and _dr and _dr[-1]:
+        elif (kf is None or kf < start) and _dr and _dr[-1]:  # uzaksa resim genişlemez (mumlar küçülmesin): sol kenarda yazı
             st_old = _dr[-1]
+            st_old_t = (datetime.fromtimestamp(cs[kf]["t"] / 1000, TSI).strftime("%d.%m %H:%M") if kf is not None
+                        else "daha önce")
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
     # Logaritmik ölçek (kullanıcı: BULLA 4s gibi sert düşüş/yükselişlerde son mumlar, plan ve pivot yazıları ince bir
@@ -203,7 +205,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         if st_old:                                           # son Buy/Sell 300 mumdan eski: sol kenarda bilgi
             k0 = next((q for q in range(start, end) if line[q] is not None), None)
             if k0 is not None:
-                ax.annotate(("Buy" if st_old == 1 else "Sell") + " (daha önce)", xy=(k0, line[k0]),
+                ax.annotate(("Buy" if st_old == 1 else "Sell") + f" ({st_old_t})", xy=(k0, line[k0]),
                             xytext=(k0 + 2, OFF(line[k0], -0.07 if st_old == 1 else 0.07)), color="white",
                             fontsize=7, ha="left", va="center", zorder=8,
                             bbox=dict(boxstyle="round,pad=0.25", facecolor=UP if st_old == 1 else DOWN, edgecolor="none"))
