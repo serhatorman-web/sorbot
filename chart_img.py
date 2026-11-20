@@ -190,7 +190,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             ax.axhline(v, color=VP_COLS[nm], linewidth=1.2 if nm == "POC" else 1.0,
                        linestyle="-" if nm == "POC" else (0, (6, 3)), alpha=0.9, zorder=3.6)
             ax.text(start + 0.5, v, f"{nm} {_fmt(v, prec)}", color=VP_COLS[nm], fontsize=8, fontweight="bold",
-                    va="bottom", ha="left", zorder=7, clip_on=True)
+                    va="bottom", ha="left", zorder=8, clip_on=True,
+                    bbox=dict(facecolor=BG, edgecolor="none", pad=0.6, alpha=0.85))   # mumların üstünde okunur
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
