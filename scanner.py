@@ -2656,7 +2656,8 @@ def leader_line(res, name=None, bias=None, cfg=None):
     if t and t.get("last"):
         chg = t.get("chg", 0.0)
         arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
-        row += f" · 24s: {fmt_price(t['last'], 2)} {arrow} %{abs(chg):.2f}"
+        hm = (f" ({datetime.fromtimestamp(t['ts'] / 1000, TR_TZ).strftime('%H:%M')})" if t.get("ts") else "")
+        row += f" · Canlı: {fmt_price(t['last'], 2)}{hm} · 24s {arrow} %{abs(chg):.2f}"   # canlı fiyat + saati
     return row
 
 
@@ -3392,7 +3393,7 @@ def build_universe(api, cfg):
     tickers = {}
     for t in api.get("/fapi/v1/ticker/24hr"):
         tickers[t["symbol"]] = {"qv": float(t["quoteVolume"]), "chg": float(t["priceChangePercent"]),
-                                "last": float(t.get("lastPrice") or 0)}
+                                "last": float(t.get("lastPrice") or 0), "ts": int(t.get("closeTime") or 0)}
     funding = {}
     for p in api.get("/fapi/v1/premiumIndex"):
         try:
