@@ -1,9 +1,0 @@
-name: diag
-on: workflow_dispatch
-jobs:
-  d:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - run: python3 tools/cmp_test.py
