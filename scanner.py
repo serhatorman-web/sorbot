@@ -2670,7 +2670,7 @@ def nasdaq_index():
         price, prev = m.get("regularMarketPrice"), m.get("chartPreviousClose") or m.get("previousClose")
         if not price or not prev:
             return None
-        return {"last": float(price), "chg": (price / prev - 1) * 100}
+        return {"last": float(price), "chg": (price / prev - 1) * 100, "ts": m.get("regularMarketTime")}
     except Exception as e:  # noqa: BLE001
         print(f"  [uyarı] Nasdaq 100 alınamadı: {e}")
         return None
@@ -2746,15 +2746,24 @@ def market_lines(res, cfg, now_utc):
         status = {"open": "Açık", "closed": "Kapalı (seans dışı)", "weekend": "Kapalı (hafta sonu)"}[ms]
         # baştaki ikon Nasdaq (QQQ) yönünü gösterir; açık/kapalı yazıyla, 24s değişim etiketli
         # Nasdaq 100 endeksinin kendisi (Yahoo); alınamazsa Binance QQQ fiyatı
-        q, lbl = res.get("ndx"), "Günlük: Nasdaq 100"
+        # canlı fiyat (sinyal anındaki son işlem) + saati; yüzde: bugün, önceki kapanışa göre (kullanıcı isteği)
+        q, live = res.get("ndx"), True
         if not q or not q.get("last"):
-            q, lbl = (res.get("mkt") or {}).get("QQQ"), "24s: Nasdaq QQQ"
+            q, live = (res.get("mkt") or {}).get("QQQ"), False
         if q and q.get("last"):
             chg = q.get("chg", 0.0)
             icon, word = ("🟢▲", "Yükselişte") if chg > 0 else (("🔴▼", "Düşüşte") if chg < 0 else ("⚪▶", "Yatay"))
             arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
-            out.append(f"{icon} ABD borsası · {status} · {word} · {lbl} {fmt_price(q['last'], 2)} "
-                       f"{arrow} %{abs(chg):.2f}")
+            if live:
+                hhmm = ""
+                if q.get("ts"):
+                    hhmm = datetime.fromtimestamp(int(q["ts"]), timezone.utc).astimezone(TR_TZ).strftime("%H:%M")
+                when = (f" ({hhmm})" if ms == "open" else f" (kapanış {hhmm})") if hhmm else ""
+                out.append(f"{icon} ABD borsası · {status} · {word} · Canlı: Nasdaq 100 {fmt_price(q['last'], 2)}"
+                           f"{when} · bugün {arrow} %{abs(chg):.2f}")
+            else:
+                out.append(f"{icon} ABD borsası · {status} · {word} · 24s: Nasdaq QQQ {fmt_price(q['last'], 2)} "
+                           f"{arrow} %{abs(chg):.2f}")
         else:
             out.append(f"⚪ ABD borsası · {status}")
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})

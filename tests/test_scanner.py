@@ -978,7 +978,10 @@ def test_market_rows_ndx():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "ndx": {"last": 27277.73, "chg": -2.38},
            "mkt": {"QQQ": {"last": 665.62, "chg": -0.92}}, "qv24": None}
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Günlük: Nasdaq 100 27,277.73 🔴▼ %2.38"], ml
+    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Canlı: Nasdaq 100 27,277.73 · bugün 🔴▼ %2.38"], ml
+    res["ndx"]["ts"] = 1795195500            # 20.11.2026 17:25 UTC → 20:25 TSİ
+    ml = scanner.market_lines(res, {}, datetime(2026, 11, 20, 17, 35, tzinfo=timezone.utc))
+    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Canlı: Nasdaq 100 27,277.73 (20:25) · bugün 🔴▼ %2.38"], ml
 
 
 def test_arr():
