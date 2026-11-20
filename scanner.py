@@ -2229,6 +2229,60 @@ IB_PENDING = {}      # mum kapanmadan gönderilen kırılımlar: anahtar → {d,
 IB_NOTE = "\n⏱ Mum henüz kapanmadı: anlık kırılım, mum kapanışından sonra işleme girilebilir."
 
 
+def chart_bg(f, i, lo, tf, cfg, h, l):
+    """Resimlerin arka plan göstergeleri (pivotlar, EMA/MA, Ichimoku bulutu, hacim profili, Supertrend, RSI / Stoch RSI /
+    QQE MOD panelleri) – kırılım resimleri ve Supertrend sinyal resmi aynı görünsün diye ortak."""
+    lc = cfg.get("live_images", {})
+    # arka planda pivot indikatörü (bilgi amaçlı; kullanıcı isteği)
+    try:
+        pv_bg = pivot_segments(f, lo, i, tf) if lc.get("pivot_background", True) else []
+    except Exception:  # noqa: BLE001
+        pv_bg = []
+    # resimde Supertrend indikatörü (kullanıcı isteği)
+    # resimde EMA50 (mavi), EMA200 (beyaz), MA50 (sarı), MA200 (kırmızı) – kullanıcı isteği
+    ma_bg = ({nm: f[k][lo:i + 1] for nm, k in (("EMA50", "ema50"), ("EMA200", "ema200"), ("MA50", "ma50"),
+                                                 ("MA200", "ma200")) if f.get(k)}
+             if lc.get("moving_averages", True) else None)
+    if ma_bg is not None:
+        ma_bg["_marks"] = lc.get("crosses", False)
+        if lc.get("bollinger", True) and f.get("bb_up"):          # Bollinger bandı (20, 2) – kullanıcı isteği
+            ma_bg.update(_bb_up=f["bb_up"][lo:i + 1], _bb_mid=f["bb_mid"][lo:i + 1], _bb_lo=f["bb_lo"][lo:i + 1])
+        if lc.get("ichimoku", False):                              # Ichimoku (9, 26, 52) – kullanıcı isteği
+            ma_bg["_ich"] = ichimoku_bg(f, lo, i)
+        if lc.get("volume_profile", True):                         # hacim profili VAH / POC / VAL – kullanıcı isteği
+            try:
+                r_vp = {"f": f, "i": i}
+                compute_volume_profile(r_vp, cfg)
+                if r_vp.get("vp"):
+                    ma_bg["_vp"] = list(r_vp["vp"])
+            except Exception:  # noqa: BLE001
+                pass
+    # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
+    rsi_bg, div_bg, rsi_x = None, [], None
+    if lc.get("rsi_panel", True) and f.get("rsi"):
+        rsi_bg = f["rsi"][lo:i + 1]
+        if lc.get("rsi_divergences", False):                 # uyumsuzluk çizgileri kullanıcı isteğiyle kapalı
+            try:
+                div_bg = ta.rsi_divergences(h, l, rsi_bg)
+            except Exception:  # noqa: BLE001
+                div_bg = []
+        # RSI'ın 14'lük ortalaması (mor) ve Stoch RSI K / D – kullanıcının TradingView panelleri gibi
+        rr = f["rsi"]
+        ma_p = lc.get("rsi_ma", 14)
+        rma = [None if k < ma_p - 1 or any(v is None for v in rr[k - ma_p + 1:k + 1])
+               else sum(rr[k - ma_p + 1:k + 1]) / ma_p for k in range(lo, i + 1)]
+        rsi_x = {"ma": rma, "k": (f.get("srsi_k") or [])[lo:i + 1], "d": (f.get("srsi_d") or [])[lo:i + 1]}
+        if lc.get("qqe_panel", True):                         # QQE MOD paneli (Stoch RSI altında) – kullanıcı isteği
+            try:
+                q_ = ta.qqe_mod_panel(f["c"][:i + 1])
+                rsi_x["qqe"] = {k_: (v_[lo:i + 1] if isinstance(v_, list) else v_) for k_, v_ in q_.items()}
+            except Exception:  # noqa: BLE001
+                pass
+    st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
+             if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
+    return pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg
+
+
 def live_images(results, cfg, state, now, intrabar=False):
     """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
     formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
@@ -2256,53 +2310,7 @@ def live_images(results, cfg, state, now, intrabar=False):
         prio = 0 if meta["symbol"] in majors else 1
         vr = f["v"][i] / f["vol_ma"][i - 1] if f["vol_ma"][i - 1] else 0     # kırılım mumunun hacmi
         vol_ok = vr >= lc.get("volume_x", 1.5)
-        # arka planda pivot indikatörü (bilgi amaçlı; kullanıcı isteği)
-        try:
-            pv_bg = pivot_segments(f, lo, i, tf) if lc.get("pivot_background", True) else []
-        except Exception:  # noqa: BLE001
-            pv_bg = []
-        # resimde Supertrend indikatörü (kullanıcı isteği)
-        # resimde EMA50 (mavi), EMA200 (beyaz), MA50 (sarı), MA200 (kırmızı) – kullanıcı isteği
-        ma_bg = ({nm: f[k][lo:i + 1] for nm, k in (("EMA50", "ema50"), ("EMA200", "ema200"), ("MA50", "ma50"),
-                                                     ("MA200", "ma200")) if f.get(k)}
-                 if lc.get("moving_averages", True) else None)
-        if ma_bg is not None:
-            ma_bg["_marks"] = lc.get("crosses", False)
-            if lc.get("bollinger", True) and f.get("bb_up"):          # Bollinger bandı (20, 2) – kullanıcı isteği
-                ma_bg.update(_bb_up=f["bb_up"][lo:i + 1], _bb_mid=f["bb_mid"][lo:i + 1], _bb_lo=f["bb_lo"][lo:i + 1])
-            if lc.get("ichimoku", False):                              # Ichimoku (9, 26, 52) – kullanıcı isteği
-                ma_bg["_ich"] = ichimoku_bg(f, lo, i)
-            if lc.get("volume_profile", True):                         # hacim profili VAH / POC / VAL – kullanıcı isteği
-                try:
-                    r_vp = {"f": f, "i": i}
-                    compute_volume_profile(r_vp, cfg)
-                    if r_vp.get("vp"):
-                        ma_bg["_vp"] = list(r_vp["vp"])
-                except Exception:  # noqa: BLE001
-                    pass
-        # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
-        rsi_bg, div_bg, rsi_x = None, [], None
-        if lc.get("rsi_panel", True) and f.get("rsi"):
-            rsi_bg = f["rsi"][lo:i + 1]
-            if lc.get("rsi_divergences", False):                 # uyumsuzluk çizgileri kullanıcı isteğiyle kapalı
-                try:
-                    div_bg = ta.rsi_divergences(h, l, rsi_bg)
-                except Exception:  # noqa: BLE001
-                    div_bg = []
-            # RSI'ın 14'lük ortalaması (mor) ve Stoch RSI K / D – kullanıcının TradingView panelleri gibi
-            rr = f["rsi"]
-            ma_p = lc.get("rsi_ma", 14)
-            rma = [None if k < ma_p - 1 or any(v is None for v in rr[k - ma_p + 1:k + 1])
-                   else sum(rr[k - ma_p + 1:k + 1]) / ma_p for k in range(lo, i + 1)]
-            rsi_x = {"ma": rma, "k": (f.get("srsi_k") or [])[lo:i + 1], "d": (f.get("srsi_d") or [])[lo:i + 1]}
-            if lc.get("qqe_panel", True):                         # QQE MOD paneli (Stoch RSI altında) – kullanıcı isteği
-                try:
-                    q_ = ta.qqe_mod_panel(f["c"][:i + 1])
-                    rsi_x["qqe"] = {k_: (v_[lo:i + 1] if isinstance(v_, list) else v_) for k_, v_ in q_.items()}
-                except Exception:  # noqa: BLE001
-                    pass
-        st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
-                 if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
+        pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg = chart_bg(f, i, lo, tf, cfg, h, l)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
         pvb = None
         if lc.get("pivots", False) and i >= 1:      # pivot kırılım resimleri kapalı (kullanıcı: sadece arka planda)
@@ -2609,6 +2617,37 @@ def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
             notifier.send_photo(png, (f"<b>{head}</b>\n{cap}" if head else cap), symbol, typ)
     except Exception as e:  # noqa: BLE001
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
+
+
+def signal_chart_image(res, cfg, direction):
+    """Supertrend sinyalinin resmi (kullanıcı isteği): kırılım resimleriyle aynı görünüm (pivotlar, EMA/MA, Ichimoku
+    bulutu, hacim profili, Supertrend, RSI / Stoch RSI / QQE MOD); giriş / TP1-2-3 / stop sinyal mesajındakiyle aynı."""
+    meta, f, i = res["meta"], res["f"], res["i"]
+    tf = cfg["timeframe"]
+    lo = max(0, i + 1 - 300)
+    cs = [{"t": f["t"][k], "o": f["o"][k], "h": f["h"][k], "l": f["l"][k], "c": f["c"][k]} for k in range(lo, i + 1)]
+    if len(cs) < 60:
+        return None
+    h = [x["h"] for x in cs]; l = [x["l"] for x in cs]
+    pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg = chart_bg(f, i, lo, tf, cfg, h, l)
+    d = 1 if direction == "long" else -1
+    entry, stop, tps, _ = levels(res, direction, cfg)
+    g = {"kirilim": d, "hedef": None, "window": cfg.get("live_images", {}).get("signal_window", 80),
+         "ciz": {"noktalar": [], "cizgiler": [], "kb": None, "retest": None},
+         "plan": {"d": d, "entry": entry, "stop": stop, "tp": list(tps)[:3], "at_level": False,
+                  "stop_sr": False, "tp_sr": [False] * 3}}
+    if pv_bg:
+        g["pivot_bg"] = pv_bg
+        g["pivot_current_only"] = cfg.get("live_images", {}).get("pivot_current_only", False)
+    if st_bg:
+        g["supertrend"] = st_bg
+    if ma_bg:
+        g["mas"] = ma_bg
+    if rsi_bg:
+        g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
+    plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
+    title = f"{plain} · {TF_NAMES.get(tf, tf)} · Supertrend {'LONG' if d == 1 else 'SHORT'} sinyali"
+    return chart_img.render_pattern(cs, g, title, meta.get("precision"))
 
 
 FORM_ICON = {1: "🟢", -1: "🔴", 0: "⚪"}
@@ -3926,6 +3965,14 @@ def main():
             if notifier.send(msg, r["meta"]["symbol"], r["meta"]["type"]):
                 sent += 1
                 send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
+                if cfg.get("live_images", {}).get("signal_image", True):     # Supertrend sinyal resmi (kullanıcı isteği)
+                    try:
+                        png = signal_chart_image(r, cfg, d)
+                        if png:
+                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · Supertrend sinyali",
+                                                r["meta"]["symbol"], r["meta"]["type"])
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  Sinyal resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
                 print(f"  → Gönderildi: {r['meta']['symbol']} {d.upper()} ({r['meta']['type']}, {cfg['timeframe']})")
         except Exception as e:  # noqa: BLE001
