@@ -88,13 +88,14 @@ def funding_hist(sym, start):
 
 
 class Ser:
-    def __init__(self, pairs):
+    def __init__(self, pairs, tol=3 * 3_600_000):
+        self.tol = tol
         self.t = [p[0] for p in pairs]
         self.v = [p[1] for p in pairs]
 
     def at(self, ts, back_ms=0):
         k = bisect.bisect_right(self.t, ts - back_ms) - 1
-        return self.v[k] if k >= 0 and self.t and ts - back_ms - self.t[k] < 3 * 3_600_000 else None
+        return self.v[k] if k >= 0 and self.t and ts - back_ms - self.t[k] < self.tol else None
 
 
 def sim(f, i, d, entry, stop, tps, maxb=300):
@@ -167,7 +168,7 @@ def extras(sym):
         fr = funding_hist(sym, start)
     except Exception:  # noqa: BLE001
         fr = []
-    e = {"fund": Ser(fr),
+    e = {"fund": Ser(fr, 9 * 3_600_000),
          "oi": Ser(hist30("/futures/data/openInterestHist", sym, "sumOpenInterestValue")),
          "ls": Ser(hist30("/futures/data/globalLongShortAccountRatio", sym, "longShortRatio")),
          "top": Ser(hist30("/futures/data/topLongShortPositionRatio", sym, "longShortRatio")),
