@@ -2142,6 +2142,26 @@ def pivot_segments(f, lo, i, tf):
     return segs
 
 
+def ciz_abs(ciz, cs):
+    """Formasyon / trend çizgisi noktalarını mum sırası yerine zaman damgasıyla saklar (sonraki taramada çizmek için)."""
+    T = lambda k: cs[k]["t"] if k is not None and 0 <= k < len(cs) else None
+    return {"noktalar": [(T(k), p) for k, p in ciz.get("noktalar", [])],
+            "cizgiler": [((T(a[0]), a[1]), (T(b[0]), b[1])) for a, b in ciz.get("cizgiler", [])],
+            "zigzag": [(T(k), p) for k, p in ciz.get("zigzag", [])],
+            "kb": T(ciz.get("kb")), "retest": T(ciz.get("retest"))}
+
+
+def ciz_rel(ca, cs):
+    """ciz_abs'ın tersi: zaman damgalarını bu penceredeki mum sırasına çevirir (pencerede yoksa atlanır)."""
+    pos = {x["t"]: k for k, x in enumerate(cs)}
+    K = lambda t: pos.get(t)
+    pts = lambda L: [(K(t), p) for t, p in L if K(t) is not None]
+    return {"noktalar": pts(ca.get("noktalar", [])), "zigzag": pts(ca.get("zigzag", [])),
+            "cizgiler": [((K(a[0]), a[1]), (K(b[0]), b[1])) for a, b in ca.get("cizgiler", [])
+                         if K(a[0]) is not None and K(b[0]) is not None],
+            "kb": K(ca.get("kb")), "retest": None}
+
+
 IB_PENDING = {}      # mum kapanmadan gönderilen kırılımlar: anahtar → {d, lvl, t} (kapanışta teyit kontrolü)
 IB_NOTE = "\n⏱ Mum henüz kapanmadı: anlık kırılım, mum kapanışında teyit edilecek"
 
@@ -2300,7 +2320,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                     cap += IB_NOTE if is_break else "\n⏱ Mum henüz kapanmadı: anlık retest, mum kapanışında teyit edilecek"
                 if intrabar and is_break:
                     IB_PENDING[key] = {"d": d, "lvl": ln(kb), "t": cs[kb]["t"], "sym": meta["symbol"],
-                                       "what": f"{kind} trend çizgisi", "tf": tf_n, "name": name}
+                                       "what": f"{kind} trend çizgisi", "tf": tf_n, "name": name,
+                                       "ciz": ciz_abs(g["ciz"], cs)}
                 out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
         # ── grafik formasyonu kırılımı (son mumda) ──
         if lc.get("formations", True):
@@ -2369,7 +2390,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                     if intrabar:
                         cap = cap.replace("FORMASYON TAMAMLANDI", "FORMASYON KIRILIYOR") + IB_NOTE
                         IB_PENDING[key] = {"d": d, "lvl": lvl, "t": cs[kb]["t"], "sym": meta["symbol"],
-                                           "what": g["ad"], "tf": tf_n, "name": name}
+                                           "what": g["ad"], "tf": tf_n, "name": name,
+                                           "ciz": ciz_abs(g.get("ciz") or {}, cs), "hedef": g.get("hedef")}
                     out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
         # ── Golden Cross / Death Cross: MA50, MA200'ü son mumda (mum içinde: şu an) kesti (kullanıcı isteği) ──
         m5, m2 = f.get("ma50"), f.get("ma200")
@@ -3473,11 +3495,47 @@ def intrabar_followup(results, cfg, state, notifier):
                    f"{'yukarı' if p['d'] == 1 else 'aşağı'} kırılmıştı ama mum {fmt_price(close, prec_of.get(p['sym']))} "
                    f"ile seviyenin ({fmt_price(p['lvl'], prec_of.get(p['sym']))}) "
                    f"{'altında' if p['d'] == 1 else 'üstünde'} kapandı → kırılım geçersiz, dikkat")
+            png = None
             try:
-                notifier.send_charts_text(txt, p["sym"])
+                png = failed_break_image(r, cfg, p)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Teyit resmi çizilemedi ({p['sym']}): {e}", file=sys.stderr)
+            try:
+                if png:
+                    notifier.send_photo(png, txt, p["sym"])
+                else:
+                    notifier.send_charts_text(txt, p["sym"])
             except Exception as e:  # noqa: BLE001
                 print(f"  Teyit uyarısı gönderilemedi ({p['sym']}): {e}", file=sys.stderr)
     state["img_ib"] = keep
+
+
+def failed_break_image(r, cfg, p):
+    """Mum içinde kırılıp kapanışta geri dönen çizginin resmi (kullanıcı: uyarılar da resimli gelsin)."""
+    if not p.get("ciz"):
+        return None
+    lc = cfg.get("live_images", {})
+    f, i = r["f"], r["i"]
+    lo = max(0, i + 1 - 300)
+    cs = [{"t": f["t"][k], "o": f["o"][k], "h": f["h"][k], "l": f["l"][k], "c": f["c"][k]} for k in range(lo, i + 1)]
+    ciz = ciz_rel(p["ciz"], cs)
+    if not ciz["cizgiler"] and not ciz["noktalar"]:
+        return None
+    g = {"kirilim": p["d"], "seviye": p["lvl"], "hedef": p.get("hedef"), "ciz": ciz}
+    try:
+        if lc.get("pivot_background", True):
+            g["pivot_bg"] = pivot_segments(f, lo, i, cfg["timeframe"])
+            g["pivot_current_only"] = lc.get("pivot_current_only", False)
+    except Exception:  # noqa: BLE001
+        pass
+    if lc.get("supertrend_overlay", True) and f.get("st_line"):
+        g["supertrend"] = (f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
+    if lc.get("moving_averages", True):
+        g["mas"] = {nm: f[k][lo:i + 1] for nm, k in (("EMA50", "ema50"), ("EMA200", "ema200"), ("MA50", "ma50"),
+                                                       ("MA200", "ma200")) if f.get(k)}
+    plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", p.get("name", ""))).strip()
+    return chart_img.render_pattern(cs, g, f"{plain} · {p['tf']} · {p['what']} · kırılım teyit edilmedi",
+                                    r["meta"].get("precision"))
 
 
 def main():
