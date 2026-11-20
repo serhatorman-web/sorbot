@@ -11,6 +11,7 @@ BG, GRID, TXT = "#131722", "#2a2e39", "#d1d4dc"
 UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
 MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
+CROSS_GOLD, CROSS_DEATH = "#ffd700", "#ff1744"
 MA_COLS = {"EMA50": "#2196f3", "EMA200": "#ffffff", "MA50": "#ffeb3b", "MA200": "#ff1744"}
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
 
@@ -36,6 +37,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         idx.append(max(0, pv["k0"] - 6))
     start = max(0, min(idx + [n - 60]) - 12)
     start = max(start, n - 300)                 # 1. temas noktası her zaman resimde görünsün
+    if g.get("window"):                         # ör. Golden / Death Cross resmi: son N mum
+        start = max(0, n - g["window"])
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
     fig, ax = plt.subplots(figsize=(9, 4.8), dpi=110)
@@ -100,6 +103,27 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             continue
         ax.plot([p_[0] for p_ in pts], [p_[1] for p_ in pts], color=colr, linewidth=1.1, alpha=0.9, zorder=3.5)
         ma_leg.append((nm, colr))
+    # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
+    cross_pts = []
+    m5, m2 = mas.get("MA50"), mas.get("MA200")
+    if m5 and m2:
+        rng_c = (max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) or 1
+        for k in range(max(start, 1), min(end, len(m5), len(m2))):
+            if None in (m5[k - 1], m2[k - 1], m5[k], m2[k]):
+                continue
+            s0, s1 = m5[k - 1] - m2[k - 1], m5[k] - m2[k]
+            if s0 * s1 < 0 or (s0 == 0 and s1 != 0 and k >= 2 and None not in (m5[k - 2], m2[k - 2])
+                                and (m5[k - 2] - m2[k - 2]) * s1 < 0):
+                gold = s1 > 0
+                y = (m5[k] + m2[k]) / 2
+                colr = CROSS_GOLD if gold else CROSS_DEATH
+                ax.plot(k, y, marker="X", markersize=11, color=colr, markeredgecolor=BG, markeredgewidth=1.2, zorder=8)
+                ax.annotate("Golden Cross" if gold else "Death Cross", xy=(k, y),
+                            xytext=(k, y + (0.13 if gold else -0.13) * rng_c), color=colr, fontsize=9,
+                            fontweight="bold", ha="center", va="bottom" if gold else "top", zorder=8,
+                            arrowprops=dict(arrowstyle="-", color=colr, linewidth=0.8),
+                            bbox=dict(facecolor=BG, edgecolor=colr, boxstyle="round,pad=0.25", linewidth=0.8))
+                cross_pts += [y, y + (0.16 if gold else -0.16) * rng_c]
     # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
     stl = g.get("supertrend")
     if stl:
@@ -160,7 +184,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # işlem planı: giriş / TP1-2-3 / stop ve kâr (yeşil) – zarar (kırmızı) bölgeleri (kullanıcı isteği)
     plan = g.get("plan")
     x_right = end + int((end - start) * 0.22) + 4
-    extra = [tgt] if tgt is not None else []
+    extra = ([tgt] if tgt is not None else []) + cross_pts
     if plan:
         e, sl, tps, pd_ = plan["entry"], plan["stop"], plan["tp"], plan["d"]
         x0, x1 = end - 1, x_right - 1

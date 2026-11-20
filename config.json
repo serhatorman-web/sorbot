@@ -448,6 +448,9 @@
   "live_images": {
     "_aciklama": "Sinyali beklemeden: her taramada o zaman diliminin son kapanan mumunda kırılan trend çizgileri (trendlines), retesti tamamlanan trend çizgileri (retests, hacim şartı yok) ve tamamlanan grafik formasyonları (formations) Sorbot Grafikler kanalına resim olarak gönderilir. Koşullar: kırılım mumunun hacmi ≥ volume_x, trend çizgisinde en az min_touches temas ve min_span mum uzunluk, exclude listesindeki formasyonlar gönderilmez. Her olay bir kez; taramada en fazla max_per_scan resim (önce majörler).",
     "intrabar": true,
+    "crosses": true,
+    "cross_tfs": ["15m", "1h", "4h"],
+    "_crosses": "Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): kesişim anında (mum içinde de) resim; tüm resimlerde kesişimler işaretli.",
     "intrabar_tfs": ["15m", "1h", "4h"],
     "_intrabar": "Mum kapanmadan (her dakika sırayla 15dk/1s/15dk/4s): kapanmamış mumda trend çizgisi/formasyon kırılımı ve retest resmi hemen gönderilir (hacim şartı yok). Mum kapanışında kırılım geri alındıysa grafik kanalına ❌ uyarı gelir.",
     "enabled": true,

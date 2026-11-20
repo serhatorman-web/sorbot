@@ -2357,6 +2357,45 @@ def live_images(results, cfg, state, now, intrabar=False):
                         IB_PENDING[key] = {"d": d, "lvl": lvl, "t": cs[kb]["t"], "sym": meta["symbol"],
                                            "what": g["ad"], "tf": tf_n, "name": name}
                     out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
+        # ── Golden Cross / Death Cross: MA50, MA200'ü son mumda (mum içinde: şu an) kesti (kullanıcı isteği) ──
+        m5, m2 = f.get("ma50"), f.get("ma200")
+        if (lc.get("crosses", True) and tf in lc.get("cross_tfs", ["15m", "1h", "4h"]) and m5 and m2 and i >= 1 and None not in (m5[i], m2[i], m5[i - 1], m2[i - 1])):
+            s0, s1 = m5[i - 1] - m2[i - 1], m5[i] - m2[i]
+            if s0 * s1 < 0:
+                d = 1 if s1 > 0 else -1
+                key = f"{meta['symbol']}|{tf}|gx|{d}|{f['t'][i]}"
+                if key not in seen:
+                    nm_x = "Golden Cross" if d == 1 else "Death Cross"
+                    g = {"kirilim": d, "hedef": None, "window": 160,
+                         "ciz": {"noktalar": [], "cizgiler": [], "kb": None, "retest": None}}
+                    if pv_bg:
+                        g["pivot_bg"] = pv_bg
+                        g["pivot_current_only"] = lc.get("pivot_current_only", False)
+                    if st_bg:
+                        g["supertrend"] = st_bg
+                    if ma_bg:
+                        g["mas"] = ma_bg
+                    try:
+                        if draw_plan:
+                            g["plan"] = trade_plan(h, l, c, a_all, d, risk_cfg=cfg["risk"])
+                        png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {nm_x}"
+                                                       + (" (mum açık)" if intrabar else ""), prec)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  Cross resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
+                        png = None
+                    if png:
+                        icon = "🟢" if d == 1 else "🔴"
+                        head = "✨ GOLDEN CROSS" if d == 1 else "💀 DEATH CROSS"
+                        cap = (f"<b>{head} · {tf_n}</b>\n{icon} {name} · MA50 ({fmt_price(m5[i], prec)}) MA200'ü "
+                               f"({fmt_price(m2[i], prec)}) {'yukarı' if d == 1 else 'aşağı'} kesti"
+                               f"{' (kesiyor)' if intrabar else ''} · fiyat {fmt_price(c[-1], prec)} → "
+                               f"{'yükseliş' if d == 1 else 'düşüş'} eğilimi")
+                        body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
+                        if intrabar:
+                            cap += "\n⏱ Mum henüz kapanmadı: anlık kesişim, mum kapanışında teyit edilecek"
+                            IB_PENDING[key] = {"d": d, "lvl": None, "cross": True, "t": f["t"][i],
+                                               "sym": meta["symbol"], "what": nm_x, "tf": tf_n, "name": name}
+                        out.append((prio, png, cap, meta["symbol"], key, body))
         # ── pivot tek başına kırıldıysa sade pivot resmi ──
         if pvb and not pvb["used"]:
             d, P = pvb["d"], pvb["pv"]["P"]
@@ -3405,6 +3444,16 @@ def intrabar_followup(results, cfg, state, notifier):
         if k is None:
             continue
         close = f["c"][k]
+        if p.get("cross"):
+            m5, m2 = f.get("ma50"), f.get("ma200")
+            if m5 and m2 and m5[k] is not None and m2[k] is not None and (m5[k] - m2[k]) * p["d"] <= 0:
+                txt = (f"❌ <b>{p['what'].upper()} TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · MA50 mum içinde MA200'ü "
+                       f"{'yukarı' if p['d'] == 1 else 'aşağı'} kesmişti ama mum kapanışında geri döndü → kesişim geçersiz")
+                try:
+                    notifier.send_charts_text(txt, p["sym"])
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Teyit uyarısı gönderilemedi ({p['sym']}): {e}", file=sys.stderr)
+            continue
         if (close - p["lvl"]) * p["d"] <= 0:
             txt = (f"❌ <b>KIRILIM TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · {p['what']}: mum içinde "
                    f"{'yukarı' if p['d'] == 1 else 'aşağı'} kırılmıştı ama mum {fmt_price(close, prec_of.get(p['sym']))} "
