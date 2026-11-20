@@ -739,7 +739,7 @@ def yahoo_quote(symbol):
     reg = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
     now = time.time()
     return {"price": price, "chg": (price / prev - 1) * 100 if price and prev else None,
-            "open": reg.get("start", 0) <= now < reg.get("end", 0)}
+            "open": reg.get("start", 0) <= now < reg.get("end", 0), "ts": meta.get("regularMarketTime")}
 
 
 def tr_num(x, dec=2):
@@ -813,6 +813,9 @@ def markets_block(quotes):
             if not q or q.get("price") is None:
                 continue
             status = "Açık" if q.get("open") else "Kapalı"
+            if title.startswith("📈") and q.get("ts"):     # borsalar: canlı fiyatın saati (kullanıcı isteği)
+                hm = datetime.fromtimestamp(int(q["ts"]), timezone(timedelta(hours=3))).strftime("%H:%M")
+                status = f"Açık · canlı {hm}" if q.get("open") else f"Kapalı · son {hm}"
             if cur == "%":                      # tahvil getirisi: %4,25 · +3 bp
                 chg = q.get("chg")
                 bp = None if chg is None else round(q["price"] * chg / (100 + chg) * 100)
