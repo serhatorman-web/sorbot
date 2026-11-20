@@ -374,7 +374,11 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     base_h = fig.get_size_inches()[1]
     need = 3.2 / max(frac, 1e-6) + (base_h - 5.6 + 0.9)
     if need > base_h:
-        fig.set_size_inches(fig.get_size_inches()[0], min(need, 11.6))
+        fig.set_size_inches(fig.get_size_inches()[0], min(need, 13.0))
+    # Çok mumlu pencerelerde (ör. 1sa'te uzun trend çizgisi) mumlar küçülmesin: resim yatayda da genişler
+    nb_ = x_right - start + 1
+    if nb_ > 115:
+        fig.set_size_inches(min(17.0, 11.6 * nb_ / 115), fig.get_size_inches()[1])
     ticks = list(range(start, end, max(1, (end - start) // 6)))
     if ar is not None:
         _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right)
