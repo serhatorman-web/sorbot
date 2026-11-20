@@ -3163,6 +3163,12 @@ def build_message(res, direction, cfg, now_utc):
             gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
             if gi is not None:
                 put_st_line(lines, gi, st_line)
+                lic = cfg.get("live_images", {})
+                if (not sn and not res.get("ssl_sig") and lic.get("enabled", True)
+                        and lic.get("signal_image", True)):      # Supertrend sinyal resmi notu (kullanıcı isteği)
+                    k_ = lines.index(st_line) + 2                # SUPERTREND satırı ve altındaki çizgiden sonra
+                    lines[k_:k_] = ["Sinyal grafiği, grafikler kanalına resim olarak gönderildi. İşleme girmeden "
+                                    f"kontrol ediniz. Gönderim saati {datetime.now(TR_TZ).strftime('%H.%M')}", ""]
                 lines += ["", IND_HEADER, SEP]
             else:
                 lines += ["", SEP, st_line]
