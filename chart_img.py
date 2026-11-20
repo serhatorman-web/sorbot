@@ -40,6 +40,16 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     start = max(start, n - 300)                 # 1. temas noktası her zaman resimde görünsün
     if g.get("window"):                         # ör. Golden / Death Cross resmi: son N mum
         start = max(0, n - g["window"])
+    # Supertrend'in son Buy/Sell'i resimde görünsün (kullanıcı isteği): son yön değişimi pencerenin solunda
+    # kalıyorsa resim o muma kadar genişletilir; 300 mumluk veride hiç yön değişimi yoksa sol kenarda yazılır
+    st_old = None
+    if g.get("supertrend"):
+        _ln, _dr = g["supertrend"]
+        kf = next((k for k in range(n - 1, 0, -1) if _dr[k] and _dr[k - 1] and _dr[k - 1] == -_dr[k]), None)
+        if kf is not None and kf < start:
+            start = max(0, kf - 6)
+        elif kf is None and _dr and _dr[-1]:
+            st_old = _dr[-1]
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
     rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
@@ -169,6 +179,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                             ha="center", va="center", zorder=8,
                             bbox=dict(boxstyle="round,pad=0.25", facecolor=colr, edgecolor="none"))
             k = j2 + 1
+        if st_old:                                           # son Buy/Sell 300 mumdan eski: sol kenarda bilgi
+            k0 = next((q for q in range(start, end) if line[q] is not None), None)
+            if k0 is not None:
+                ax.annotate(("Buy" if st_old == 1 else "Sell") + " (daha önce)", xy=(k0, line[k0]),
+                            xytext=(k0 + 2, line[k0] + (-0.07 if st_old == 1 else 0.07) * rng_), color="white",
+                            fontsize=7, ha="left", va="center", zorder=8,
+                            bbox=dict(boxstyle="round,pad=0.25", facecolor=UP if st_old == 1 else DOWN, edgecolor="none"))
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
     if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
         ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)
