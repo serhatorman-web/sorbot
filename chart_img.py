@@ -10,6 +10,7 @@ TSI = timezone(timedelta(hours=3))
 BG, GRID, TXT = "#131722", "#2a2e39", "#d1d4dc"
 UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
+MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
 
 
@@ -123,24 +124,24 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
     if kb is not None and kb >= start:
         rng = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
-        col = UP if d == 1 else DOWN
+        col = MARK
         y = cs[kb]["c"]
         ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),
                     color=col, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=col), zorder=6)
     rt = ciz.get("retest")
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
-        ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=TARGET, markeredgewidth=1.6, zorder=6)
+        ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
         ax.annotate("Retest", xy=(rt, y), xytext=(rt + 3, y + (-1 if d == 1 else 1) * (
             max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) * 0.12),
-            color=TARGET, fontsize=9, arrowprops=dict(arrowstyle="->", color=TARGET), zorder=6)
+            color=MARK, fontsize=9, arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
     tgt = g.get("hedef")
     if tgt is not None:
-        ax.axhline(tgt, color=TARGET, linestyle="--", linewidth=1.2, zorder=4)
-        ax.text(start + 1, tgt, f" Hedef {_fmt(tgt, prec)}", color=TARGET, fontsize=9, va="bottom", zorder=7,
+        ax.axhline(tgt, color=MARK, linestyle="--", linewidth=1.2, zorder=4)
+        ax.text(start + 1, tgt, f" Hedef {_fmt(tgt, prec)}", color=MARK, fontsize=9, va="bottom", zorder=7,
                 bbox=dict(facecolor=BG, edgecolor="none", pad=1))     # sol başta: TP etiketleriyle çakışmasın
     if lvl is not None and not (g.get("plan") or {}).get("at_level"):     # giriş kırılımdaysa etiket "Giriş (kırılım)"
-        ax.text(end + 1, lvl, f" Kırılım {_fmt(lvl, prec)}", color=LINE, fontsize=9, va="center", zorder=7,
+        ax.text(end + 1, lvl, f" Kırılım {_fmt(lvl, prec)}", color=MARK, fontsize=9, va="center", zorder=7,
                 bbox=dict(facecolor=BG, edgecolor="none", pad=1))
     # işlem planı: giriş / TP1-2-3 / stop ve kâr (yeşil) – zarar (kırmızı) bölgeleri (kullanıcı isteği)
     plan = g.get("plan")
@@ -154,8 +155,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         ax.add_patch(plt.Rectangle((x0, min(e, sl)), x1 - x0, abs(e - sl), color=DOWN, alpha=0.20, zorder=1))
         pc = lambda v: (v / e - 1) * 100 * pd_
         srm = plan.get("tp_sr") or [False] * len(tps)
-        rows = [(f"TP{k}", v, UP, "--") for k, v in enumerate(tps, 1)] + [      # destek / direnç yazısı yok (kullanıcı)
-            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, TXT, "-"), ("Stop", sl, DOWN, "-")]
+        rows = [(f"TP{k}", v, MARK, "--") for k, v in enumerate(tps, 1)] + [      # destek / direnç yazısı yok (kullanıcı)
+            ("Giriş (kırılım)" if plan.get("at_level") else "Giriş", e, MARK, "-"), ("Stop", sl, MARK, "-")]
         # etiketler üst üste binmesin: aralarında en az %4,5 yükseklik
         lo_y = min([cs[k]["l"] for k in xs] + [sl] + tps)
         hi_y = max([cs[k]["h"] for k in xs] + [sl] + tps)
