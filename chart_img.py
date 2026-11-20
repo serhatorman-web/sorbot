@@ -163,7 +163,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             if bm:
                 ax.plot(ks, [bm[k] for k in ks], color=BB_COL, linewidth=0.8, linestyle="--", alpha=0.7, zorder=3.2)
             ma_leg.append(("BB", BB_COL))
-    # Ichimoku (9, 26, 52): bulut (Senkou A > B yeşil, A < B kırmızı; sağda 26 mum ileri), Tenkan, Kijun, Chikou
+    # Ichimoku (9, 26, 52): sadece bulut (Senkou A > B yeşil, A < B kırmızı; sağda 26 mum ileri)
     ich = mas.get("_ich")
     if ich:
         xr_ = end + int((end - start) * 0.22) + 4
@@ -178,15 +178,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                             color="#26a69a", alpha=0.13, zorder=1.4)
             ax.fill_between(ks, av, bv, where=[a_ < b_ for a_, b_ in zip(av, bv)], interpolate=True,
                             color="#ef5350", alpha=0.13, zorder=1.4)
-        for key, nm in (("tk", "Tenkan"), ("kj", "Kijun")):
-            pts = [(k, ich[key][k]) for k in range(start, end) if k < len(ich[key]) and ich[key][k] is not None]
-            if len(pts) >= 2:
-                ax.plot([p_[0] for p_ in pts], [p_[1] for p_ in pts], color=ICH_COLS[key], linewidth=1.0, zorder=3.4)
-        chp = [(x, v) for x, v in ich["ch"] if x >= start]
-        if len(chp) >= 2:
-            ax.plot([p_[0] for p_ in chp], [p_[1] for p_ in chp], color=ICH_COLS["ch"], linewidth=0.9, alpha=0.85,
-                    zorder=3.3)
-        ma_leg += [("Tenkan", ICH_COLS["tk"]), ("Kijun", ICH_COLS["kj"]), ("Chikou", ICH_COLS["ch"])]
+        if len(ks) >= 2:                          # sadece bulut (kullanıcı isteği: Tenkan / Kijun / Chikou yok)
+            ma_leg.append(("Ichimoku", "#26a69a"))
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
