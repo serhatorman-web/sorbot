@@ -2142,7 +2142,11 @@ def pivot_segments(f, lo, i, tf):
     return segs
 
 
-def live_images(results, cfg, state, now):
+IB_PENDING = {}      # mum kapanmadan gönderilen kırılımlar: anahtar → {d, lvl, t} (kapanışta teyit kontrolü)
+IB_NOTE = "\n⏱ Mum henüz kapanmadı: anlık kırılım, mum kapanışında teyit edilecek"
+
+
+def live_images(results, cfg, state, now, intrabar=False):
     """Sinyali beklemeden: bu taramanın zaman diliminde SON KAPANAN mumda kırılan trend çizgileri ve grafik
     formasyonlarının resimleri. Her olay bir kez gönderilir (state["img"]). Döner: [(öncelik, png, açıklama, sembol)]."""
     lc = cfg.get("live_images", {})
@@ -2210,10 +2214,11 @@ def live_images(results, cfg, state, now):
                 kb = n - 1 - ev["bars_ago"]
                 d = 1 if ev["type"] == "falling" else -1
                 vr_k = f["v"][lo + kb] / f["vol_ma"][lo + kb - 1] if f["vol_ma"][lo + kb - 1] else 0
-                is_break = ev["bars_ago"] == 0 and vol_ok
+                is_break = ev["bars_ago"] == 0 and (vol_ok or intrabar)     # mum içinde: hacim şartı yok (kullanıcı)
                 # düşük hacimli kırılım: 1-3 mum içinde fiyat kırılım mumunun ötesinde kapattıysa (retestsiz devam)
                 ft = None
-                if (not is_break and lc.get("follow_through", True) and 1 <= ev["bars_ago"] <= lc.get("follow_bars", 3)
+                if (not is_break and not intrabar and lc.get("follow_through", True)
+                        and 1 <= ev["bars_ago"] <= lc.get("follow_bars", 3)
                         and vr_k < lc.get("volume_x", 1.5)):
                     ft = follow_through(cs, kb, d, n - 1)
                     ft = ft if ft == n - 1 else None          # onay mumu tam şimdi kapandıysa
@@ -2251,7 +2256,12 @@ def live_images(results, cfg, state, now):
                 if not png:
                     continue
                 icon = "🟢" if d == 1 else "🔴"
-                if is_break:
+                if is_break and intrabar:
+                    mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
+                    cap = (f"<b>📐 TREND ÇİZGİSİ KIRILIYOR · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
+                           f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesini {'yukarı' if d == 1 else 'aşağı'} "
+                           f"kırıyor (anlık fiyat {fmt_price(c[-1], prec)}) → {mv}")
+                elif is_break:
                     mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
                            f"({ev['touches']} temas) {fmt_price(ln(n - 1), prec)} seviyesinden hacimle ({vr:.1f}x) "
@@ -2268,6 +2278,11 @@ def live_images(results, cfg, state, now):
                            f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesinden {ev['bars_ago']} mum önce kırıldı, "
                            f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
                 body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
+                if intrabar:
+                    cap += IB_NOTE
+                if intrabar and is_break:
+                    IB_PENDING[key] = {"d": d, "lvl": ln(kb), "t": cs[kb]["t"], "sym": meta["symbol"],
+                                       "what": f"{kind} trend çizgisi", "tf": tf_n, "name": name}
                 out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
         # ── grafik formasyonu kırılımı (son mumda) ──
         if lc.get("formations", True):
@@ -2279,11 +2294,13 @@ def live_images(results, cfg, state, now):
                 # kırılım son late_max mum içindeyse ve daha önce gönderilmediyse gönder.
                 if g["durum"] != "kirildi" or kb is None or n - 1 - kb > late_max:
                     continue
+                if intrabar and kb != n - 1:          # mum içinde sadece şu an kırılan formasyonlar
+                    continue
                 if g["ad"] in lc.get("exclude", []):
                     continue
                 vr_k = f["v"][lo + kb] / f["vol_ma"][lo + kb - 1] if f["vol_ma"][lo + kb - 1] else 0
                 fm_ft = None
-                if vr_k < lc.get("volume_x", 1.5):
+                if vr_k < lc.get("volume_x", 1.5) and not intrabar:      # mum içinde: hacim şartı yok (kullanıcı)
                     # düşük hacimli kırılım: sonraki mumlardan biri kırılım mumunun ötesinde kapattıysa gönder
                     if not lc.get("follow_through", True) or kb == n - 1:
                         continue
@@ -2320,13 +2337,18 @@ def live_images(results, cfg, state, now):
                     mv = "yükseliş" if d == 1 else "düşüş"
                     ago = n - 1 - kb
                     cap = (f"<b>🧩 FORMASYON TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
-                           + (f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
+                           + (f"{yonu} kırıyor (anlık fiyat {fmt_price(c[-1], prec)}), {mv} beklenebilir" if intrabar else
+                              f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
                               if fm_ft is None else
                               f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
                               f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
                            + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
-                    out.append((prio, png, cap + pv_txt, meta["symbol"], key,
-                                cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")))
+                    body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
+                    if intrabar:
+                        cap = cap.replace("FORMASYON TAMAMLANDI", "FORMASYON KIRILIYOR") + IB_NOTE
+                        IB_PENDING[key] = {"d": d, "lvl": lvl, "t": cs[kb]["t"], "sym": meta["symbol"],
+                                           "what": g["ad"], "tf": tf_n, "name": name}
+                    out.append((prio, png, cap + pv_txt, meta["symbol"], key, body))
         # ── pivot tek başına kırıldıysa sade pivot resmi ──
         if pvb and not pvb["used"]:
             d, P = pvb["d"], pvb["pv"]["P"]
@@ -3157,6 +3179,16 @@ class Notifier:
         time.sleep(1.1)
         return ok
 
+    def send_charts_text(self, text, symbol=None, typ=None):
+        """Grafik kanalına yazı (ör. mum içi kırılım kapanışta teyit edilmedi)."""
+        chat = self.charts_chat or self.chat_for(symbol, typ)
+        if self.dry:
+            print(f"\n----- TELEGRAM MESAJI (gönderilmedi → Grafikler) -----\n{text}\n" + "-" * 42)
+            return True
+        ok = send_telegram(text, self.token, chat)
+        time.sleep(1.1)
+        return ok
+
     def send_photo(self, png, caption, symbol=None, typ=None):
         chat = self.charts_chat or self.chat_for(symbol, typ)
         if self.dry:
@@ -3304,6 +3336,79 @@ def build_universe(api, cfg):
     return universe, all_meta, tickers, funding
 
 
+def intrabar_images(cfg, symbols, candles, state, state_path, notifier):
+    """Mum kapanmadan (birkaç dakikada bir): kapanmamış mumda trend çizgisi / formasyon kırılımı ve retest
+    resimleri. Aynı kırılım mum kapanınca tekrar gönderilmez (aynı anahtar)."""
+    lc = cfg.get("live_images", {})
+    if not lc.get("enabled", True) or not lc.get("intrabar", True):
+        print("Mum içi resimler kapalı")
+        return 0
+    now = time.time()
+    state.setdefault("img", {})
+    results = []
+    for sym, meta in symbols.items():
+        if meta.get("leader_only") or sym not in candles or len(candles[sym]) < cfg["min_candles"]:
+            continue
+        try:
+            f = compute_features(candles[sym], cfg)
+        except Exception as e:  # noqa: BLE001
+            print(f"  {sym}: {e}", file=sys.stderr)
+            continue
+        results.append({"meta": meta, "f": f, "i": len(f["c"]) - 1})
+    IB_PENDING.clear()
+    imgs = live_images(results, cfg, state, now, intrabar=True)
+    n_img = 0
+    for _, png, cap, sym, key, body in imgs[:lc.get("max_per_scan", 15)]:
+        try:
+            if notifier.send_photo(png, cap, sym):
+                state["img"][key] = now
+                state.setdefault("img_txt", {})[key] = body
+                if key in IB_PENDING:
+                    state.setdefault("img_ib", {})[key] = IB_PENDING[key]
+                n_img += 1
+        except Exception as e:  # noqa: BLE001
+            print(f"  Grafik resmi gönderilemedi ({sym}): {e}", file=sys.stderr)
+    print(f"Mum içi grafik resimleri: {len(imgs)} olay, {n_img} gönderildi")
+    print("Bitti: 0 sinyal (0 detaylı mesaj)")
+    if not notifier.dry or os.environ.get("SORBOT_SAVE_DRY_STATE") == "1":
+        save_json(state_path, state)
+    return 0
+
+
+def intrabar_followup(results, cfg, state, notifier):
+    """Mum kapanınca: mum içinde gönderilen kırılım kapanışta geri alındıysa grafik kanalına uyarı."""
+    pend = state.get("img_ib") or {}
+    if not pend:
+        return
+    by_sym = {r["meta"]["symbol"]: r for r in results}
+    prec_of = {r["meta"]["symbol"]: r["meta"].get("precision") for r in results}
+    keep = {}
+    for key, p in pend.items():
+        r = by_sym.get(p["sym"])
+        if not r:
+            if time.time() - p["t"] / 1000 < 3 * 86400:
+                keep[key] = p
+            continue
+        f, i = r["f"], r["i"]
+        if f["t"][i] < p["t"]:                 # kırılım mumu henüz kapanmadı
+            keep[key] = p
+            continue
+        k = next((j for j in range(i, -1, -1) if f["t"][j] == p["t"]), None)
+        if k is None:
+            continue
+        close = f["c"][k]
+        if (close - p["lvl"]) * p["d"] <= 0:
+            txt = (f"❌ <b>KIRILIM TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · {p['what']}: mum içinde "
+                   f"{'yukarı' if p['d'] == 1 else 'aşağı'} kırılmıştı ama mum {fmt_price(close, prec_of.get(p['sym']))} "
+                   f"ile seviyenin ({fmt_price(p['lvl'], prec_of.get(p['sym']))}) "
+                   f"{'altında' if p['d'] == 1 else 'üstünde'} kapandı → kırılım geçersiz, dikkat")
+            try:
+                notifier.send_charts_text(txt, p["sym"])
+            except Exception as e:  # noqa: BLE001
+                print(f"  Teyit uyarısı gönderilemedi ({p['sym']}): {e}", file=sys.stderr)
+    state["img_ib"] = keep
+
+
 def main():
     cfg = load_json(CONFIG_PATH, None)
     tf_env = os.environ.get("SORBOT_TF", "").strip()
@@ -3354,9 +3459,11 @@ def main():
         if lsym in all_meta and lsym not in symbols:
             symbols[lsym] = dict(all_meta[lsym], leader_only=True)
 
+    intrabar = os.environ.get("SORBOT_INTRABAR") == "1"
+
     def fetch(sym):
         raw = api.get("/fapi/v1/klines", {"symbol": sym, "interval": cfg["timeframe"], "limit": cfg["kline_limit"]})
-        return sym, parse_klines(raw, now_ms)
+        return sym, parse_klines(raw, now_ms if not intrabar else 1 << 62)   # mum içi: kapanmamış mum da dahil
 
     candles, failed = {}, []
     with ThreadPoolExecutor(max_workers=8) as ex:
@@ -3374,6 +3481,9 @@ def main():
         if time.time() - last > 6 * 3600:
             notifier.send(f"⚠️ <b>SorBot</b>: Sembollerin çoğu için veri alınamadı ({len(failed)}/{len(symbols)}).")
             state["alerts"]["fetch_fail"] = time.time()
+
+    if intrabar:      # mum kapanmadan: sadece kırılım resimleri (kullanıcı: işlemi kaçırmayalım)
+        return intrabar_images(cfg, symbols, candles, state, state_path, notifier)
 
     # Lider eğilimleri
     leaders = {}
@@ -3482,6 +3592,10 @@ def main():
 
     # Karar
     now = time.time()
+    try:
+        intrabar_followup(results, cfg, state, notifier)
+    except Exception as e:  # noqa: BLE001
+        print(f"  Anlık kırılım teyit kontrolü hatası: {e}", file=sys.stderr)
     picks = []
     st_on = cfg.get("signal_supertrend", {}).get("enabled", True) or cfg.get("strategy") != "supertrend"
     for r in (results if st_on else []):     # Supertrend dönüş sinyalleri kapatılabilir (sadece SSL sinyali)
