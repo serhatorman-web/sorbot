@@ -2638,6 +2638,8 @@ def signal_chart_image(res, cfg, direction):
     n = len(c)
     noktalar, cizgiler, kb_ = [], [], None
     try:
+        if not lc.get("signal_trendlines", False):     # kullanıcı isteği: sinyal resminde trend çizgisi yok
+            raise LookupError("kapalı")
         min_span = lc.get("min_span_by_tf", {}).get(tf, lc.get("min_span", 30))
         for ev in ta.trendlines_close(h, l, c):
             if ev["touches"] < lc.get("min_touches", 2) or ev["b"] - ev["a"] < min_span:
