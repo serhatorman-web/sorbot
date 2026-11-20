@@ -2382,7 +2382,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
                     mv = "yükseliş" if d == 1 else "düşüş"
                     ago = n - 1 - kb
-                    cap = (f"<b>🧩 FORMASYON TAMAMLANDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
+                    cap = (f"<b>🧩 FORMASYON KIRILDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
                            + (f"{yonu} kırıyor (anlık fiyat {fmt_price(c[-1], prec)}), {mv} beklenebilir" if intrabar else
                               f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
                               if fm_ft is None else
@@ -2391,7 +2391,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                            + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
                     body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
                     if intrabar:
-                        cap = cap.replace("FORMASYON TAMAMLANDI", "FORMASYON KIRILIYOR") + IB_NOTE
+                        cap = cap.replace("FORMASYON KIRILDI", "FORMASYON KIRILIYOR") + IB_NOTE
                         IB_PENDING[key] = {"d": d, "lvl": lvl, "t": cs[kb]["t"], "sym": meta["symbol"],
                                            "what": g["ad"], "tf": tf_n, "name": name,
                                            "ciz": ciz_abs(g.get("ciz") or {}, cs), "hedef": g.get("hedef")}
