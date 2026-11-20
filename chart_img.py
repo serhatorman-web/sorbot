@@ -240,10 +240,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             colr = UP if dirs[k] == 1 else DOWN
             xs_ = list(range(k, j2 + 1))
             ys_ = [line[q] for q in xs_]
-            if len(xs_) == 1:                     # dönüş son mumda: tek nokta çizilemez, kısa çizgiyle gösterilir
-                ax.plot([k - 1.5, k + 2.5], [ys_[0], ys_[0]], color=colr, linewidth=2.0, zorder=2)
-            else:
-                ax.plot(xs_, ys_, color=colr, linewidth=1.3, zorder=2)
+            ax.plot(xs_, ys_, color=colr, linewidth=1.3, zorder=2)
             mid = [(cs[q]["h"] + cs[q]["l"]) / 2 for q in xs_]
             ax.fill_between(xs_, ys_, mid, color=colr, alpha=0.08, zorder=1)
             if k > start and dirs[k - 1] == -dirs[k]:        # yön değişimi
