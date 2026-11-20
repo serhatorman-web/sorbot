@@ -3500,7 +3500,8 @@ def intrabar_followup(results, cfg, state, notifier):
         close = f["c"][k]
         if p.get("cross"):
             m5, m2 = f.get("ma50"), f.get("ma200")
-            if m5 and m2 and m5[k] is not None and m2[k] is not None and (m5[k] - m2[k]) * p["d"] <= 0:
+            if (cfg.get("live_images", {}).get("fail_notice", False) and m5 and m2 and m5[k] is not None
+                    and m2[k] is not None and (m5[k] - m2[k]) * p["d"] <= 0):
                 txt = (f"❌ <b>{p['what'].upper()} TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · MA50 mum içinde MA200'ü "
                        f"{'yukarı' if p['d'] == 1 else 'aşağı'} kesmişti ama mum kapanışında geri döndü → kesişim geçersiz")
                 try:
@@ -3517,7 +3518,7 @@ def intrabar_followup(results, cfg, state, notifier):
             new = (f"kırmıştı ama mum seviyenin içinde kapandı (kapanış {fmt_price(close, prec_s)}) ❌ kırılım geçersiz"
                    if failed else f"mum kapanışıyla kırdı (kapanış {fmt_price(close, prec_s)})")
             txts[key] = re.sub(r"kırıyor \(anlık fiyat [^)]*\)" + (".*" if failed else ""), new, txts[key])
-        if failed:
+        if failed and cfg.get("live_images", {}).get("fail_notice", False):   # ❌ uyarısı kapalı (kullanıcı isteği)
             txt = (f"❌ <b>KIRILIM TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · {p['what']}: mum içinde "
                    f"{'yukarı' if p['d'] == 1 else 'aşağı'} kırılmıştı ama mum {fmt_price(close, prec_of.get(p['sym']))} "
                    f"ile seviyenin ({fmt_price(p['lvl'], prec_of.get(p['sym']))}) "
