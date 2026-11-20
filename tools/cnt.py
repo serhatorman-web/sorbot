@@ -17,7 +17,7 @@ allc = S.parse_klines(api.get("/fapi/v1/klines", {"symbol": SYM, "interval": TF,
 meta = {"symbol": SYM, "type": "EQUITY", "precision": 2}
 # kapanmış mumlarda kırılımı bul (son 30 mum)
 kb_t = None
-for cut in range(len(allc) - 30, len(allc)):
+for cut in range(len(allc) - 12, len(allc)):
     cs = allc[:cut + 1]
     h = [x["h"] for x in cs[-300:]]; l = [x["l"] for x in cs[-300:]]; c = [x["c"] for x in cs[-300:]]
     a = ta.atr(h, l, c, 14)
@@ -25,7 +25,7 @@ for cut in range(len(allc) - 30, len(allc)):
         kb = (g.get("ciz") or {}).get("kb")
         if g["durum"] == "kirildi" and kb == len(c) - 1:
             print("XX| kapanışta kırılım", g["ad"], datetime.fromtimestamp(cs[-1]["t"] / 1000, TR).strftime("%d %H:%M"))
-            kb_t = kb_t or cs[-1]["t"]
+            kb_t = cs[-1]["t"]
 if not kb_t:
     print("XX| kırılım bulunamadı"); sys.exit()
 k = next(j for j, x in enumerate(allc) if x["t"] == kb_t)
