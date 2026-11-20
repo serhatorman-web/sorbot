@@ -1,0 +1,10 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet --user matplotlib || true
+      - run: K=tl TF=15m python3 tools/ex.py SOLUSDT XRPUSDT DOGEUSDT
+      - run: K=fm TF=1h python3 tools/ex.py ETHUSDT ZECUSDT BTCUSDT SUIUSDT LINKUSDT ADAUSDT AVAXUSDT
