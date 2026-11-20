@@ -2534,6 +2534,21 @@ def fm_age(g, cs):
     return ((f" · {ago} mum önce" if ago > 0 else "") + (" · ⚠️ fiyat seviyenin içine döndü" if back else ""))
 
 
+def candle_lines(res):
+    """🕯 MUM FORMASYONU: her zaman dilimi için son mumdaki yönlü mum formasyonları (kullanıcı isteği: grafik
+    formasyonları sinyalden kaldırıldı, sadece mum formasyonları bu bölümde)."""
+    out = []
+    for tf in ("15m", "1h", "4h", "1d"):
+        fm = (res.get("forms") or {}).get(tf)
+        if not fm:
+            continue
+        for ad, yon in fm["mum"]:
+            if yon == 0:               # nötr mumlar (doji, topaç) yön vermez – yazılmaz
+                continue
+            out.append(f"{FORM_ICON[yon]} {TF_NAMES.get(tf, tf)} · {ad} → {'yükseliş' if yon == 1 else 'düşüş'} işareti")
+    return (["🕯 <b>MUM FORMASYONU</b>"] + out) if out else []
+
+
 def formation_lines(res):
     """🧩 FORMASYONLAR: her zaman dilimi (sinyal TF ve üstü) için son mumdaki yönlü mum formasyonları ve
     son 10 mumda kapanışla kırılmış grafik formasyonları (oluşmakta olanlar ve nötr mumlar yazılmaz)."""
@@ -3000,7 +3015,7 @@ def build_message(res, direction, cfg, now_utc):
             trend_line = None
         for block in ((trendline_lines(res) if cfg.get("trendline_section", True) else []), volume_lines(res, cfg),
                       (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
-                      (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
+                      (candle_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),   # MUM FORMASYONU (grafik formasyonları resimlerde)
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
             if block:
                 lines += section(block)
@@ -3109,7 +3124,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         lines += ["", trend]
     for block in ((trendline_lines(res) if cfg.get("trendline_section", True) else []), volume_lines(res, cfg),
                       (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
-                  (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
+                  (candle_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),   # MUM FORMASYONU (grafik formasyonları resimlerde)
                   (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
         if block:
             lines += section(block)
