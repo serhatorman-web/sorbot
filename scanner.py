@@ -3975,7 +3975,7 @@ def main():
                     continue
                 radar.append((rd["score"], rd, r, key))
         radar.sort(key=lambda x: -x[0])
-        for score, rd, r, key in radar[:rc.get("max_per_run", 3)]:
+        for score, rd, r, key in radar[:rc.get("max_per_run", 3) or None]:     # 0 = sınırsız
             if "tf" not in r:
                 fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
             if "vp" not in r:

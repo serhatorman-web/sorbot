@@ -333,8 +333,8 @@
     "min_score": 70,
     "early_alerts": true,
     "min_score_early": 55,
-    "cooldown_hours": 12,
-    "max_per_run": 3,
+    "cooldown_hours": 0,
+    "max_per_run": 0,
     "momentum": {
       "_aciklama": "Trend içinde hızlanma (sıkışma aranmaz): hacim ≥ volume_x kat, breakout_lookback mumluk zirve kırılımı, gövde ≥ body_atr ATR, kapanış mumun üst %25'inde. Dump tarafı kullanıcı isteğiyle açık (geçmiş testte pump tarafından zayıf).",
       "enabled": true,
@@ -346,7 +346,7 @@
     },
     "reversal": {
       "_aciklama": "Pump sonrası dönüş (dump): son lookback mumda %rise+ yükselmiş, zirveden pullback+ geri çekilmiş, above_bars mum EMA20 üstünde kaldıktan sonra ilk kez hacimli (volume_x) ve büyük gövdeli (body_atr) kırmızı mumla EMA20 altında kapanış.",
-      "enabled": false,
+      "enabled": true,
       "lookback": 48,
       "rise": 0.25,
       "pullback": 0.08,
