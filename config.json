@@ -328,7 +328,8 @@
     "enabled": true,
     "types": [
       "COIN",
-      "EQUITY"
+      "EQUITY",
+      "COMMODITY"
     ],
     "min_score": 70,
     "early_alerts": true,
