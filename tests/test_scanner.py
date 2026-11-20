@@ -1347,7 +1347,8 @@ def test_signal_sections_only_sent_images():
                                                "kırıldı; fiyat kırılım mumunun tepesinin üstünde kapattı → retestsiz devam, "
                                                "yükseliş sürüyor · 🖼 resim kanalda (12:00)")
     assert scanner.formation_lines(res)[2] == ("🔴 15dk · Alçalan Üçgen → 1.0000 aşağı hacimle (1.8x) kırıldı, "
-                                               "düşüş beklenebilir · hedef 0.9000 · 🖼 resim kanalda (12:00)")
+                                               "düşüş beklenebilir · hedef 0.9000 · 2 mum önce · ⚠️ fiyat seviyenin içine döndü"
+                                               " · 🖼 resim kanalda (12:00)")
     scanner.SENT_IMGS = {}
     assert scanner.trendline_lines(res) == []
     assert scanner.formation_lines(res) == ["🧩 <b>FORMASYONLAR</b>", "🟢 15dk · Yutan Boğa (mum) → yükseliş işareti"]

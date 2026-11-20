@@ -1897,7 +1897,7 @@ def fm_sent(res, tf, g, cs):
     if SENT_IMGS is None or kb is None or not cs or not (0 <= kb < len(cs)):
         return None
     pre = f"{res['meta']['symbol']}|{tf}|fm|{g['ad']}|"
-    win = 10 * TF_MS.get(tf, HOUR_MS)
+    win = 2 * TF_MS.get(tf, HOUR_MS)        # aynı kırılım (kayma payı 2 mum); daha eski kırılımın resmi eşleşmesin
     ts = [(v, key) for key, v in SENT_IMGS.items() if key.startswith(pre)
           and abs(int(key.rsplit("|", 1)[1]) - cs[kb]["t"]) <= win]
     return max(ts) if ts else None
@@ -1924,8 +1924,11 @@ def trendline_lines(res):
             if not brk:
                 continue
             ev, (t, key) = min(brk, key=lambda x: x[0]["bars_ago"])
-            note = img_note(t)
+            age = f" · {ev['bars_ago']} mum önce" if ev["bars_ago"] > 0 else ""
+            note = age + img_note(t)
             if SENT_TXT.get(key):           # kanaldaki resmin açıklamasıyla aynı ifade (kullanıcı isteği)
+                if "mum önce" in SENT_TXT[key]:
+                    note = img_note(t)
                 icon = "🟢" if ev["type"] == "falling" else "🔴"
                 out.append(f"{icon} {TF_NAMES.get(tf, tf)}: {SENT_TXT[key]}{note}")
                 continue
@@ -2518,6 +2521,19 @@ def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
 FORM_ICON = {1: "🟢", -1: "🔴", 0: "⚪"}
 
 
+def fm_age(g, cs):
+    """Kırılımın kaç mum önce olduğu ve fiyatın hâlâ kırılımın ötesinde olup olmadığı (sinyal satırı resimle aynı
+    olayı anlatsın, eski kırılım yeni gibi görünmesin)."""
+    kb = (g.get("ciz") or {}).get("kb")
+    if kb is None or not cs or not (0 <= kb < len(cs)):
+        return ""
+    ago = len(cs) - 1 - kb
+    d = g.get("kirilim", 0)
+    lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
+    back = lvl is not None and (cs[-1]["c"] - lvl) * d <= 0
+    return ((f" · {ago} mum önce" if ago > 0 else "") + (" · ⚠️ fiyat seviyenin içine döndü" if back else ""))
+
+
 def formation_lines(res):
     """🧩 FORMASYONLAR: her zaman dilimi (sinyal TF ve üstü) için son mumdaki yönlü mum formasyonları ve
     son 10 mumda kapanışla kırılmış grafik formasyonları (oluşmakta olanlar ve nötr mumlar yazılmaz)."""
@@ -2542,8 +2558,10 @@ def formation_lines(res):
                 t = fm_sent(res, tf, g, fm.get("cs"))
                 if not t:                  # resmi grafik kanalına gitmeyen formasyon yazılmaz (kullanıcı isteği)
                     continue
-                note = img_note(t[0])
+                note = fm_age(g, fm.get("cs")) + img_note(t[0])
                 if SENT_TXT.get(t[1]):     # kanaldaki resmin açıklamasıyla aynı ifade (kullanıcı isteği)
+                    if "mum önce" in SENT_TXT[t[1]]:
+                        note = note.replace(f" · {len(fm['cs']) - 1 - g['ciz']['kb']} mum önce", "", 1)
                     out.append(f"{FORM_ICON[g['kirilim']]} {name} · {SENT_TXT[t[1]]}{note}")
                     continue
             ad, yon = g["ad"], g["yon"]
