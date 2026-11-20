@@ -2436,7 +2436,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                               if fm_ft is None else
                               f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
                               f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
-                           + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") else ""))
+                           + (f" · hedef {fmt_price(g['hedef'], prec)}" if g.get("hedef") and not intrabar else ""))
                     body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
                     if intrabar:
                         cap = cap.replace("FORMASYON KIRILDI", "FORMASYON KIRILIYOR") + IB_NOTE
