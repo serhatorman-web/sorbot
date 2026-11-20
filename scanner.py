@@ -2998,7 +2998,7 @@ def build_message(res, direction, cfg, now_utc):
         if trend_line:
             lines += ["", trend_line]
             trend_line = None
-        for block in (trendline_lines(res), volume_lines(res, cfg),
+        for block in ((trendline_lines(res) if cfg.get("trendline_section", True) else []), volume_lines(res, cfg),
                       (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
                       (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                       (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
@@ -3107,7 +3107,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     trend = tf_table_html(res)
     if trend:
         lines += ["", trend]
-    for block in (trendline_lines(res), volume_lines(res, cfg),
+    for block in ((trendline_lines(res) if cfg.get("trendline_section", True) else []), volume_lines(res, cfg),
                       (divergence_lines(res) if cfg.get("rsi_divergence", {}).get("enabled", True) else []),
                   (formation_lines(res) if cfg.get("formations", {}).get("enabled", True) else []),
                   (price_action_lines(res, direction, cfg) if cfg.get("price_action", {}).get("enabled") else [])):
