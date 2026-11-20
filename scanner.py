@@ -2179,6 +2179,10 @@ def live_images(results, cfg, state, now, intrabar=False):
         except Exception:  # noqa: BLE001
             pv_bg = []
         # resimde Supertrend indikatörü (kullanıcı isteği)
+        # resimde EMA50 (mavi), EMA200 (beyaz), MA50 (sarı), MA200 (kırmızı) – kullanıcı isteği
+        ma_bg = ({nm: f[k][lo:i + 1] for nm, k in (("EMA50", "ema50"), ("EMA200", "ema200"), ("MA50", "ma50"),
+                                                     ("MA200", "ma200")) if f.get(k)}
+                 if lc.get("moving_averages", True) else None)
         st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
                  if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
@@ -2245,6 +2249,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                     g["pivot_current_only"] = lc.get("pivot_current_only", False)
                 if st_bg:
                     g["supertrend"] = st_bg
+                if ma_bg:
+                    g["mas"] = ma_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(kb), risk_cfg=cfg["risk"])
@@ -2324,6 +2330,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                         g = dict(g, pivot_bg=pv_bg, pivot_current_only=lc.get("pivot_current_only", False))
                     if st_bg:
                         g = dict(g, supertrend=st_bg)
+                    if ma_bg:
+                        g = dict(g, mas=ma_bg)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=lvl_now(g, d), risk_cfg=cfg["risk"]))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} {'kırılıyor, mum açık' if intrabar else 'kırıldı'})"

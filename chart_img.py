@@ -11,6 +11,7 @@ BG, GRID, TXT = "#131722", "#2a2e39", "#d1d4dc"
 UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
 MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
+MA_COLS = {"EMA50": "#2196f3", "EMA200": "#ffffff", "MA50": "#ffeb3b", "MA200": "#ff1744"}
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
 
 
@@ -86,6 +87,19 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                 ax.text(x0, sg[nm], f" {nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7.5,
                         va="center", ha="right", zorder=6, clip_on=True,
                         bbox=dict(facecolor=BG, edgecolor="none", pad=0.3, alpha=0.6))
+    # hareketli ortalamalar: EMA50 mavi, EMA200 beyaz, MA50 sarı, MA200 kırmızı (kullanıcı isteği)
+    mas = g.get("mas") or {}
+    ma_leg = []
+    for nm, colr in (("EMA50", MA_COLS["EMA50"]), ("EMA200", MA_COLS["EMA200"]), ("MA50", MA_COLS["MA50"]),
+                     ("MA200", MA_COLS["MA200"])):
+        ser = mas.get(nm)
+        if not ser:
+            continue
+        pts = [(k, ser[k]) for k in range(start, end) if k < len(ser) and ser[k] is not None]
+        if len(pts) < 2:
+            continue
+        ax.plot([p_[0] for p_ in pts], [p_[1] for p_ in pts], color=colr, linewidth=1.1, alpha=0.9, zorder=3.5)
+        ma_leg.append((nm, colr))
     # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
     stl = g.get("supertrend")
     if stl:
@@ -204,6 +218,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     for sp in ax.spines.values():
         sp.set_color(GRID)
     ax.set_title(title, color=TXT, fontsize=11, loc="left")
+    for j_, (nm_, c_) in enumerate(ma_leg):          # hareketli ortalama renkleri (başlık hizasında, sağda)
+        ax.text(1.0 - (len(ma_leg) - 1 - j_) * 0.085, 1.015, nm_, color=c_, fontsize=8, ha="right", va="bottom",
+                transform=ax.transAxes, fontweight="bold")
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", facecolor=BG)
