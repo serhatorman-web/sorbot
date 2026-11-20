@@ -457,7 +457,7 @@
     "enabled": true,
     "pivot_current_only": true,
     "trendlines": true,
-    "retests": true,
+    "retests": false,
     "formations": true,
     "max_per_scan": 15,
     "volume_x": 1.5,
@@ -465,7 +465,7 @@
     "min_span": 30,
     "min_span_by_tf": {"15m": 30, "1h": 20, "4h": 10, "1d": 8},
     "formation_late_bars": 3, "signal_match": true,
-    "follow_through": true,
+    "follow_through": false,
     "follow_bars": 3,
     "exclude": ["Fincan Kulp", "Ters Fincan Kulp"]
   },
