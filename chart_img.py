@@ -177,7 +177,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
 
     def side_label(txt, xy):
         if pl_:
-            yl = pl_["stop"] - pl_["d"] * rng * (0.07 + 0.08 * slot[0])
+            yl = pl_["stop"] - pl_["d"] * rng * (0.13 + 0.08 * slot[0])
             slot[0] += 1
             lab_ys.append(yl - pl_["d"] * rng * 0.03)
             ax.annotate(txt, xy=xy, xytext=(end + 1, yl), color=MARK, fontsize=9, fontweight="bold", ha="left",
