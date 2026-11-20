@@ -2636,7 +2636,7 @@ def signal_chart_image(res, cfg, direction):
     lc = cfg.get("live_images", {})
     c = [x["c"] for x in cs]
     n = len(c)
-    noktalar, cizgiler = [], []
+    noktalar, cizgiler, kb_ = [], [], None
     try:
         min_span = lc.get("min_span_by_tf", {}).get(tf, lc.get("min_span", 30))
         for ev in ta.trendlines_close(h, l, c):
@@ -2646,13 +2646,16 @@ def signal_chart_image(res, cfg, direction):
             m = (c[b_] - c[a_]) / (b_ - a_)
             noktalar += [(a_, c[a_]), (b_, c[b_])]
             cizgiler.append(((a_, c[a_]), (n - 1, c[b_] + m * (n - 1 - b_))))
+            if ev["state"] == "broken":                # kırılan çizgi: kırılım mumu "Kırılım" okuyla işaretlenir
+                k_ = n - 1 - ev["bars_ago"]
+                kb_ = k_ if kb_ is None else max(kb_, k_)
     except Exception:  # noqa: BLE001
         pass
     win = lc.get("signal_window", 80)
     if noktalar:                                   # çizginin 1. teması da görünsün (en fazla 150 mum)
         win = max(win, min(150, n - min(k for k, _ in noktalar) + 6))
     g = {"kirilim": d, "hedef": None, "window": win,
-         "ciz": {"noktalar": noktalar, "cizgiler": cizgiler, "kb": None, "retest": None},
+         "ciz": {"noktalar": noktalar, "cizgiler": cizgiler, "kb": kb_, "retest": None},
          "plan": {"d": d, "entry": entry, "stop": stop, "tp": list(tps)[:3], "at_level": False,
                   "stop_sr": False, "tp_sr": [False] * 3}}
     if pv_bg:

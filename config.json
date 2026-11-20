@@ -465,7 +465,7 @@
     "_intrabar": "Mum kapanmadan (her dakika sırayla 15dk/1s/15dk/4s): kapanmamış mumda trend çizgisi/formasyon kırılımı ve retest resmi hemen gönderilir (hacim şartı yok). Mum kapanışında kırılım geri alındıysa grafik kanalına ❌ uyarı gelir.",
     "enabled": true,
     "pivot_current_only": true,
-    "trendlines": true,
+    "trendlines": false,
     "retests": false,
     "formations": false,
     "max_per_scan": 15,
