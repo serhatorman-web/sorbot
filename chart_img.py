@@ -167,8 +167,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     d = g.get("kirilim", 0)
     kb = ciz.get("kb")
     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
-    # "Kırılım" ve "Retest" yazıları: plan alanında, stop çizgisinin ötesindeki boşlukta (grafiği kapatmasın;
-    # kullanıcı isteği). Plan yoksa eski yerinde.
+    # "Retest" yazısı: plan alanında, stop çizgisinin ötesindeki boşlukta (grafiği kapatmasın; kullanıcı isteği).
+    # "Kırılım" yazısı eski yerinde.
     lab_ys = []
     rng = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
     pl_ = g.get("plan")
@@ -188,9 +188,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     rt = ciz.get("retest")
     if kb is not None and kb >= start:
         y = cs[kb]["c"]
-        if not side_label("Kırılım", (kb, y)):
-            ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),
-                        color=MARK, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
+        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),   # eski yerinde
+                    color=MARK, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
         ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
