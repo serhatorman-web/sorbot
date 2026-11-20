@@ -191,24 +191,35 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         # Kırılım yazısı: kırılım mumunun yakınında mumların olmadığı boş bir yerde, siyah zemin üzerinde
         # (grafiği kapatmasın; kullanıcı isteği)
         span_x = max(10, end - start)
-        dx, dy = span_x * 0.075, rng * 0.07
+        dx, dy = span_x * 0.11, rng * 0.11          # yazının kapladığı alan + pay (boşluk geniş aransın)
+        segs = [((a_[0], a_[1]), (b_[0], b_[1])) for a_, b_ in ciz.get("cizgiler", [])]
+
+        def blocked(tx, ty):
+            k0, k1 = max(start, int(tx - dx / 2) - 1), min(end, int(tx + dx / 2) + 2)
+            if any(cs[k]["l"] <= ty + dy / 2 and cs[k]["h"] >= ty - dy / 2 for k in range(k0, k1)):
+                return True
+            for (x1, y1), (x2, y2) in segs:              # formasyon / trend çizgileri de kapatılmasın
+                for xx in (tx - dx / 2, tx, tx + dx / 2):
+                    if min(x1, x2) <= xx <= max(x1, x2) and x2 != x1:
+                        yy = y1 + (y2 - y1) * (xx - x1) / (x2 - x1)
+                        if abs(yy - ty) <= dy / 2:
+                            return True
+            return False
+
         best = None
-        for oy in (0.16, 0.24, 0.32, 0.40, 0.50, -0.16, -0.24, -0.32, -0.40, -0.50):
-            for ox in (8, 12, 16, 20, 26, 32, 40, 4):
+        for oy in (0.30, 0.40, 0.50, 0.60, -0.30, -0.40, -0.50, -0.60, 0.22, -0.22):
+            for ox in (14, 20, 26, 34, 44, 56, 70):
                 tx, ty = kb - ox, y + (oy if d == 1 else -oy) * rng
-                if tx - dx / 2 < start:
-                    continue
-                k0, k1 = max(start, int(tx - dx / 2) - 1), min(end, int(tx + dx / 2) + 2)
-                if any(cs[k]["l"] <= ty + dy / 2 and cs[k]["h"] >= ty - dy / 2 for k in range(k0, k1)):
+                if tx - dx / 2 < start or blocked(tx, ty):
                     continue
                 best = (tx, ty)
                 break
             if best:
                 break
-        tx, ty = best or (kb - 12, y + (0.18 if d == 1 else -0.18) * rng)
+        tx, ty = best or (kb - 20, y + (0.30 if d == 1 else -0.30) * rng)
         lab_ys.append(ty)
         ax.annotate("Kırılım", xy=(kb, y), xytext=(tx, ty), color=MARK, fontsize=9, fontweight="bold", ha="center",
-                    va="center", bbox=dict(facecolor="#000000", edgecolor=MARK, boxstyle="round,pad=0.3", linewidth=0.8),
+                    va="center", bbox=dict(facecolor="#000000", edgecolor="none", boxstyle="round,pad=0.3"),
                     arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
