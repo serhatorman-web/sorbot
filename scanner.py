@@ -2248,6 +2248,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                  if lc.get("moving_averages", True) else None)
         if ma_bg is not None:
             ma_bg["_marks"] = lc.get("crosses", False)
+            if lc.get("bollinger", True) and f.get("bb_up"):          # Bollinger bandı (20, 2) – kullanıcı isteği
+                ma_bg.update(_bb_up=f["bb_up"][lo:i + 1], _bb_mid=f["bb_mid"][lo:i + 1], _bb_lo=f["bb_lo"][lo:i + 1])
         # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
         rsi_bg, div_bg = None, []
         if lc.get("rsi_panel", True) and f.get("rsi"):

@@ -12,6 +12,7 @@ UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
 MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
 CROSS_GOLD, CROSS_DEATH = "#ffd700", "#ff1744"
+BB_COL = "#ce93d8"                                     # Bollinger bandı (açık mor)
 MA_COLS = {"EMA50": "#2196f3", "EMA200": "#ffffff", "MA50": "#ffeb3b", "MA200": "#ff1744"}
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
 
@@ -109,6 +110,17 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             continue
         ax.plot([p_[0] for p_ in pts], [p_[1] for p_ in pts], color=colr, linewidth=1.1, alpha=0.9, zorder=3.5)
         ma_leg.append((nm, colr))
+    # Bollinger bandı (20, 2): üst/alt bant mor çizgi, arası hafif dolgu, orta bant kesikli (kullanıcı isteği)
+    bu, bm, bl = mas.get("_bb_up"), mas.get("_bb_mid"), mas.get("_bb_lo")
+    if bu and bl:
+        ks = [k for k in range(start, end) if k < len(bu) and bu[k] is not None and bl[k] is not None]
+        if len(ks) >= 2:
+            ax.plot(ks, [bu[k] for k in ks], color=BB_COL, linewidth=1.0, alpha=0.9, zorder=3.2)
+            ax.plot(ks, [bl[k] for k in ks], color=BB_COL, linewidth=1.0, alpha=0.9, zorder=3.2)
+            ax.fill_between(ks, [bl[k] for k in ks], [bu[k] for k in ks], color=BB_COL, alpha=0.05, zorder=1.5)
+            if bm:
+                ax.plot(ks, [bm[k] for k in ks], color=BB_COL, linewidth=0.8, linestyle="--", alpha=0.7, zorder=3.2)
+            ma_leg.append(("BB", BB_COL))
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
