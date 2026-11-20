@@ -629,30 +629,47 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
 
 
 def reversal_radar(f, i, cfg, taken=()):
-    """Pump sonrası dönüş (dump): son 2 günde %25+ yükselmiş coin zirveden en az %8 geri çekilmiş ve 12 saat EMA20
-    üstünde kaldıktan sonra ilk kez hacimli kırmızı mumla EMA20 altında kapatmış. Geçmiş testte (134 coin,
-    125 gün) günde ~1 uyarı; 24 saat sonra %61 düşmüş, ort. short sonucu +%1.2 (rastgele short −%0.15)."""
+    """Dönüş radarı (iki yön, config reversal.directions):
+    🔻 PUMP SONRASI DÖNÜŞ (short): son 2 günde %25+ yükselmiş coin zirveden en az %8 geri çekilmiş ve 12 mum EMA20
+    üstünde kaldıktan sonra ilk kez hacimli kırmızı mumla EMA20 altında kapatmış. Geçmiş testte (134 coin, 125 gün)
+    günde ~1 uyarı; 24 saat sonra %61 düşmüş.
+    🔺 DUMP SONRASI DÖNÜŞ (long, kullanıcı isteği; geçmiş testi yapılmadı): tam tersi – son 2 günde %25+ düşmüş coin
+    dipten en az %8 yükselmiş ve 12 mum EMA20 altında kaldıktan sonra ilk kez hacimli yeşil mumla EMA20 üstünde
+    kapatmış."""
     rv = cfg.get("pump_radar", {}).get("reversal", {})
-    if not rv.get("enabled", True) or "short" in taken:
+    if not rv.get("enabled", True):
         return []
     lb, ab = rv.get("lookback", 48), rv.get("above_bars", 12)
     o, h, l, c, e20, a = f["o"], f["h"], f["l"], f["c"], f["ema20"], f["atr"]
     if i < lb + 24 or not f["vol_ma"][i - 1] or not a[i] or any(e20[k] is None for k in range(i - ab, i + 1)):
         return []
-    peak = max(h[i - lb:i])
-    base = min(l[i - lb - 24:i - 24])
-    rise = peak / base - 1 if base else 0
-    pull = 1 - c[i] / peak
     vr = f["v"][i] / f["vol_ma"][i - 1]
-    body = (o[i] - c[i]) / a[i]
-    if (rise >= rv.get("rise", 0.25) and pull >= rv.get("pullback", 0.08) and c[i] < e20[i]
-            and all(c[k] > e20[k] for k in range(i - ab, i - 1))
-            and body >= rv.get("body_atr", 0.8) and vr >= rv.get("volume_x", 1.5)):
-        return [{"dir": "short", "kind": "reversal", "score": min(100, 60 + int(rise * 50)),
-                 "reasons": [f"Son 2 günde %{rise * 100:.0f} yükselmiş", f"Zirveden %{pull * 100:.0f} geri çekilmiş",
-                             f"{ab} saat sonra ilk kez EMA20 altında kapanış",
-                             f"Hacimli kırmızı mum ({vr:.1f}x, gövde {body:.1f} ATR)"]}]
-    return []
+    out = []
+    for key, s in (("short", -1), ("long", 1)):
+        if key in taken or key not in rv.get("directions", ["short"]):
+            continue
+        if s == -1:                                   # pump sonrası: zirve, öncesindeki dip
+            ext = max(h[i - lb:i])
+            ref = min(l[i - lb - 24:i - 24])
+            move = ext / ref - 1 if ref else 0
+            back = 1 - c[i] / ext
+        else:                                         # dump sonrası: dip, öncesindeki tepe
+            ext = min(l[i - lb:i])
+            ref = max(h[i - lb - 24:i - 24])
+            move = 1 - ext / ref if ref else 0
+            back = c[i] / ext - 1 if ext else 0
+        body = (c[i] - o[i]) * s / a[i]
+        if (move >= rv.get("rise", 0.25) and back >= rv.get("pullback", 0.08) and (c[i] - e20[i]) * s > 0
+                and all((c[k] - e20[k]) * s < 0 for k in range(i - ab, i - 1))
+                and body >= rv.get("body_atr", 0.8) and vr >= rv.get("volume_x", 1.5)):
+            if s == -1:
+                why = [f"Son 2 günde %{move * 100:.0f} yükselmiş", f"Zirveden %{back * 100:.0f} geri çekilmiş",
+                       f"{ab} mum sonra ilk kez EMA20 altında kapanış", f"Hacimli kırmızı mum ({vr:.1f}x, gövde {body:.1f} ATR)"]
+            else:
+                why = [f"Son 2 günde %{move * 100:.0f} düşmüş", f"Dipten %{back * 100:.0f} yükselmiş",
+                       f"{ab} mum sonra ilk kez EMA20 üstünde kapanış", f"Hacimli yeşil mum ({vr:.1f}x, gövde {body:.1f} ATR)"]
+            out.append({"dir": key, "kind": "reversal", "score": min(100, 60 + int(move * 50)), "reasons": why})
+    return out
 
 
 def momentum_radar(f, i, cfg, taken=()):
@@ -2499,7 +2516,7 @@ def image_head(res, cfg, direction, rd=None):
     if rd:
         kind = {"start": "🚀 PUMP SİNYALİ" if long_ else "💥 DUMP SİNYALİ",
                 "momentum": "⚡ PUMP HAREKETİ" if long_ else "⚡ DUMP HAREKETİ",
-                "reversal": "🔻 PUMP SONRASI DÖNÜŞ"}.get(
+                "reversal": "🔺 DUMP SONRASI DÖNÜŞ" if long_ else "🔻 PUMP SONRASI DÖNÜŞ"}.get(
             rd.get("kind"), "👀 PUMP ERKEN UYARI" if long_ else "👀 DUMP ERKEN UYARI")
     else:
         kind = "📈 LONG SİNYALİ" if long_ else "📉 SHORT SİNYALİ"
@@ -3116,7 +3133,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     elif rd["kind"] == "momentum":
         title = "⚡ <b>PUMP HAREKETİ</b>" if long_ else "⚡ <b>DUMP HAREKETİ</b>"
     elif rd["kind"] == "reversal":
-        title = "🔻 <b>PUMP SONRASI DÖNÜŞ</b>"
+        title = "🔺 <b>DUMP SONRASI DÖNÜŞ</b>" if long_ else "🔻 <b>PUMP SONRASI DÖNÜŞ</b>"
     else:
         title = "👀 <b>PUMP ERKEN UYARI</b>" if long_ else "👀 <b>DUMP ERKEN UYARI</b>"
     name = display_name(meta)      # sinyallerdeki gibi: 🟩… / ⚡ HYPE · 🚀 PUMP SİNYALİ · 1s / 🟩…
@@ -3143,7 +3160,8 @@ def build_radar_message(res, rd, cfg, now_utc):
         if rd["kind"] == "momentum":
             lines += ["", "<i>⚠️ Hareket başladıktan sonra gelen uyarı: geç giriş ve sert geri çekilme riski yüksek.</i>"]
         if rd["kind"] == "reversal":
-            lines += ["", "<i>⚠️ Pump sonrası ilk sert kırmızı mum: fiyat çok oynak, stop seviyesine dikkat.</i>"]
+            lines += ["", "<i>⚠️ Dump sonrası ilk sert yeşil mum: fiyat çok oynak, stop seviyesine dikkat.</i>" if long_
+                      else "<i>⚠️ Pump sonrası ilk sert kırmızı mum: fiyat çok oynak, stop seviyesine dikkat.</i>"]
     else:
         lvl = f["hh20"][i] if long_ else f["ll20"][i]
         lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
