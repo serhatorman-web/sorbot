@@ -2272,6 +2272,14 @@ def live_images(results, cfg, state, now, intrabar=False):
                 ma_bg.update(_bb_up=f["bb_up"][lo:i + 1], _bb_mid=f["bb_mid"][lo:i + 1], _bb_lo=f["bb_lo"][lo:i + 1])
             if lc.get("ichimoku", False):                              # Ichimoku (9, 26, 52) – kullanıcı isteği
                 ma_bg["_ich"] = ichimoku_bg(f, lo, i)
+            if lc.get("volume_profile", True):                         # hacim profili VAH / POC / VAL – kullanıcı isteği
+                try:
+                    r_vp = {"f": f, "i": i}
+                    compute_volume_profile(r_vp, cfg)
+                    if r_vp.get("vp"):
+                        ma_bg["_vp"] = list(r_vp["vp"])
+                except Exception:  # noqa: BLE001
+                    pass
         # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
         rsi_bg, div_bg = None, []
         if lc.get("rsi_panel", True) and f.get("rsi"):
