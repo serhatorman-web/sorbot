@@ -84,8 +84,12 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         """y'den, mumların dikey aralığının frac katı kadar yukarı/aşağı (log ölçekte orantılı)."""
         return TI(T(y) + frac * _rT)
     rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
-    sr = None
-    if rsi_s:                                   # altta RSI ve Stoch RSI panelleri (kullanıcının TradingView düzeni)
+    sr = qr = None
+    qqe = (g.get("rsi_x") or {}).get("qqe") if rsi_s else None
+    if rsi_s and qqe:                           # RSI, Stoch RSI ve QQE MOD panelleri (kullanıcının TradingView düzeni)
+        fig, (ax, ar, sr, qr) = plt.subplots(4, 1, figsize=(11.6, 9.0), dpi=110, sharex=True,
+                                             gridspec_kw={"height_ratios": [3.6, 1.0, 1.0, 1.0], "hspace": 0.05})
+    elif rsi_s:                                 # altta RSI ve Stoch RSI panelleri (kullanıcının TradingView düzeni)
         fig, (ax, ar, sr) = plt.subplots(3, 1, figsize=(11.6, 7.6), dpi=110, sharex=True,
                                          gridspec_kw={"height_ratios": [3.6, 1.0, 1.0], "hspace": 0.05})
     else:
@@ -423,7 +427,10 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             ar.tick_params(axis="x", labelbottom=False)
             _stoch_panel(sr, (g.get("rsi_x") or {}).get("k") or [], (g.get("rsi_x") or {}).get("d") or [],
                          start, end)
-    bx = sr if sr is not None else (ar if ar is not None else ax)
+        if qr is not None:
+            sr.tick_params(axis="x", labelbottom=False)
+            _qqe_panel(qr, qqe, start, end)
+    bx = qr if qr is not None else (sr if sr is not None else (ar if ar is not None else ax))
     bx.set_xticks(ticks)
     bx.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
                        color=TXT, fontsize=8)
@@ -436,7 +443,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     for j_, (nm_, c_) in enumerate(ma_leg):          # hareketli ortalama renkleri (başlık hizasında, sağda)
         ax.text(1.0 - (len(ma_leg) - 1 - j_) * 0.085, 1.015, nm_, color=c_, fontsize=8, ha="right", va="bottom",
                 transform=ax.transAxes, fontweight="bold")
-    if sr is not None:                          # 3 panelde tight_layout geniş boşluk bırakıyordu: kenarlar elle
+    if sr is not None:                          # 3-4 panelde tight_layout geniş boşluk bırakıyordu: kenarlar elle
         W_, H_ = fig.get_size_inches()
         fig.subplots_adjust(left=0.45 / W_, right=1 - 0.75 / W_, top=1 - 0.4 / H_, bottom=0.35 / H_, hspace=0.05)
     else:
@@ -454,6 +461,37 @@ def _panel_style(a_):
     a_.tick_params(axis="y", colors=TXT, labelsize=7)
     for sp in a_.spines.values():
         sp.set_color(GRID)
+
+
+def _qqe_panel(qr, q, start, end):
+    """QQE MOD (Mihkel00): gri histogram (RsiMa2 - 50), güçlü yükselişte mavi / güçlü düşüşte kırmızı sütun,
+    beyaz QQE çizgisi, sıfır çizgisi (kullanıcının TradingView'i)."""
+    _panel_style(qr)
+    xs_ = list(range(start, end))
+    hs, ln = q.get("hist") or [], q.get("line") or []
+    up, dn = q.get("up") or [], q.get("dn") or []
+    thr = q.get("thr", 3.0)
+    get = lambda s_, k: s_[k] if k < len(s_) and s_[k] is not None else None
+    for k in xs_:
+        h_ = get(hs, k)
+        if h_ is None:
+            continue
+        if k < len(up) and up[k]:
+            col, al = "#00c3ff", 1.0
+        elif k < len(dn) and dn[k]:
+            col, al = "#ff0062", 1.0
+        elif abs(h_) > thr:
+            col, al = "#c0c0c0", 0.5
+        else:
+            continue
+        qr.bar(k, h_, width=0.8, color=col, alpha=al, zorder=2, linewidth=0)
+    qr.plot(xs_, [get(ln, k) if get(ln, k) is not None else float("nan") for k in xs_], color="white",
+            linewidth=1.5, zorder=4)
+    qr.axhline(0, color="#787b86", linestyle=":", linewidth=0.8)
+    vals = [abs(v) for k in xs_ for v in (get(hs, k), get(ln, k)) if v is not None]
+    m_ = (max(vals) if vals else 30) * 1.12
+    qr.set_ylim(-m_, m_)
+    qr.text(start, m_ * 0.94, " QQE MOD", color=TXT, fontsize=8, va="top", fontweight="bold")
 
 
 def _stoch_panel(sr, k_s, d_s, start, end):

@@ -1109,3 +1109,65 @@ def tv_technical_rating(high, low, close, volume, trend="ema50", ichi_shift=25, 
         out[i] = {"all": sum(rs) / len(rs) if rs else None, "osc": os_r, "ma": ma_r, "votes": mv + ov,
                   "ma_n": len(mvv), "osc_n": len(ovv)}
     return out
+
+
+def _ema_pine(values, n):
+    """Pine ema: ilk geçerli değerden başlar (sum := na(sum[1]) ? src : alpha*src + (1-alpha)*sum[1])."""
+    a, out, prev = 2 / (n + 1), [None] * len(values), None
+    for i, v in enumerate(values):
+        if v is None:
+            continue
+        prev = v if prev is None else a * v + (1 - a) * prev
+        out[i] = prev
+    return out
+
+
+def _qqe_core(close, rsi_len, sf, qqe):
+    """QQE: RSI'ın sf'lik EMA'sı (RsiMa) ve ATR-RSI tabanlı izleyen çizgi (FastAtrRsiTL)."""
+    wp = rsi_len * 2 - 1
+    rm = _ema_pine(rsi(close, rsi_len), sf)
+    atr_r = [None] + [abs(rm[i - 1] - rm[i]) if rm[i] is not None and rm[i - 1] is not None else None
+                      for i in range(1, len(rm))]
+    dar = [None if v is None else v * qqe for v in _ema_pine(_ema_pine(atr_r, wp), wp)]
+    lb = sb = lb_pp = sb_pp = None
+    trend, tl = 1, [None] * len(close)
+    cross = lambda a0, a1, b0, b1: None not in (a0, a1, b0, b1) and ((a0 < b0 and a1 > b1) or (a0 > b0 and a1 < b1))
+    for i in range(len(close)):
+        if rm[i] is None or dar[i] is None:
+            continue
+        nl, ns = rm[i] - dar[i], rm[i] + dar[i]
+        r1 = rm[i - 1] if i > 0 else None
+        lb_p, sb_p = lb, sb                                  # longband[1], shortband[1]
+        lb = max(lb_p, nl) if lb_p is not None and r1 is not None and r1 > lb_p and rm[i] > lb_p else nl
+        sb = min(sb_p, ns) if sb_p is not None and r1 is not None and r1 < sb_p and rm[i] < sb_p else ns
+        if cross(r1, rm[i], sb_pp, sb_p):                    # cross(RSIndex, shortband[1])
+            trend = 1
+        elif cross(lb_pp, lb_p, r1, rm[i]):                  # cross(longband[1], RSIndex)
+            trend = -1
+        lb_pp, sb_pp = lb_p, sb_p
+        tl[i] = lb if trend == 1 else sb
+    return rm, tl
+
+
+def qqe_mod_panel(close, rsi1=6, sf1=5, qqe1=3.0, rsi2=6, sf2=5, qqe2=1.61, thr2=3.0, bb_len=50, bb_mult=0.35):
+    """QQE MOD (Mihkel00, TradingView): histogram RsiMa2-50 (gri), güçlü yükseliş mavi / güçlü düşüş kırmızı
+    sütunlar, QQE çizgisi (FastAtrRsi2TL-50, beyaz). Döner: dict(line, hist, up, dn)."""
+    rm1, tl1 = _qqe_core(close, rsi1, sf1, qqe1)
+    rm2, tl2 = _qqe_core(close, rsi2, sf2, qqe2)
+    t50 = [None if v is None else v - 50 for v in tl1]
+    basis = sma(t50, bb_len)
+    up_b, lo_b = [None] * len(close), [None] * len(close)
+    for i in range(len(close)):
+        if basis[i] is None:
+            continue
+        w = t50[i - bb_len + 1:i + 1]
+        m = sum(w) / bb_len
+        dev = bb_mult * sqrt(sum((x - m) ** 2 for x in w) / bb_len)
+        up_b[i], lo_b[i] = basis[i] + dev, basis[i] - dev
+    hist = [None if v is None else v - 50 for v in rm2]
+    up = [hist[i] is not None and up_b[i] is not None and rm1[i] is not None
+          and hist[i] > thr2 and rm1[i] - 50 > up_b[i] for i in range(len(close))]
+    dn = [hist[i] is not None and lo_b[i] is not None and rm1[i] is not None
+          and hist[i] < -thr2 and rm1[i] - 50 < lo_b[i] for i in range(len(close))]
+    line = [None if v is None else v - 50 for v in tl2]
+    return {"line": line, "hist": hist, "up": up, "dn": dn, "thr": thr2}

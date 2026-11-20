@@ -2295,6 +2295,12 @@ def live_images(results, cfg, state, now, intrabar=False):
             rma = [None if k < ma_p - 1 or any(v is None for v in rr[k - ma_p + 1:k + 1])
                    else sum(rr[k - ma_p + 1:k + 1]) / ma_p for k in range(lo, i + 1)]
             rsi_x = {"ma": rma, "k": (f.get("srsi_k") or [])[lo:i + 1], "d": (f.get("srsi_d") or [])[lo:i + 1]}
+            if lc.get("qqe_panel", True):                         # QQE MOD paneli (Stoch RSI altında) – kullanıcı isteği
+                try:
+                    q_ = ta.qqe_mod_panel(f["c"][:i + 1])
+                    rsi_x["qqe"] = {k_: (v_[lo:i + 1] if isinstance(v_, list) else v_) for k_, v_ in q_.items()}
+                except Exception:  # noqa: BLE001
+                    pass
         st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
                  if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
