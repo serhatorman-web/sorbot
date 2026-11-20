@@ -814,7 +814,7 @@ def markets_block(quotes):
             if not q or q.get("price") is None:
                 continue
             status = "Açık" if q.get("open") else "Kapalı"
-            if title.startswith(("📈", "🥇")) and q.get("ts"):   # borsalar, metal & emtia: canlı fiyatın saati
+            if q.get("ts"):            # tüm gruplar (borsalar, metal & emtia, tahvil, döviz): canlı fiyatın saati
                 hm = datetime.fromtimestamp(int(q["ts"]), timezone(timedelta(hours=3))).strftime("%H:%M")
                 status = f"Açık · canlı {hm}" if q.get("open") else f"Kapalı · son {hm}"
             if cur == "%":                      # tahvil getirisi: %4,25 · +3 bp
