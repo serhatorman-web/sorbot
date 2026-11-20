@@ -812,10 +812,33 @@ def required_ready(f, i=None):
 # Analiz
 # --------------------------------------------------------------------------- #
 def parse_klines(raw, now_ms):
-    return [{"t": int(k[0]), "o": float(k[1]), "h": float(k[2]), "l": float(k[3]),
-             "c": float(k[4]), "v": float(k[7]),            # v = USDT cinsinden hacim
-             "bv": float(k[5])}                                # bv = adet (coin/hisse) cinsinden hacim (TradingView ile aynı)
-            for k in raw if int(k[6]) < now_ms]
+    return adjust_splits([{"t": int(k[0]), "o": float(k[1]), "h": float(k[2]), "l": float(k[3]),
+                           "c": float(k[4]), "v": float(k[7]),            # v = USDT cinsinden hacim
+                           "bv": float(k[5])}                                # bv = adet cinsinden hacim (TradingView ile aynı)
+                          for k in raw if int(k[6]) < now_ms])
+
+
+def adjust_splits(cs):
+    """Hisse bölünmesi / kontrat ayarlaması: bir mumun açılışı önceki kapanışın tam 1/n'i ya da n katıysa (n=2..50,
+    %4 pay; ör. SNDK 20.11: 737 → 92, 1/8) önceki mumların fiyatları aynı oranla düzeltilir. Yoksa MA200, ATR,
+    Supertrend ve pump/dump radarı günlerce bozuk hesaplanır (gerçek düşüşte sinyal kaçar)."""
+    for k in range(len(cs) - 1, 0, -1):
+        pc = cs[k - 1]["c"]
+        if not pc:
+            continue
+        r = cs[k]["o"] / pc
+        if 0.555 < r < 1.8:
+            continue
+        n = round(1 / r) if r < 1 else round(r)
+        if n < 2 or n > 50 or abs((r * n if r < 1 else r / n) - 1) > 0.04:
+            continue
+        f = (1 / n) if r < 1 else n
+        for j in range(k):
+            x = cs[j]
+            x["o"], x["h"], x["l"], x["c"] = x["o"] * f, x["h"] * f, x["l"] * f, x["c"] * f
+            if "bv" in x:
+                x["bv"] = x["bv"] / f
+    return cs
 
 
 def ichimoku_vote(f, i):
