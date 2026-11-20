@@ -2619,7 +2619,7 @@ def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
 
 
-def signal_chart_image(res, cfg, direction):
+def signal_chart_image(res, cfg, direction, kind_title=None, plan=True):
     """Supertrend sinyalinin resmi (kullanıcı isteği): kırılım resimleriyle aynı görünüm (pivotlar, EMA/MA, Ichimoku
     bulutu, hacim profili, Supertrend, RSI / Stoch RSI / QQE MOD); giriş / TP1-2-3 / stop sinyal mesajındakiyle aynı."""
     meta, f, i = res["meta"], res["f"], res["i"]
@@ -2657,9 +2657,10 @@ def signal_chart_image(res, cfg, direction):
     if noktalar:                                   # çizginin 1. teması da görünsün (en fazla 150 mum)
         win = max(win, min(150, n - min(k for k, _ in noktalar) + 6))
     g = {"kirilim": d, "hedef": None, "window": win,
-         "ciz": {"noktalar": noktalar, "cizgiler": cizgiler, "kb": kb_, "retest": None},
-         "plan": {"d": d, "entry": entry, "stop": stop, "tp": list(tps)[:3], "at_level": False,
-                  "stop_sr": False, "tp_sr": [False] * 3}}
+         "ciz": {"noktalar": noktalar, "cizgiler": cizgiler, "kb": kb_, "retest": None}}
+    if plan:                                       # erken uyarıda giriş / TP / stop yok (mesajda da yok)
+        g["plan"] = {"d": d, "entry": entry, "stop": stop, "tp": list(tps)[:3], "at_level": False,
+                     "stop_sr": False, "tp_sr": [False] * 3}
     if pv_bg:
         g["pivot_bg"] = pv_bg
         g["pivot_current_only"] = cfg.get("live_images", {}).get("pivot_current_only", False)
@@ -2670,7 +2671,7 @@ def signal_chart_image(res, cfg, direction):
     if rsi_bg:
         g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
     plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
-    title = f"{plain} · {TF_NAMES.get(tf, tf)} · Supertrend {'LONG' if d == 1 else 'SHORT'} sinyali"
+    title = f"{plain} · {TF_NAMES.get(tf, tf)} · " + (kind_title or f"Supertrend {'LONG' if d == 1 else 'SHORT'} sinyali")
     return chart_img.render_pattern(cs, g, title, meta.get("precision"))
 
 
@@ -4126,6 +4127,17 @@ def main():
                     sent += 1
                     send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"],
                                         image_head(r, cfg, rd["dir"], rd))
+                    if cfg.get("live_images", {}).get("signal_image", True):   # pump/dump resmi (Supertrend gibi)
+                        try:
+                            head_ = image_head(r, cfg, rd["dir"], rd)
+                            kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])     # ör. "PUMP SİNYALİ"
+                            png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname,
+                                                     plan=rd["kind"] in ("start", "momentum", "reversal"))
+                            if png:
+                                notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kname}",
+                                                    r["meta"]["symbol"], r["meta"]["type"])
+                        except Exception as e:  # noqa: BLE001
+                            print(f"  Radar resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
                     state["signals"][key] = now
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)
