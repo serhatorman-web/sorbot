@@ -167,24 +167,36 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     d = g.get("kirilim", 0)
     kb = ciz.get("kb")
     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
-    if kb is not None and kb >= start:
-        rng = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
-        col = MARK
-        y = cs[kb]["c"]
-        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),
-                    color=col, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=col), zorder=6)
+    # "Kırılım" ve "Retest" yazıları: plan alanında, stop çizgisinin ötesindeki boşlukta (grafiği kapatmasın;
+    # kullanıcı isteği). Plan yoksa eski yerinde.
+    lab_ys = []
+    rng = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
+    pl_ = g.get("plan")
+    box = dict(facecolor=BG, edgecolor=MARK, boxstyle="round,pad=0.3", linewidth=0.8)
+    slot = [0]
+
+    def side_label(txt, xy):
+        if pl_:
+            yl = pl_["stop"] - pl_["d"] * rng * (0.07 + 0.08 * slot[0])
+            slot[0] += 1
+            lab_ys.append(yl - pl_["d"] * rng * 0.03)
+            ax.annotate(txt, xy=xy, xytext=(end + 1, yl), color=MARK, fontsize=9, fontweight="bold", ha="left",
+                        va="center", bbox=box, arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
+            return True
+        return False
+
     rt = ciz.get("retest")
+    if kb is not None and kb >= start:
+        y = cs[kb]["c"]
+        if not side_label("Kırılım", (kb, y)):
+            ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),
+                        color=MARK, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
         ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
-        # yazı: stop tarafında, stop seviyesinin ötesindeki boşlukta ve solda (plan yazılarıyla çakışmasın; kullanıcı)
-        rng_r = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
-        pl_ = g.get("plan")
-        ref = pl_["stop"] if pl_ else y
-        ax.annotate("Retest", xy=(rt, y), xytext=(rt - 14, ref - d * rng_r * 0.10),
-                    color=MARK, fontsize=9, fontweight="bold", ha="center", va="center",
-                    bbox=dict(facecolor=BG, edgecolor=MARK, boxstyle="round,pad=0.3", linewidth=0.8),
-                    arrowprops=dict(arrowstyle="->", color=MARK), zorder=9)
+        if not side_label("Retest", (rt, y)):
+            ax.annotate("Retest", xy=(rt, y), xytext=(rt - 14, y - d * rng * 0.12), color=MARK, fontsize=9,
+                        arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
     tgt = g.get("hedef")
     if tgt is not None:
         ax.axhline(tgt, color=MARK, linestyle="--", linewidth=1.2, zorder=4)
@@ -196,7 +208,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # işlem planı: giriş / TP1-2-3 / stop ve kâr (yeşil) – zarar (kırmızı) bölgeleri (kullanıcı isteği)
     plan = g.get("plan")
     x_right = end + int((end - start) * 0.22) + 4
-    extra = ([tgt] if tgt is not None else []) + cross_pts
+    extra = ([tgt] if tgt is not None else []) + cross_pts + lab_ys
     if plan:
         e, sl, tps, pd_ = plan["entry"], plan["stop"], plan["tp"], plan["d"]
         x0, x1 = end - 1, x_right - 1
