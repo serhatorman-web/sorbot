@@ -219,7 +219,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         tx, ty = best or (kb - 20, y + (0.30 if d == 1 else -0.30) * rng)
         lab_ys.append(ty)
         ax.annotate("Kırılım", xy=(kb, y), xytext=(tx, ty), color=MARK, fontsize=9, fontweight="bold", ha="center",
-                    va="center", bbox=dict(facecolor="#000000", edgecolor="none", boxstyle="round,pad=0.3"),
+                    va="center",                                     # zemin yok: sadece beyaz yazı (kullanıcı)
                     arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
