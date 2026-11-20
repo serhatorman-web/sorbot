@@ -41,7 +41,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         start = max(0, n - g["window"])
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
-    fig, ax = plt.subplots(figsize=(9, 4.8), dpi=110)
+    rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
+    if rsi_s:
+        fig, (ax, ar) = plt.subplots(2, 1, figsize=(9, 6.2), dpi=110, sharex=True,
+                                     gridspec_kw={"height_ratios": [3.4, 1.2], "hspace": 0.04})
+    else:
+        fig, ax = plt.subplots(figsize=(9, 4.8), dpi=110)
+        ar = None
     fig.patch.set_facecolor(BG)
     ax.set_facecolor(BG)
     w = 0.6
@@ -234,8 +240,11 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     ax.set_ylim(min(lows) - pad, max(highs) + pad)
     ax.set_xlim(start - 1, x_right)
     ticks = list(range(start, end, max(1, (end - start) // 6)))
-    ax.set_xticks(ticks)
-    ax.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
+    if ar is not None:
+        _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right)
+    bx = ar if ar is not None else ax
+    bx.set_xticks(ticks)
+    bx.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
                        color=TXT, fontsize=8)
     ax.yaxis.tick_right()
     ax.tick_params(axis="y", colors=TXT, labelsize=8)
@@ -251,6 +260,41 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     fig.savefig(buf, format="png", facecolor=BG)
     plt.close(fig)
     return buf.getvalue()
+
+
+def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right):
+    """Alt panelde RSI (14), 30/70 çizgileri; uyumsuzluklar hem fiyatta hem RSI'da çizgi + yazı."""
+    ax.tick_params(axis="x", labelbottom=False)
+    ar.set_facecolor(BG)
+    ar.grid(color=GRID, linewidth=0.6)
+    ar.yaxis.tick_right()
+    ar.tick_params(axis="y", colors=TXT, labelsize=7)
+    for sp in ar.spines.values():
+        sp.set_color(GRID)
+    xs_ = list(range(start, end))
+    rv = [rsi_s[k] if k < len(rsi_s) and rsi_s[k] is not None else float("nan") for k in xs_]
+    ar.plot(xs_, rv, color="#b39ddb", linewidth=1.1, zorder=3)
+    for lv_, ls_ in ((30, "--"), (50, ":"), (70, "--")):
+        ar.axhline(lv_, color="#5d606b", linestyle=ls_, linewidth=0.8)
+    ar.text(start, 98, " RSI 14", color="#b39ddb", fontsize=8, va="top", fontweight="bold")
+    ar.set_ylim(0, 100)
+    ar.set_yticks([30, 50, 70])
+    for p1, p2, bull in divs:
+        if p1 < start or p2 >= end or rsi_s[p1] is None or rsi_s[p2] is None:
+            continue
+        col = UP if bull else DOWN
+        key = "l" if bull else "h"
+        y1, y2 = cs[p1][key], cs[p2][key]
+        ax.plot([p1, p2], [y1, y2], color=col, linewidth=1.8, zorder=6)
+        ax.plot([p1, p2], [y1, y2], "o", color=col, markersize=4, zorder=6)
+        ar.plot([p1, p2], [rsi_s[p1], rsi_s[p2]], color=col, linewidth=1.8, zorder=5)
+        ar.plot([p1, p2], [rsi_s[p1], rsi_s[p2]], "o", color=col, markersize=4, zorder=6)
+        lab = "Pozitif uyumsuzluk" if bull else "Negatif uyumsuzluk"
+        ax.annotate(lab, xy=(p2, y2), xytext=(0, -14 if bull else 10), textcoords="offset points", color=col,
+                    fontsize=8, fontweight="bold", ha="center", va="top" if bull else "bottom", zorder=8,
+                    bbox=dict(facecolor=BG, edgecolor="none", pad=0.4, alpha=0.75))
+        ar.annotate("Poz." if bull else "Neg.", xy=(p2, rsi_s[p2]), xytext=(0, -10 if bull else 6),
+                    textcoords="offset points", color=col, fontsize=7, ha="center", va="top" if bull else "bottom")
 
 
 def render_divergence(cs, rsi, pts, bullish, title, prec=None):

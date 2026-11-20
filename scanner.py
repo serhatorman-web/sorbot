@@ -2185,6 +2185,14 @@ def live_images(results, cfg, state, now, intrabar=False):
                  if lc.get("moving_averages", True) else None)
         if ma_bg is not None:
             ma_bg["_marks"] = lc.get("crosses", False)
+        # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
+        rsi_bg, div_bg = None, []
+        if lc.get("rsi_panel", True) and f.get("rsi"):
+            rsi_bg = f["rsi"][lo:i + 1]
+            try:
+                div_bg = ta.rsi_divergences(h, l, rsi_bg)
+            except Exception:  # noqa: BLE001
+                div_bg = []
         st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
                  if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
@@ -2253,6 +2261,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                     g["supertrend"] = st_bg
                 if ma_bg:
                     g["mas"] = ma_bg
+                if rsi_bg:
+                    g["rsi"], g["divs"] = rsi_bg, div_bg
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(kb), risk_cfg=cfg["risk"])
@@ -2334,6 +2344,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                         g = dict(g, supertrend=st_bg)
                     if ma_bg:
                         g = dict(g, mas=ma_bg)
+                    if rsi_bg:
+                        g = dict(g, rsi=rsi_bg, divs=div_bg)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=lvl_now(g, d), risk_cfg=cfg["risk"]))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} {'kırılıyor, mum açık' if intrabar else 'kırıldı'})"

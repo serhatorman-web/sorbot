@@ -364,6 +364,29 @@ def rsi_divergence(high, low, close, rsi_len=14, left=5, right=5, range_min=5, r
     return pos is not None, neg is not None
 
 
+def rsi_divergences(high, low, r, left=5, right=5, range_min=5, range_max=60):
+    """Penceredeki tüm normal RSI uyumsuzlukları (TradingView mantığı, ardışık iki RSI pivotu):
+    [(p1, p2, True=pozitif / False=negatif)]. r: RSI serisi (high/low ile aynı uzunlukta)."""
+    n = len(r)
+    lows, highs = [], []
+    for p in range(left, n - right):
+        w = r[p - left:p + right + 1]
+        if r[p] is None or any(x is None for x in w):
+            continue
+        if r[p] == min(w):
+            lows.append(p)
+        if r[p] == max(w):
+            highs.append(p)
+    out = []
+    for a_, b_ in zip(lows, lows[1:]):
+        if range_min <= b_ - a_ <= range_max and r[b_] > r[a_] and low[b_] < low[a_]:
+            out.append((a_, b_, True))
+    for a_, b_ in zip(highs, highs[1:]):
+        if range_min <= b_ - a_ <= range_max and r[b_] < r[a_] and high[b_] > high[a_]:
+            out.append((a_, b_, False))
+    return sorted(out, key=lambda x: x[1])
+
+
 def swing_anchor(high, low, lookback=300):
     """Son `lookback` mumdaki en yüksek tepe ile en düşük dipten daha eski olanın indeksi (son büyük salınımın başı).
     Hacim profili bu mumdan son muma kadar hesaplanır."""
