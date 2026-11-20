@@ -10,7 +10,6 @@ jobs:
       - name: tüm taramalar (deneme modu)
         env:
           DRY_RUN: "1"
-          PREVIEW_RADAR: "1"
         run: |
           for tf in 15m 1h 4h 1d; do
             s=$(date +%s)
