@@ -1,9 +1,19 @@
 name: diag
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      small:
+        default: ""
 jobs:
   d:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/probe.py
+      - run: python3 tools/collect.py
+        env:
+          SMALL: ${{ github.event.inputs.small }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signals
+          path: out/signals.csv.gz
