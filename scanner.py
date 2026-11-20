@@ -2236,7 +2236,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                      "ciz": {"noktalar": [(a_, c[a_]), (b_, c[b_])], "cizgiler": [((a_, c[a_]), (n - 1, ln(n - 1)))],
                              "kb": kb, "retest": ev.get("rt") if kind_key == "rt" else None}}
                 kind = "Düşen" if d == 1 else "Yükselen"
-                what = "retest tamamlandı" if kind_key == "rt" else "kırıldı"
+                what = "retest tamamlandı" if kind_key == "rt" else ("kırılıyor (mum açık)" if intrabar else "kırıldı")
                 pv_draw, pv_txt = pv_note(d)
                 if pv_draw:
                     g["pivots"] = pv_draw
@@ -2279,7 +2279,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                            f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
                 body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
                 if intrabar:
-                    cap += IB_NOTE
+                    cap += IB_NOTE if is_break else "\n⏱ Mum henüz kapanmadı: anlık retest, mum kapanışında teyit edilecek"
                 if intrabar and is_break:
                     IB_PENDING[key] = {"d": d, "lvl": ln(kb), "t": cs[kb]["t"], "sym": meta["symbol"],
                                        "what": f"{kind} trend çizgisi", "tf": tf_n, "name": name}
@@ -2326,7 +2326,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                         g = dict(g, supertrend=st_bg)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=lvl_now(g, d), risk_cfg=cfg["risk"]))
-                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} kırıldı)"
+                    png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} {'kırılıyor, mum açık' if intrabar else 'kırıldı'})"
                                                    + (" + pivot kırıldı" if pv_draw else ""), prec)
                 except Exception as e:  # noqa: BLE001
                     print(f"  Formasyon resmi çizilemedi ({meta['symbol']}): {e}", file=sys.stderr)
