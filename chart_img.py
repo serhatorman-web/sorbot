@@ -73,20 +73,22 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         return TI(T(y) + frac * _rT)
     rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
     if rsi_s:
-        fig, (ax, ar) = plt.subplots(2, 1, figsize=(9, 6.2), dpi=110, sharex=True,
+        fig, (ax, ar) = plt.subplots(2, 1, figsize=(11.6, 6.2), dpi=110, sharex=True,
                                      gridspec_kw={"height_ratios": [3.4, 1.2], "hspace": 0.04})
     else:
-        fig, ax = plt.subplots(figsize=(9, 4.8), dpi=110)
+        fig, ax = plt.subplots(figsize=(11.6, 5.6), dpi=110)   # daha geniş ve yüksek: mumlar net (Telegram ~1280 px)
         ar = None
     fig.patch.set_facecolor(BG)
     ax.set_facecolor(BG)
-    w = 0.6
+    w = 0.72                                    # mum gövdesi daha geniş, fitil daha kalın (net görünüm)
+    _cr = (max(cs[k]["h"] for k in xs) - min(cs[k]["l"] for k in xs)) or 1e-12
     for k in xs:
         x = cs[k]
         col = UP if x["c"] >= x["o"] else DOWN
-        ax.vlines(k, x["l"], x["h"], color=col, linewidth=0.8, zorder=2)
+        ax.vlines(k, x["l"], x["h"], color=col, linewidth=1.0, zorder=2)
         lo, hi = sorted((x["o"], x["c"]))
-        ax.add_patch(plt.Rectangle((k - w / 2, lo), w, max(hi - lo, 1e-12), color=col, zorder=3))
+        ax.add_patch(plt.Rectangle((k - w / 2, lo), w, max(hi - lo, _cr * 0.002), color=col, zorder=3,
+                                   linewidth=0))
     # formasyon çizgileri
     for (k1, p1), (k2, p2) in ciz.get("cizgiler", []):
         m = (p2 - p1) / (k2 - k1) if k2 != k1 else 0.0
@@ -360,9 +362,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     c_span = (T(max(cs[k]["h"] for k in xs)) - T(min(cs[k]["l"] for k in xs))) or 1e-12
     frac = c_span / (((T(max(highs)) - T(min(lows))) or 1e-12) * 1.12)
     base_h = fig.get_size_inches()[1]
-    need = 2.6 / max(frac, 1e-6) + (base_h - 4.8 + 0.9)
+    need = 3.2 / max(frac, 1e-6) + (base_h - 5.6 + 0.9)
     if need > base_h:
-        fig.set_size_inches(fig.get_size_inches()[0], min(need, 12.0))
+        fig.set_size_inches(fig.get_size_inches()[0], min(need, 11.6))
     ticks = list(range(start, end, max(1, (end - start) // 6)))
     if ar is not None:
         _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right)
