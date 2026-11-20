@@ -177,9 +177,14 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
         ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
-        ax.annotate("Retest", xy=(rt, y), xytext=(rt + 3, y + (-1 if d == 1 else 1) * (
-            max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) * 0.12),
-            color=MARK, fontsize=9, arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
+        # yazı: stop tarafında, stop seviyesinin ötesindeki boşlukta ve solda (plan yazılarıyla çakışmasın; kullanıcı)
+        rng_r = max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])
+        pl_ = g.get("plan")
+        ref = pl_["stop"] if pl_ else y
+        ax.annotate("Retest", xy=(rt, y), xytext=(rt - 14, ref - d * rng_r * 0.10),
+                    color=MARK, fontsize=9, fontweight="bold", ha="center", va="center",
+                    bbox=dict(facecolor=BG, edgecolor=MARK, boxstyle="round,pad=0.3", linewidth=0.8),
+                    arrowprops=dict(arrowstyle="->", color=MARK), zorder=9)
     tgt = g.get("hedef")
     if tgt is not None:
         ax.axhline(tgt, color=MARK, linestyle="--", linewidth=1.2, zorder=4)
