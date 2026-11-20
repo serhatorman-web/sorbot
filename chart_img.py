@@ -188,15 +188,32 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     rt = ciz.get("retest")
     if kb is not None and kb >= start:
         y = cs[kb]["c"]
-        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),   # eski yerinde,
-                    color=MARK, fontsize=9, fontweight="bold", ha="center", va="center", bbox=box,  # Retest gibi yazı
+        # Kırılım yazısı: kırılım mumunun yakınında mumların olmadığı boş bir yerde, siyah zemin üzerinde
+        # (grafiği kapatmasın; kullanıcı isteği)
+        span_x = max(10, end - start)
+        dx, dy = span_x * 0.075, rng * 0.07
+        best = None
+        for oy in (0.16, 0.24, 0.32, 0.40, 0.50, -0.16, -0.24, -0.32, -0.40, -0.50):
+            for ox in (8, 12, 16, 20, 26, 32, 40, 4):
+                tx, ty = kb - ox, y + (oy if d == 1 else -oy) * rng
+                if tx - dx / 2 < start:
+                    continue
+                k0, k1 = max(start, int(tx - dx / 2) - 1), min(end, int(tx + dx / 2) + 2)
+                if any(cs[k]["l"] <= ty + dy / 2 and cs[k]["h"] >= ty - dy / 2 for k in range(k0, k1)):
+                    continue
+                best = (tx, ty)
+                break
+            if best:
+                break
+        tx, ty = best or (kb - 12, y + (0.18 if d == 1 else -0.18) * rng)
+        lab_ys.append(ty)
+        ax.annotate("Kırılım", xy=(kb, y), xytext=(tx, ty), color=MARK, fontsize=9, fontweight="bold", ha="center",
+                    va="center", bbox=dict(facecolor="#000000", edgecolor=MARK, boxstyle="round,pad=0.3", linewidth=0.8),
                     arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
         ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
-        if not side_label("Retest", (rt, y)):
-            ax.annotate("Retest", xy=(rt, y), xytext=(rt - 14, y - d * rng * 0.12), color=MARK, fontsize=9,
-                        arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
+        # Retest yazısı kaldırıldı (kullanıcı isteği); retest mumu halkayla işaretli
     tgt = g.get("hedef")
     if tgt is not None:
         ax.axhline(tgt, color=MARK, linestyle="--", linewidth=1.2, zorder=4)
