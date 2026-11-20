@@ -12,6 +12,7 @@ UP, DOWN = "#26a69a", "#ef5350"
 LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
 MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
 CROSS_GOLD, CROSS_DEATH = "#ffd700", "#ff1744"
+ICH_COLS = {"tk": "#00e5ff", "kj": "#e040fb", "ch": "#9ccc65"}   # Ichimoku: Tenkan camgöbeği, Kijun pembe-mor, Chikou açık yeşil
 BB_COL = "#ce93d8"                                     # Bollinger bandı (açık mor)
 MA_COLS = {"EMA50": "#2196f3", "EMA200": "#ffffff", "MA50": "#ffeb3b", "MA200": "#ff1744"}
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
@@ -162,6 +163,30 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             if bm:
                 ax.plot(ks, [bm[k] for k in ks], color=BB_COL, linewidth=0.8, linestyle="--", alpha=0.7, zorder=3.2)
             ma_leg.append(("BB", BB_COL))
+    # Ichimoku (9, 26, 52): bulut (Senkou A > B yeşil, A < B kırmızı; sağda 26 mum ileri), Tenkan, Kijun, Chikou
+    ich = mas.get("_ich")
+    if ich:
+        xr_ = end + int((end - start) * 0.22) + 4
+        A = {x: v for x, v in ich["sa"] if start <= x <= xr_}
+        B = {x: v for x, v in ich["sb"] if start <= x <= xr_}
+        ks = sorted(set(A) & set(B))
+        if len(ks) >= 2:
+            av, bv = [A[k] for k in ks], [B[k] for k in ks]
+            ax.plot(ks, av, color="#26a69a", linewidth=0.8, alpha=0.8, zorder=1.6)
+            ax.plot(ks, bv, color="#ef5350", linewidth=0.8, alpha=0.8, zorder=1.6)
+            ax.fill_between(ks, av, bv, where=[a_ >= b_ for a_, b_ in zip(av, bv)], interpolate=True,
+                            color="#26a69a", alpha=0.13, zorder=1.4)
+            ax.fill_between(ks, av, bv, where=[a_ < b_ for a_, b_ in zip(av, bv)], interpolate=True,
+                            color="#ef5350", alpha=0.13, zorder=1.4)
+        for key, nm in (("tk", "Tenkan"), ("kj", "Kijun")):
+            pts = [(k, ich[key][k]) for k in range(start, end) if k < len(ich[key]) and ich[key][k] is not None]
+            if len(pts) >= 2:
+                ax.plot([p_[0] for p_ in pts], [p_[1] for p_ in pts], color=ICH_COLS[key], linewidth=1.0, zorder=3.4)
+        chp = [(x, v) for x, v in ich["ch"] if x >= start]
+        if len(chp) >= 2:
+            ax.plot([p_[0] for p_ in chp], [p_[1] for p_ in chp], color=ICH_COLS["ch"], linewidth=0.9, alpha=0.85,
+                    zorder=3.3)
+        ma_leg += [("Tenkan", ICH_COLS["tk"]), ("Kijun", ICH_COLS["kj"]), ("Chikou", ICH_COLS["ch"])]
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")

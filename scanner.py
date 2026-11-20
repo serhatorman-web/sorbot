@@ -2168,6 +2168,26 @@ def trade_plan(h, l, c, a, d, min_stop_pct=1.0, level=None, use_sr=True, risk_cf
             "stop_sr": stop_sr, "tp_sr": tp_sr}
 
 
+def ichimoku_bg(f, lo, i, p1=9, p2=26, p3=52):
+    """Resim için Ichimoku: Tenkan / Kijun (mum sırasıyla), Senkou A / B (p2 mum ileri kaydırılmış, sağda gelecekteki
+    bulut dahil), Chikou (kapanış p2 mum geri). x değerleri resimdeki mum sırası (lo = 0)."""
+    h, l, c = f["h"], f["l"], f["c"]
+    mid = lambda k, p: (max(h[k - p + 1:k + 1]) + min(l[k - p + 1:k + 1])) / 2 if k >= p - 1 else None
+    tk = [mid(k, p1) for k in range(lo, i + 1)]
+    kj = [mid(k, p2) for k in range(lo, i + 1)]
+    sa, sb = [], []
+    for k in range(max(0, lo - p2), i + 1):                  # k'de hesaplanan değer k + p2'de çizilir
+        a_, b_ = mid(k, p1), mid(k, p2)
+        x = k - lo + p2
+        if a_ is not None and b_ is not None:
+            sa.append((x, (a_ + b_) / 2))
+        b3 = mid(k, p3)
+        if b3 is not None:
+            sb.append((x, b3))
+    ch = [(k - lo - p2, c[k]) for k in range(lo, i + 1)]
+    return {"tk": tk, "kj": kj, "sa": sa, "sb": sb, "ch": ch}
+
+
 def pivot_segments(f, lo, i, tf):
     """Resmin arka planı için pivot seviyeleri (TradingView Pivots gibi): penceredeki her dönem için önceki dönemin
     H-L-C'sinden P, R1-R3, S1-S3. Döner: [{k0, k1, P, R1.., S3}] (k0 / k1: resimdeki mum sırası)."""
@@ -2250,6 +2270,8 @@ def live_images(results, cfg, state, now, intrabar=False):
             ma_bg["_marks"] = lc.get("crosses", False)
             if lc.get("bollinger", True) and f.get("bb_up"):          # Bollinger bandı (20, 2) – kullanıcı isteği
                 ma_bg.update(_bb_up=f["bb_up"][lo:i + 1], _bb_mid=f["bb_mid"][lo:i + 1], _bb_lo=f["bb_lo"][lo:i + 1])
+            if lc.get("ichimoku", False):                              # Ichimoku (9, 26, 52) – kullanıcı isteği
+                ma_bg["_ich"] = ichimoku_bg(f, lo, i)
         # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
         rsi_bg, div_bg = None, []
         if lc.get("rsi_panel", True) and f.get("rsi"):

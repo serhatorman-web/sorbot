@@ -455,6 +455,7 @@
     "intrabar": true,
     "closed_images": false,
     "bollinger": false,
+    "ichimoku": true,
     "fail_notice": false,
     "crosses": false,
     "rsi_panel": false,
