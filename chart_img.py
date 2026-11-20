@@ -62,7 +62,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if g.get("hedef") is not None:
         _vals.append(g["hedef"])
     _pos = [v for v in _vals if v and v > 0]
-    use_log = bool(_pos) and min(_pos) > 0 and max(_pos) / min(_pos) >= 3
+    use_log = (g.get("log_scale", False) and bool(_pos) and min(_pos) > 0
+               and max(_pos) / min(_pos) >= 3)               # kapalı (kullanıcı: SKY örneğindeki düz ölçek)
     T = (lambda v: __import__("math").log10(v) if v > 0 else -99) if use_log else (lambda v: v)
     TI = (lambda v: 10 ** v) if use_log else (lambda v: v)
     _rT = (T(max(cs[k]["h"] for k in xs)) - T(min(cs[k]["l"] for k in xs))) or 1e-12
