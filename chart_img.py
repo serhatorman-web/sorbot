@@ -190,8 +190,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             if v is None:
                 continue
             ax.plot([start - 1, xr_vp], [v, v], color=VP_COLS[nm], linewidth=1.3, zorder=3.6)
-            ax.text(xr_vp - 0.5, v, f"{nm} ({_fmt(v, prec)})", color=VP_COLS[nm], fontsize=8.5, va="bottom",
-                    ha="right", zorder=8, clip_on=True)
+            # sağdaki plan etiketleri (Giriş / Stop / TP) hemen üstündeyse yazı çizginin altına alınır
+            pl_ = g.get("plan") or {}
+            pys = [y_ for y_ in [pl_.get("entry"), pl_.get("stop")] + list(pl_.get("tp") or []) if y_ is not None]
+            r_ = (max(x["h"] for x in cs[start:end]) - min(x["l"] for x in cs[start:end])) or 1e-12
+            up_clash = any(0 <= y_ - v <= r_ * 0.08 for y_ in pys)
+            ax.text(xr_vp - 0.5, v, f"{nm} ({_fmt(v, prec)})", color=VP_COLS[nm], fontsize=8.5,
+                    va="top" if up_clash else "bottom", ha="right", zorder=8, clip_on=True)
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
