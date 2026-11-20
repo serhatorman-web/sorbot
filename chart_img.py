@@ -71,13 +71,19 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     for j, sg in enumerate(bg):
         last = j == len(bg) - 1
         x0, x1 = max(sg["k0"], start), (x_full if last else sg["k1"] + 0.5)   # son dönem sağ kenara kadar
+        if last and x0 - start < 12:
+            # dönem resmin solundan başlıyorsa etiket yine çizginin başında, solunda dursun (kullanıcı isteği):
+            # çizgi etiketin bittiği yerden başlar
+            ax_px = ax.get_window_extent().width or 800
+            bar_px = ax_px / max(1, x_full - start + 2)
+            lab_w = max(len(f" {nm} ({_fmt(sg[nm], prec)}) ") for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"))
+            x0 = max(x0, start - 1 + lab_w * 7.5 * 0.62 * ax.figure.dpi / 72 / bar_px)
         for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
             colr = PIVOT if nm == "P" else PIV_COL
             ax.plot([x0, x1], [sg[nm], sg[nm]], color=colr, linewidth=1.5 if nm == "P" else 1.2, alpha=0.95, zorder=1)
             if last:                             # etiketler (TradingView gibi) içinde bulunulan dönemin başında
-                at_edge = x0 - start < 12          # dönem resmin solundan başlıyorsa etiket çizginin üstüne (kesilmesin)
-                ax.text(x0 + (1 if at_edge else 0), sg[nm], f" {nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7.5,
-                        va="bottom" if at_edge else "center", ha="left" if at_edge else "right", zorder=6, clip_on=True,
+                ax.text(x0, sg[nm], f" {nm} ({_fmt(sg[nm], prec)}) ", color=colr, fontsize=7.5,
+                        va="center", ha="right", zorder=6, clip_on=True,
                         bbox=dict(facecolor=BG, edgecolor="none", pad=0.3, alpha=0.6))
     # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
     stl = g.get("supertrend")
