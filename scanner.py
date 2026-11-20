@@ -2632,8 +2632,27 @@ def signal_chart_image(res, cfg, direction):
     pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg = chart_bg(f, i, lo, tf, cfg, h, l)
     d = 1 if direction == "long" else -1
     entry, stop, tps, _ = levels(res, direction, cfg)
-    g = {"kirilim": d, "hedef": None, "window": cfg.get("live_images", {}).get("signal_window", 80),
-         "ciz": {"noktalar": [], "cizgiler": [], "kb": None, "retest": None},
+    # trend çizgileri (kullanıcı isteği: sinyal resminde de çizilsin) – kırılım resimleriyle aynı kurallar
+    lc = cfg.get("live_images", {})
+    c = [x["c"] for x in cs]
+    n = len(c)
+    noktalar, cizgiler = [], []
+    try:
+        min_span = lc.get("min_span_by_tf", {}).get(tf, lc.get("min_span", 30))
+        for ev in ta.trendlines_close(h, l, c):
+            if ev["touches"] < lc.get("min_touches", 2) or ev["b"] - ev["a"] < min_span:
+                continue
+            a_, b_ = ev["a"], ev["b"]
+            m = (c[b_] - c[a_]) / (b_ - a_)
+            noktalar += [(a_, c[a_]), (b_, c[b_])]
+            cizgiler.append(((a_, c[a_]), (n - 1, c[b_] + m * (n - 1 - b_))))
+    except Exception:  # noqa: BLE001
+        pass
+    win = lc.get("signal_window", 80)
+    if noktalar:                                   # çizginin 1. teması da görünsün (en fazla 150 mum)
+        win = max(win, min(150, n - min(k for k, _ in noktalar) + 6))
+    g = {"kirilim": d, "hedef": None, "window": win,
+         "ciz": {"noktalar": noktalar, "cizgiler": cizgiler, "kb": None, "retest": None},
          "plan": {"d": d, "entry": entry, "stop": stop, "tp": list(tps)[:3], "at_level": False,
                   "stop_sr": False, "tp_sr": [False] * 3}}
     if pv_bg:

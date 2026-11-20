@@ -467,7 +467,7 @@
     "pivot_current_only": true,
     "trendlines": true,
     "retests": false,
-    "formations": true,
+    "formations": false,
     "max_per_scan": 15,
     "volume_x": 1.5,
     "min_touches": 2,
