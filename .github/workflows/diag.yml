@@ -1,0 +1,29 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet --user matplotlib || true
+      - name: tüm taramalar (deneme modu)
+        env:
+          DRY_RUN: "1"
+          PREVIEW_RADAR: "1"
+        run: |
+          for tf in 15m 1h 4h 1d; do
+            s=$(date +%s)
+            if [ "$tf" = "1h" ]; then python3 scanner.py > out_$tf.txt 2>&1; else SORBOT_TF=$tf python3 scanner.py > out_$tf.txt 2>&1; fi
+            echo "XX| $tf çıkış kodu $? süre $(( $(date +%s) - s ))s"
+            grep -E "Traceback|Error|error|hata|Hata|uyarı" out_$tf.txt | sort | uniq -c | sort -rn | head -15 | sed "s/^/XX| $tf HATA? /"
+            grep -E "Bitti|sinyal|Radar|radar|grafik resimleri|Mum verisi|Analiz edilen" out_$tf.txt | grep -v "^ " | head -12 | sed "s/^/XX| $tf /"
+            echo "XX| $tf mesaj başlıkları:"; grep -A3 "TELEGRAM MESAJI" out_$tf.txt | grep -E "SİNYALİ|HAREKETİ|DÖNÜŞ|ERKEN|LONG|SHORT" | sed 's/<[^>]*>//g' | sort | uniq -c | sort -rn | head -12 | sed "s/^/XX| $tf   /"
+          done
+          for tf in 15m 1h 4h; do
+            if [ "$tf" = "1h" ]; then SORBOT_INTRABAR=1 python3 scanner.py > ib_$tf.txt 2>&1; else SORBOT_INTRABAR=1 SORBOT_TF=$tf python3 scanner.py > ib_$tf.txt 2>&1; fi
+            echo "XX| mum içi $tf çıkış $?"; grep -E "Mum içi|Traceback|Error" ib_$tf.txt | sed "s/^/XX| ib $tf /"
+          done
+          # örnek radar mesajı (tam metin)
+          for tf in 15m 1h 4h; do awk '/TELEGRAM MESAJI/{p=1;n=0} p{print "MS| '$tf' " $0; n++} n>45{p=0}' out_$tf.txt | grep -m1 -B0 -A45 "PUMP\|DUMP" | head -48; done
+          python3 -m pytest -q tests 2>&1 | tail -2 | sed "s/^/XX| test /" || true
