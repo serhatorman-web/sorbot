@@ -3490,7 +3490,16 @@ def intrabar_followup(results, cfg, state, notifier):
                 except Exception as e:  # noqa: BLE001
                     print(f"  Teyit uyarısı gönderilemedi ({p['sym']}): {e}", file=sys.stderr)
             continue
-        if (close - p["lvl"]) * p["d"] <= 0:
+        # sinyal mesajındaki TREND ÇİZGİSİ / FORMASYONLAR satırı kanaldaki resimle aynı ifadeyi kullanır; mum
+        # kapanınca "kırıyor (anlık fiyat …)" ifadesi kapanış sonucuyla güncellenir (kullanıcı: birbirini doğrulasın)
+        txts = state.setdefault("img_txt", {})
+        prec_s = prec_of.get(p["sym"])
+        failed = (close - p["lvl"]) * p["d"] <= 0
+        if txts.get(key):
+            new = (f"kırmıştı ama mum seviyenin içinde kapandı (kapanış {fmt_price(close, prec_s)}) ❌ kırılım geçersiz"
+                   if failed else f"mum kapanışıyla kırdı (kapanış {fmt_price(close, prec_s)})")
+            txts[key] = re.sub(r"kırıyor \(anlık fiyat [^)]*\)" + (".*" if failed else ""), new, txts[key])
+        if failed:
             txt = (f"❌ <b>KIRILIM TEYİT EDİLMEDİ · {p['tf']}</b>\n{p['name']} · {p['what']}: mum içinde "
                    f"{'yukarı' if p['d'] == 1 else 'aşağı'} kırılmıştı ama mum {fmt_price(close, prec_of.get(p['sym']))} "
                    f"ile seviyenin ({fmt_price(p['lvl'], prec_of.get(p['sym']))}) "
