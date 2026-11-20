@@ -240,7 +240,7 @@ def release_check():
         log("anlık veri kontrolü zaman aşımına uğradı")
 
 
-IB_ORDER = ["15m", "1h", "15m", "4h"]     # mum içi kontrol sırası (her dakika bir zaman dilimi)
+IB_ORDER = ["15m", "1h", "15m", "4h", "15m", "1h", "15m", "1d"]   # mum içi kontrol sırası (her dakika bir zaman dilimi)
 IB_STATE = {"k": 0}
 
 
@@ -254,7 +254,7 @@ def intrabar_check(time_left):
         lc = {}
     if not lc.get("enabled", True) or not lc.get("intrabar", True) or time_left < 150:
         return
-    tfs = [t for t in IB_ORDER if t in lc.get("intrabar_tfs", ["15m", "1h", "4h"])]
+    tfs = [t for t in IB_ORDER if t in lc.get("intrabar_tfs", ["15m", "1h", "4h", "1d"])]
     if not tfs:
         return
     tf = tfs[IB_STATE["k"] % len(tfs)]

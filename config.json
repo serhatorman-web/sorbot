@@ -458,7 +458,7 @@
     "rsi_panel": false,
     "cross_tfs": ["15m", "1h", "4h"],
     "_crosses": "Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): kesişim anında (mum içinde de) resim; tüm resimlerde kesişimler işaretli.",
-    "intrabar_tfs": ["15m", "1h", "4h"],
+    "intrabar_tfs": ["15m", "1h", "4h", "1d"],
     "_intrabar": "Mum kapanmadan (her dakika sırayla 15dk/1s/15dk/4s): kapanmamış mumda trend çizgisi/formasyon kırılımı ve retest resmi hemen gönderilir (hacim şartı yok). Mum kapanışında kırılım geri alındıysa grafik kanalına ❌ uyarı gelir.",
     "enabled": true,
     "pivot_current_only": true,
