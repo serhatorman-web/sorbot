@@ -1,9 +1,0 @@
-name: diag
-on: workflow_dispatch
-jobs:
-  d:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: python3 -m pip install --quiet --user matplotlib || true
-      - run: PREVIEW=1 DRY_RUN=1 PREVIEW_SYMBOL=BTCUSDT PREVIEW_DIR=long SORBOT_TF=15m python3 scanner.py | sed -n '/TELEGRAM MESAJI/,/^------------------------------------------$/p' | sed 's/^/XX| /' | head -40
