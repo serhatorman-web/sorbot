@@ -118,9 +118,10 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                 y = (m5[k] + m2[k]) / 2
                 colr = CROSS_GOLD if gold else CROSS_DEATH
                 ax.plot(k, y, marker="X", markersize=11, color=colr, markeredgecolor=BG, markeredgewidth=1.2, zorder=8)
+                near_r = k > end - 25                   # sağ kenara yakınsa yazı solda (plan etiketleriyle çakışmasın)
                 ax.annotate("Golden Cross" if gold else "Death Cross", xy=(k, y),
-                            xytext=(k, y + (0.13 if gold else -0.13) * rng_c), color=colr, fontsize=9,
-                            fontweight="bold", ha="center", va="bottom" if gold else "top", zorder=8,
+                            xytext=(k - 6 if near_r else k, y + (0.13 if gold else -0.13) * rng_c), color=colr,
+                            fontsize=9, fontweight="bold", ha="right" if near_r else "center", va="bottom" if gold else "top", zorder=8,
                             arrowprops=dict(arrowstyle="-", color=colr, linewidth=0.8),
                             bbox=dict(facecolor=BG, edgecolor=colr, boxstyle="round,pad=0.25", linewidth=0.8))
                 cross_pts += [y, y + (0.16 if gold else -0.16) * rng_c]
