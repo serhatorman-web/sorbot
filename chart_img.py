@@ -289,6 +289,8 @@ def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right):
         ax.plot([p1, p2], [y1, y2], "o", color=col, markersize=4, zorder=6)
         ar.plot([p1, p2], [rsi_s[p1], rsi_s[p2]], color=col, linewidth=1.8, zorder=5)
         ar.plot([p1, p2], [rsi_s[p1], rsi_s[p2]], "o", color=col, markersize=4, zorder=6)
+        if any(q1 == p2 and qb == bull for q1, _, qb in divs):     # zincirleme uyumsuzlukta yazı sadece sonda
+            continue
         lab = "Pozitif uyumsuzluk" if bull else "Negatif uyumsuzluk"
         ax.annotate(lab, xy=(p2, y2), xytext=(0, -14 if bull else 10), textcoords="offset points", color=col,
                     fontsize=8, fontweight="bold", ha="center", va="top" if bull else "bottom", zorder=8,
