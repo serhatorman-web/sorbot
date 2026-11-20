@@ -205,7 +205,7 @@ def rows_for(meta, tf, cfg, lead, D):
         if ld and ld[0] != sym and f["t"][i] in ld[1]:
             lb, lname, lret = ld[1][f["t"][i]], ld[0].replace("USDT", ""), ld[2].get(f["t"][i])
         votes = S.indicator_votes(f, i, lb, lname, "supertrend")
-        r = {"sym": sym, "type": typ, "tf": tf, "t": f["t"][i], "d": d}
+        r = {"sym": sym, "type": typ, "tf": tf, "t": f["t"][i], "d": d, "i": i}
         for nm, vv in votes:
             r["v_" + ("Lider" if nm == lname and lname != "4s trend" else nm)] = (vv or 0) * d
         r["agree"] = sum(1 for _, vv in votes if vv == d)
