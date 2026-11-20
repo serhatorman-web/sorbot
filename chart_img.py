@@ -52,6 +52,24 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             st_old = _dr[-1]
     end = n                                   # son kapanmış muma kadar
     xs = range(start, end)
+    # Logaritmik ölçek (kullanıcı: BULLA 4s gibi sert düşüş/yükselişlerde son mumlar, plan ve pivot yazıları ince bir
+    # şeride sıkışıyordu): resimdeki en yüksek / en düşük oranı 3'ü geçerse fiyat ekseni logaritmik olur
+    # (TradingView'deki log ölçek gibi); her fiyat bölgesi orantılı yer kaplar.
+    _vals = [cs[k]["h"] for k in xs] + [cs[k]["l"] for k in xs]
+    _pl = g.get("plan")
+    if _pl:
+        _vals += [_pl["stop"]] + list(_pl["tp"])
+    if g.get("hedef") is not None:
+        _vals.append(g["hedef"])
+    _pos = [v for v in _vals if v and v > 0]
+    use_log = bool(_pos) and min(_pos) > 0 and max(_pos) / min(_pos) >= 3
+    T = (lambda v: __import__("math").log10(v) if v > 0 else -99) if use_log else (lambda v: v)
+    TI = (lambda v: 10 ** v) if use_log else (lambda v: v)
+    _rT = (T(max(cs[k]["h"] for k in xs)) - T(min(cs[k]["l"] for k in xs))) or 1e-12
+
+    def OFF(y, frac):
+        """y'den, mumların dikey aralığının frac katı kadar yukarı/aşağı (log ölçekte orantılı)."""
+        return TI(T(y) + frac * _rT)
     rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
     if rsi_s:
         fig, (ax, ar) = plt.subplots(2, 1, figsize=(9, 6.2), dpi=110, sharex=True,
@@ -148,11 +166,11 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                 ax.plot(k, y, marker="X", markersize=11, color=colr, markeredgecolor=BG, markeredgewidth=1.2, zorder=8)
                 near_r = k > end - 25                   # sağ kenara yakınsa yazı solda (plan etiketleriyle çakışmasın)
                 ax.annotate("Golden Cross" if gold else "Death Cross", xy=(k, y),
-                            xytext=(k - 6 if near_r else k, y + (0.13 if gold else -0.13) * rng_c), color=colr,
+                            xytext=(k - 6 if near_r else k, OFF(y, 0.13 if gold else -0.13)), color=colr,
                             fontsize=9, fontweight="bold", ha="right" if near_r else "center", va="bottom" if gold else "top", zorder=8,
                             arrowprops=dict(arrowstyle="-", color=colr, linewidth=0.8),
                             bbox=dict(facecolor=BG, edgecolor=colr, boxstyle="round,pad=0.25", linewidth=0.8))
-                cross_pts += [y, y + (0.16 if gold else -0.16) * rng_c]
+                cross_pts += [y, OFF(y, 0.16 if gold else -0.16)]
     # Supertrend (10, 3): yükselişte yeşil çizgi mumların altında, düşüşte kırmızı çizgi üstünde + Buy / Sell
     stl = g.get("supertrend")
     if stl:
@@ -175,7 +193,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             if k > start and dirs[k - 1] == -dirs[k]:        # yön değişimi
                 y = line[k]
                 ax.annotate("Buy" if dirs[k] == 1 else "Sell", xy=(k, y),
-                            xytext=(k, y + (-0.07 if dirs[k] == 1 else 0.07) * rng_), color="white", fontsize=7,
+                            xytext=(k, OFF(y, -0.07 if dirs[k] == 1 else 0.07)), color="white", fontsize=7,
                             ha="center", va="center", zorder=8,
                             bbox=dict(boxstyle="round,pad=0.25", facecolor=colr, edgecolor="none"))
             k = j2 + 1
@@ -183,7 +201,7 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             k0 = next((q for q in range(start, end) if line[q] is not None), None)
             if k0 is not None:
                 ax.annotate(("Buy" if st_old == 1 else "Sell") + " (daha önce)", xy=(k0, line[k0]),
-                            xytext=(k0 + 2, line[k0] + (-0.07 if st_old == 1 else 0.07) * rng_), color="white",
+                            xytext=(k0 + 2, OFF(line[k0], -0.07 if st_old == 1 else 0.07)), color="white",
                             fontsize=7, ha="left", va="center", zorder=8,
                             bbox=dict(boxstyle="round,pad=0.25", facecolor=UP if st_old == 1 else DOWN, edgecolor="none"))
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
@@ -206,9 +224,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
 
     def side_label(txt, xy):
         if pl_:
-            yl = pl_["stop"] - pl_["d"] * rng * (0.13 + 0.08 * slot[0])
+            yl = OFF(pl_["stop"], -pl_["d"] * (0.13 + 0.08 * slot[0]))
             slot[0] += 1
-            lab_ys.append(yl - pl_["d"] * rng * 0.03)
+            lab_ys.append(OFF(yl, -pl_["d"] * 0.03))
             ax.annotate(txt, xy=xy, xytext=(end + 1, yl), color=MARK, fontsize=9, fontweight="bold", ha="left",
                         va="center", bbox=box, arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
             return True
@@ -220,32 +238,39 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         # Kırılım yazısı: kırılım mumunun yakınında mumların olmadığı boş bir yerde, siyah zemin üzerinde
         # (grafiği kapatmasın; kullanıcı isteği)
         span_x = max(10, end - start)
-        dx, dy = span_x * 0.11, rng * 0.11          # yazının kapladığı alan + pay (boşluk geniş aransın)
+        dx, dy = span_x * 0.11, _rT * 0.11          # yazının kapladığı alan + pay (T uzayında; log ölçekte de doğru)
         segs = [((a_[0], a_[1]), (b_[0], b_[1])) for a_, b_ in ciz.get("cizgiler", [])]
 
         def blocked(tx, ty):
             k0, k1 = max(start, int(tx - dx / 2) - 1), min(end, int(tx + dx / 2) + 2)
-            if any(cs[k]["l"] <= ty + dy / 2 and cs[k]["h"] >= ty - dy / 2 for k in range(k0, k1)):
+            ty = T(ty)
+            if any(T(cs[k]["l"]) <= ty + dy / 2 and T(cs[k]["h"]) >= ty - dy / 2 for k in range(k0, k1)):
                 return True
+            for sg_ in bg:                               # pivot çizgileri ve yazıları da kapatılmasın
+                if tx + dx / 2 >= sg_["k0"] - 30:
+                    for nm_ in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
+                        v_ = sg_.get(nm_)
+                        if v_ is not None and v_ > 0 and abs(T(v_) - ty) <= dy / 2:
+                            return True
             for (x1, y1), (x2, y2) in segs:              # formasyon / trend çizgileri de kapatılmasın
                 for xx in (tx - dx / 2, tx, tx + dx / 2):
                     if min(x1, x2) <= xx <= max(x1, x2) and x2 != x1:
                         yy = y1 + (y2 - y1) * (xx - x1) / (x2 - x1)
-                        if abs(yy - ty) <= dy / 2:
+                        if yy > 0 and abs(T(yy) - ty) <= dy / 2:
                             return True
             return False
 
         best = None
         for oy in (0.30, 0.40, 0.50, 0.60, -0.30, -0.40, -0.50, -0.60, 0.22, -0.22):
             for ox in (14, 20, 26, 34, 44, 56, 70):
-                tx, ty = kb - ox, y + (oy if d == 1 else -oy) * rng
+                tx, ty = kb - ox, OFF(y, oy if d == 1 else -oy)
                 if tx - dx / 2 < start or blocked(tx, ty):
                     continue
                 best = (tx, ty)
                 break
             if best:
                 break
-        tx, ty = best or (kb - 20, y + (0.30 if d == 1 else -0.30) * rng)
+        tx, ty = best or (kb - 20, OFF(y, 0.30 if d == 1 else -0.30))
         lab_ys.append(ty)
         ax.annotate("Kırılım", xy=(kb, y), xytext=(tx, ty), color=MARK, fontsize=9, fontweight="bold", ha="center",
                     va="center",                                     # zemin yok: sadece beyaz yazı (kullanıcı)
@@ -279,12 +304,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         # etiketler üst üste binmesin: aralarında en az %4,5 yükseklik
         lo_y = min([cs[k]["l"] for k in xs] + [sl] + tps)
         hi_y = max([cs[k]["h"] for k in xs] + [sl] + tps)
-        gap = (hi_y - lo_y) * 0.045
+        gap = (T(hi_y) - T(lo_y)) * 0.045                  # log ölçekte aralık log uzayında
         ys = {}
         prev = None
         for name, v, *_ in sorted(rows, key=lambda r_: r_[1]):
-            y = v if prev is None else max(v, prev + gap)
-            ys[name] = prev = y
+            y = T(v) if prev is None else max(T(v), prev + gap)
+            prev = y
+            ys[name] = TI(y)
         for name, v, colr, ls in rows:
             ax.plot([x0, x1], [v, v], color=colr, linestyle=ls, linewidth=1.1, zorder=4)
             base_, _, tag_ = name.partition(" · ")
@@ -308,15 +334,27 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             extra.append(min(up_))
         if dn_ and lo_p - max(dn_) <= span * 0.6:
             extra.append(max(dn_))
+    if use_log:
+        extra = [v for v in extra if v is not None and v > 0]   # log eksende sıfır/negatif seviye çizilemez
     lows = [cs[k]["l"] for k in xs] + extra
     highs = [cs[k]["h"] for k in xs] + extra
-    pad = (max(highs) - min(lows)) * 0.06
-    ax.set_ylim(min(lows) - pad, max(highs) + pad)
+    if use_log:
+        from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+        ax.set_yscale("log")
+        lo_l, hi_l = T(min(lows)), T(max(highs))
+        pad = (hi_l - lo_l) * 0.06
+        ax.set_ylim(TI(lo_l - pad), TI(hi_l + pad))
+        ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0)))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: _fmt(v, prec)))
+        ax.yaxis.set_minor_formatter(NullFormatter())
+    else:
+        pad = (max(highs) - min(lows)) * 0.06
+        ax.set_ylim(min(lows) - pad, max(highs) + pad)
     ax.set_xlim(start - 1, x_right)
     # Görüntü açısı (kullanıcı isteği): pivotlar fiyattan uzaksa mumlar ince bir şeride sıkışmasın diye resim
     # dikeyde uzar; mumların kapladığı yükseklik en az ~2.6 inç kalır (pivotların hepsi yine çizgi olarak görünür).
-    c_span = (max(cs[k]["h"] for k in xs) - min(cs[k]["l"] for k in xs)) or 1e-12
-    frac = c_span / ((max(highs) - min(lows)) * 1.12)
+    c_span = (T(max(cs[k]["h"] for k in xs)) - T(min(cs[k]["l"] for k in xs))) or 1e-12
+    frac = c_span / (((T(max(highs)) - T(min(lows))) or 1e-12) * 1.12)
     base_h = fig.get_size_inches()[1]
     need = 2.6 / max(frac, 1e-6) + (base_h - 4.8 + 0.9)
     if need > base_h:
