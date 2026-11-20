@@ -222,23 +222,38 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # eksenler
     if pv:
         extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
-    if bg and g.get("pivot_current_only"):     # P, R1-R3, S1-S3 her resimde görünsün (kullanıcı isteği)
-        extra += [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3") if bg[-1].get(nm) is not None]
-    if bg:                                     # fiyatın hemen üstündeki ve altındaki pivot da görünsün
-        lv_ = [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3")]
-        hi_p, lo_p = max(cs[k]["h"] for k in xs), min(cs[k]["l"] for k in xs)
-        up_ = [v for v in lv_ if v > hi_p]
-        dn_ = [v for v in lv_ if v < lo_p]
-        span = hi_p - lo_p
-        if up_ and min(up_) - hi_p <= span * 0.6:
-            extra.append(min(up_))
-        if dn_ and lo_p - max(dn_) <= span * 0.6:
-            extra.append(max(dn_))
+    # Dikey ölçek mumlara göre (kullanıcı: dar / okunmayan resimler): mumlar + plan + hedef esas alınır; pivotlar
+    # bu aralığın en fazla yarısı kadar dışındaysa resme girer, daha uzaktakiler kenarda ▲ / ▼ yazısıyla gösterilir.
+    off_up, off_dn = [], []
+    if bg:
+        base_lo = min([cs[k]["l"] for k in xs] + extra)
+        base_hi = max([cs[k]["h"] for k in xs] + extra)
+        span = (base_hi - base_lo) or base_hi * 0.01
+        for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
+            v = bg[-1].get(nm)
+            if v is None:
+                continue
+            if base_lo - 0.5 * span <= v <= base_hi + 0.5 * span:
+                extra.append(v)
+            elif v > base_hi:
+                off_up.append((nm, v))
+            else:
+                off_dn.append((nm, v))
     lows = [cs[k]["l"] for k in xs] + extra
     highs = [cs[k]["h"] for k in xs] + extra
     pad = (max(highs) - min(lows)) * 0.06
     ax.set_ylim(min(lows) - pad, max(highs) + pad)
     ax.set_xlim(start - 1, x_right)
+    if off_up:                                  # resmin dışında kalan pivotlar: kenarda yazı
+        off_up.sort(key=lambda x: x[1])
+        ax.text(0.01, 0.985, "▲ " + "  ".join(f"{nm} {_fmt(v, prec)}" for nm, v in off_up), transform=ax.transAxes,
+                color=PIV_COL, fontsize=8, va="top", ha="left", zorder=9,
+                bbox=dict(facecolor=BG, edgecolor="none", pad=0.6, alpha=0.8))
+    if off_dn:
+        off_dn.sort(key=lambda x: -x[1])
+        ax.text(0.01, 0.015, "▼ " + "  ".join(f"{nm} {_fmt(v, prec)}" for nm, v in off_dn), transform=ax.transAxes,
+                color=PIV_COL, fontsize=8, va="bottom", ha="left", zorder=9,
+                bbox=dict(facecolor=BG, edgecolor="none", pad=0.6, alpha=0.8))
     ticks = list(range(start, end, max(1, (end - start) // 6)))
     if ar is not None:
         _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right)
