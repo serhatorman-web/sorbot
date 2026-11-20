@@ -84,9 +84,10 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         """y'den, mumların dikey aralığının frac katı kadar yukarı/aşağı (log ölçekte orantılı)."""
         return TI(T(y) + frac * _rT)
     rsi_s = g.get("rsi")                        # RSI paneli ve uyumsuzluklar (kullanıcı isteği)
-    if rsi_s:
-        fig, (ax, ar) = plt.subplots(2, 1, figsize=(11.6, 6.2), dpi=110, sharex=True,
-                                     gridspec_kw={"height_ratios": [3.4, 1.2], "hspace": 0.04})
+    sr = None
+    if rsi_s:                                   # altta RSI ve Stoch RSI panelleri (kullanıcının TradingView düzeni)
+        fig, (ax, ar, sr) = plt.subplots(3, 1, figsize=(11.6, 7.6), dpi=110, sharex=True,
+                                         gridspec_kw={"height_ratios": [3.6, 1.0, 1.0], "hspace": 0.05})
     else:
         fig, ax = plt.subplots(figsize=(11.6, 5.6), dpi=110)   # daha geniş ve yüksek: mumlar net (Telegram ~1280 px)
         ar = None
@@ -417,8 +418,12 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
         fig.set_size_inches(min(17.0, 11.6 * nb_ / 115), fig.get_size_inches()[1])
     ticks = list(range(start, end, max(1, (end - start) // 6)))
     if ar is not None:
-        _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right)
-    bx = ar if ar is not None else ax
+        _rsi_panel(ax, ar, cs, rsi_s, g.get("divs") or [], start, end, x_right, g.get("rsi_x") or {})
+        if sr is not None:
+            ar.tick_params(axis="x", labelbottom=False)
+            _stoch_panel(sr, (g.get("rsi_x") or {}).get("k") or [], (g.get("rsi_x") or {}).get("d") or [],
+                         start, end)
+    bx = sr if sr is not None else (ar if ar is not None else ax)
     bx.set_xticks(ticks)
     bx.set_xticklabels([datetime.fromtimestamp(cs[k]["t"] / 1000, TSI).strftime("%d.%m %H:%M") for k in ticks],
                        color=TXT, fontsize=8)
@@ -438,8 +443,33 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     return buf.getvalue()
 
 
-def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right):
-    """Alt panelde RSI (14), 30/70 çizgileri; uyumsuzluklar hem fiyatta hem RSI'da çizgi + yazı."""
+def _panel_style(a_):
+    a_.set_facecolor(BG)
+    a_.grid(color=GRID, linewidth=0.6)
+    a_.yaxis.tick_right()
+    a_.tick_params(axis="y", colors=TXT, labelsize=7)
+    for sp in a_.spines.values():
+        sp.set_color(GRID)
+
+
+def _stoch_panel(sr, k_s, d_s, start, end):
+    """Stoch RSI (14, 14, 3, 3): K mavi, D turuncu, 20-80 arası hafif camgöbeği bant (kullanıcının TradingView'i)."""
+    _panel_style(sr)
+    xs_ = list(range(start, end))
+    val = lambda s_, k: s_[k] if k < len(s_) and s_[k] is not None else float("nan")
+    sr.axhspan(20, 80, color="#26c6da", alpha=0.07, zorder=0)
+    for lv_, ls_ in ((20, "--"), (50, ":"), (80, "--")):
+        sr.axhline(lv_, color="#787b86", linestyle=ls_, linewidth=0.8)
+    sr.plot(xs_, [val(k_s, k) for k in xs_], color="#2962ff", linewidth=1.3, zorder=4)
+    sr.plot(xs_, [val(d_s, k) for k in xs_], color="#ff6d00", linewidth=1.3, zorder=3)
+    sr.text(start, 97, " Stoch RSI", color=TXT, fontsize=8, va="top", fontweight="bold")
+    sr.set_ylim(-3, 103)
+    sr.set_yticks([20, 50, 80])
+
+
+def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right, rx=None):
+    """Alt panelde RSI (14) sarı + 14'lük ortalaması mor; 30-70 arası hafif mor zemin, 30 altı kırmızı / 70 üstü yeşil
+    dolgu (kullanıcının TradingView'i). Uyumsuzluklar (açıksa) hem fiyatta hem RSI'da çizgi + yazı."""
     ax.tick_params(axis="x", labelbottom=False)
     ar.set_facecolor(BG)
     ar.grid(color=GRID, linewidth=0.6)
@@ -449,10 +479,19 @@ def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right):
         sp.set_color(GRID)
     xs_ = list(range(start, end))
     rv = [rsi_s[k] if k < len(rsi_s) and rsi_s[k] is not None else float("nan") for k in xs_]
-    ar.plot(xs_, rv, color="#b39ddb", linewidth=1.1, zorder=3)
+    ar.axhspan(30, 70, color="#7e57c2", alpha=0.08, zorder=0)
     for lv_, ls_ in ((30, "--"), (50, ":"), (70, "--")):
-        ar.axhline(lv_, color="#5d606b", linestyle=ls_, linewidth=0.8)
-    ar.text(start, 98, " RSI 14", color="#b39ddb", fontsize=8, va="top", fontweight="bold")
+        ar.axhline(lv_, color="#787b86", linestyle=ls_, linewidth=0.8)
+    ar.fill_between(xs_, rv, 30, where=[v == v and v < 30 for v in rv], interpolate=True, color="#f23645",
+                    alpha=0.35, zorder=1)
+    ar.fill_between(xs_, rv, 70, where=[v == v and v > 70 for v in rv], interpolate=True, color="#089981",
+                    alpha=0.35, zorder=1)
+    rma = (rx or {}).get("ma") or []
+    if rma:
+        ar.plot(xs_, [rma[k] if k < len(rma) and rma[k] is not None else float("nan") for k in xs_],
+                color="#7e57c2", linewidth=1.2, zorder=3)
+    ar.plot(xs_, rv, color="#ffeb3b", linewidth=1.1, zorder=4)
+    ar.text(start, 97, " RSI", color=TXT, fontsize=8, va="top", fontweight="bold")
     ar.set_ylim(0, 100)
     ar.set_yticks([30, 50, 70])
     for p1, p2, bull in divs:

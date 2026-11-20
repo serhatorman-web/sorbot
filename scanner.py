@@ -2281,13 +2281,20 @@ def live_images(results, cfg, state, now, intrabar=False):
                 except Exception:  # noqa: BLE001
                     pass
         # resimde RSI paneli ve RSI uyumsuzlukları (kullanıcı isteği)
-        rsi_bg, div_bg = None, []
+        rsi_bg, div_bg, rsi_x = None, [], None
         if lc.get("rsi_panel", True) and f.get("rsi"):
             rsi_bg = f["rsi"][lo:i + 1]
-            try:
-                div_bg = ta.rsi_divergences(h, l, rsi_bg)
-            except Exception:  # noqa: BLE001
-                div_bg = []
+            if lc.get("rsi_divergences", False):                 # uyumsuzluk çizgileri kullanıcı isteğiyle kapalı
+                try:
+                    div_bg = ta.rsi_divergences(h, l, rsi_bg)
+                except Exception:  # noqa: BLE001
+                    div_bg = []
+            # RSI'ın 14'lük ortalaması (mor) ve Stoch RSI K / D – kullanıcının TradingView panelleri gibi
+            rr = f["rsi"]
+            ma_p = lc.get("rsi_ma", 14)
+            rma = [None if k < ma_p - 1 or any(v is None for v in rr[k - ma_p + 1:k + 1])
+                   else sum(rr[k - ma_p + 1:k + 1]) / ma_p for k in range(lo, i + 1)]
+            rsi_x = {"ma": rma, "k": (f.get("srsi_k") or [])[lo:i + 1], "d": (f.get("srsi_d") or [])[lo:i + 1]}
         st_bg = ((f["st_line"][lo:i + 1], f["st_dir"][lo:i + 1])
                  if lc.get("supertrend_overlay", True) and f.get("st_line") and f.get("st_dir") else None)
         # ── pivot kırılımı (son mumda kapanış pivot P'nin öbür tarafına geçti; dönemde her yönde ilk kez) ──
@@ -2357,7 +2364,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                 if ma_bg:
                     g["mas"] = ma_bg
                 if rsi_bg:
-                    g["rsi"], g["divs"] = rsi_bg, div_bg
+                    g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
                 try:
                     if draw_plan:               # giriş / TP1-2-3 / stop bölgeleri (kullanıcı isteği)
                         g["plan"] = trade_plan(h, l, c, a_all, d, level=ln(kb), risk_cfg=cfg["risk"])
@@ -2447,7 +2454,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                     if ma_bg:
                         g = dict(g, mas=ma_bg)
                     if rsi_bg:
-                        g = dict(g, rsi=rsi_bg, divs=div_bg)
+                        g = dict(g, rsi=rsi_bg, divs=div_bg, rsi_x=rsi_x)
                     if draw_plan:
                         g = dict(g, plan=trade_plan(h, l, c, a_all, d, level=lvl_now(g, d), risk_cfg=cfg["risk"]))
                     png = chart_img.render_pattern(cs, g, f"{plain} · {tf_n} · {g['ad']} ({yonu} {'kırılıyor, mum açık' if intrabar else 'kırıldı'})"

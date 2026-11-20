@@ -458,7 +458,7 @@
     "ichimoku": true,
     "fail_notice": false,
     "crosses": false,
-    "rsi_panel": false,
+    "rsi_panel": true,
     "cross_tfs": ["15m", "1h", "4h"],
     "_crosses": "Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): kesişim anında (mum içinde de) resim; tüm resimlerde kesişimler işaretli.",
     "intrabar_tfs": ["15m", "1h", "4h"],
