@@ -2696,8 +2696,7 @@ def leader_line(res, name=None, bias=None, cfg=None):
     if t and t.get("last"):
         chg = t.get("chg", 0.0)
         arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
-        hm = (f" ({datetime.fromtimestamp(t['ts'] / 1000, TR_TZ).strftime('%H:%M')})" if t.get("ts") else "")
-        row += f" · Canlı: {fmt_price(t['last'], 2)}{hm} · 24s {arrow} %{abs(chg):.2f}"   # canlı fiyat + saati
+        row += f" · {fmt_price(t['last'], 2)} · 24s {arrow} %{abs(chg):.2f}"   # anlık fiyat ("Canlı" yazısı ve saat yok)
     return row
 
 

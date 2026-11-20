@@ -870,8 +870,8 @@ def test_market_rows():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": -1.0,
            "eth_bias": 1.0, "mkt": mkt, "qv24": 4_235_000}
     lb = scanner.leader_block(res)
-    assert lb[0] == "🔴▼ BTC yönü · Trend: Düşüşte · Canlı: 78,500.00 · 24s 🔴▼ %1.40", lb
-    assert lb[1] == "🟢▲ ETH yönü · Trend: Yükselişte · Canlı: 2,650.50 · 24s 🟢▲ %0.80", lb
+    assert lb[0] == "🔴▼ BTC yönü · Trend: Düşüşte · 78,500.00 · 24s 🔴▼ %1.40", lb
+    assert lb[1] == "🟢▲ ETH yönü · Trend: Yükselişte · 2,650.50 · 24s 🟢▲ %0.80", lb
     now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
     ml = scanner.market_lines(res, {}, now)
     assert ml[0] == "🟢▲ ABD borsası · Açık · Yükselişte · 24s: Nasdaq QQQ 612.40 🟢▲ %0.85", ml
@@ -885,7 +885,7 @@ def test_market_rows_equity():
     mkt = {"QQQ": {"last": 665.62, "chg": -0.92}}
     res = {"meta": {"symbol": "TSMUSDT", "type": "EQUITY"}, "leader_name": "QQQ", "leader_bias": -1.0,
            "mkt": mkt, "qv24": 25_200_000}
-    assert scanner.leader_block(res) == ["🔴▼ QQQ yönü · Trend: Düşüşte · Canlı: 665.62 · 24s 🔴▼ %0.92"]
+    assert scanner.leader_block(res) == ["🔴▼ QQQ yönü · Trend: Düşüşte · 665.62 · 24s 🔴▼ %0.92"]
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
     assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · 24s: Nasdaq QQQ 665.62 🔴▼ %0.92",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
@@ -942,7 +942,7 @@ def test_bias_tf_label():
     res = {"meta": {"symbol": "BEATUSDT", "type": "COIN"}, "leader_name": "BTC", "leader_bias": 0.8,
            "mkt": {"BTC": {"last": 64760.4, "chg": -0.32}}}
     assert scanner.leader_block(res, {"timeframe": "15m"})[0] == \
-        "🟢▲ BTC yönü (15dk + 1s) · Trend: Yükselişte · Canlı: 64,760.40 · 24s 🔴▼ %0.32"
+        "🟢▲ BTC yönü (15dk + 1s) · Trend: Yükselişte · 64,760.40 · 24s 🔴▼ %0.32"
 
 
 def test_upper_resample():
