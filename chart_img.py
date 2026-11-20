@@ -246,6 +246,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
             ty = T(ty)
             if any(T(cs[k]["l"]) <= ty + dy / 2 and T(cs[k]["h"]) >= ty - dy / 2 for k in range(k0, k1)):
                 return True
+            hd_ = g.get("hedef")                         # hedef çizgisi ve yazısı da kapatılmasın
+            if hd_ is not None and hd_ > 0 and abs(T(hd_) - ty) <= dy / 2:
+                return True
             for sg_ in bg:                               # pivot çizgileri ve yazıları da kapatılmasın
                 if tx + dx / 2 >= sg_["k0"] - 30:
                     for nm_ in ("R3", "R2", "R1", "P", "S1", "S2", "S3"):
