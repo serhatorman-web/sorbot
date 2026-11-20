@@ -2356,6 +2356,13 @@ def live_images(results, cfg, state, now, intrabar=False):
                 win = 10 * tf_ms(cfg) / 1000
                 if key in seen or any(k.startswith(pre) and v >= now - win for k, v in seen.items()):
                     continue
+                # aynı kırılım mumu (±2 mum) için başka adla formasyon resmi gittiyse (ör. mum içinde "İkili Dip",
+                # kapanışta "Alçalan Üçgen" olarak tanındı) tekrar gönderme: aynı kırılım iki kez gelmesin
+                pre_any = f"{meta['symbol']}|{tf}|fm|"
+                bar_ms = tf_ms(cfg)
+                if any(k.startswith(pre_any) and k.rsplit("|", 1)[1].isdigit()
+                       and abs(int(k.rsplit("|", 1)[1]) - cs[kb]["t"]) <= 2 * bar_ms for k in seen):
+                    continue
                 d = g["kirilim"]
                 yonu = "yukarı" if d == 1 else "aşağı"
                 pv_draw, pv_txt = pv_note(d)
