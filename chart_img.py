@@ -188,8 +188,9 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     rt = ciz.get("retest")
     if kb is not None and kb >= start:
         y = cs[kb]["c"]
-        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),   # eski yerinde
-                    color=MARK, fontsize=9, ha="center", arrowprops=dict(arrowstyle="->", color=MARK), zorder=6)
+        ax.annotate("Kırılım", xy=(kb, y), xytext=(kb - 12, y + (0.18 if d == 1 else -0.18) * rng),   # eski yerinde,
+                    color=MARK, fontsize=9, fontweight="bold", ha="center", va="center", bbox=box,  # Retest gibi yazı
+                    arrowprops=dict(arrowstyle="->", color=MARK, linewidth=0.9), zorder=9)
     if rt is not None and start <= rt < end:
         y = cs[rt]["l"] if d == 1 else cs[rt]["h"]
         ax.plot(rt, y, "o", markersize=11, markerfacecolor="none", markeredgecolor=MARK, markeredgewidth=1.6, zorder=6)
