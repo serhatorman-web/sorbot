@@ -763,13 +763,14 @@ def collect_markets(api):
     for _, items in MARKET_GROUPS:
         for _, sym, bsym, _ in items:
             if bsym and spots.get(bsym) and quotes.get(sym):
-                quotes[sym] = dict(quotes[sym], price=spots[bsym])
+                quotes[sym] = dict(quotes[sym], price=spots[bsym], ts=int(time.time()))   # Binance endeksi: şu an
     gold, usd = quotes.get("GC=F"), quotes.get("TRY=X")
     if gold and usd and gold["price"] and usd["price"]:
         chg = None
         if gold["chg"] is not None and usd["chg"] is not None:
             chg = ((1 + gold["chg"] / 100) * (1 + usd["chg"] / 100) - 1) * 100
-        quotes["GRAM"] = {"price": gold["price"] * usd["price"] / GRAM_PER_OUNCE, "chg": chg, "open": gold["open"]}
+        quotes["GRAM"] = {"price": gold["price"] * usd["price"] / GRAM_PER_OUNCE, "chg": chg, "open": gold["open"],
+                          "ts": gold.get("ts")}
     return quotes
 
 
@@ -813,7 +814,7 @@ def markets_block(quotes):
             if not q or q.get("price") is None:
                 continue
             status = "Açık" if q.get("open") else "Kapalı"
-            if title.startswith("📈") and q.get("ts"):     # borsalar: canlı fiyatın saati (kullanıcı isteği)
+            if title.startswith(("📈", "🥇")) and q.get("ts"):   # borsalar, metal & emtia: canlı fiyatın saati
                 hm = datetime.fromtimestamp(int(q["ts"]), timezone(timedelta(hours=3))).strftime("%H:%M")
                 status = f"Açık · canlı {hm}" if q.get("open") else f"Kapalı · son {hm}"
             if cur == "%":                      # tahvil getirisi: %4,25 · +3 bp
