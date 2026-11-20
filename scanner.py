@@ -2384,7 +2384,8 @@ def live_images(results, cfg, state, now, intrabar=False):
                     ago = n - 1 - kb
                     cap = (f"<b>🧩 FORMASYON KIRILDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
                            + (f"{yonu} kırıyor (anlık fiyat {fmt_price(c[-1], prec)}), {mv} beklenebilir" if intrabar else
-                              f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir"
+                              f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir, "
+                              f"retest beklenebilir"
                               if fm_ft is None else
                               f"{yonu} kırıldı ({ago} mum önce), fiyat kırılım mumunun "
                               f"{'tepesinin üstünde' if g['kirilim'] == 1 else 'dibinin altında'} kapattı → retestsiz devam, {mv} sürüyor")
