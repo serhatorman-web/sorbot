@@ -3846,7 +3846,9 @@ def main():
     global SENT_IMGS, SENT_TXT
     lc_ = cfg.get("live_images", {})
     try:
-        pre_imgs = live_images(results, cfg, state, now)
+        # mum kapanışındaki "kırıldı" resimleri kapalı (kullanıcı isteği): sadece mum içi "kırılıyor" resimleri gider
+        pre_imgs = (live_images(results, cfg, state, now)
+                    if cfg.get("live_images", {}).get("closed_images", True) else [])
     except Exception as e:  # noqa: BLE001
         print(f"  Anlık grafik resimleri hatası: {e}", file=sys.stderr)
         pre_imgs = None
