@@ -436,7 +436,11 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     for j_, (nm_, c_) in enumerate(ma_leg):          # hareketli ortalama renkleri (başlık hizasında, sağda)
         ax.text(1.0 - (len(ma_leg) - 1 - j_) * 0.085, 1.015, nm_, color=c_, fontsize=8, ha="right", va="bottom",
                 transform=ax.transAxes, fontweight="bold")
-    fig.tight_layout()
+    if sr is not None:                          # 3 panelde tight_layout geniş boşluk bırakıyordu: kenarlar elle
+        W_, H_ = fig.get_size_inches()
+        fig.subplots_adjust(left=0.45 / W_, right=1 - 0.75 / W_, top=1 - 0.4 / H_, bottom=0.35 / H_, hspace=0.05)
+    else:
+        fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", facecolor=BG)
     plt.close(fig)
