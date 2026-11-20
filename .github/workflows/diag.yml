@@ -4,6 +4,8 @@ on:
     inputs:
       small:
         default: ""
+permissions:
+  contents: write
 jobs:
   d:
     runs-on: ubuntu-latest
@@ -13,7 +15,10 @@ jobs:
       - run: python3 tools/collect.py
         env:
           SMALL: ${{ github.event.inputs.small }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: signals
-          path: out/signals.csv.gz
+      - name: Sonucu ayrı dala yükle
+        run: |
+          mkdir /tmp/r && cp out/signals.csv.gz /tmp/r/ && cd /tmp/r
+          git init -q -b research-data
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com add .
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -q -m data
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" research-data
