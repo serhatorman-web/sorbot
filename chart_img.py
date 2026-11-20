@@ -13,7 +13,7 @@ LINE, TARGET, PIVOT = "#f5c542", "#42a5f5", "#ffffff"
 MARK = "#ffffff"                                      # kırılım / retest / hedef / giriş-TP-stop (kullanıcı: beyaz)
 CROSS_GOLD, CROSS_DEATH = "#ffd700", "#ff1744"
 ICH_COLS = {"tk": "#00e5ff", "kj": "#e040fb", "ch": "#9ccc65"}   # Ichimoku: Tenkan camgöbeği, Kijun pembe-mor, Chikou açık yeşil
-VP_COLS = {"VAH": "#80deea", "POC": "#ff4081", "VAL": "#80deea"}   # hacim profili: POC pembe, VAH / VAL açık mavi
+VP_COLS = {"VAH": "#f23645", "POC": "#ffeb3b", "VAL": "#00e676"}   # hacim profili (TradingView'deki gibi): VAH kırmızı, POC sarı, VAL yeşil
 BB_COL = "#ce93d8"                                     # Bollinger bandı (açık mor)
 MA_COLS = {"EMA50": "#2196f3", "EMA200": "#ffffff", "MA50": "#ffeb3b", "MA200": "#ff1744"}
 PIV_COL = "#ff9800"                                  # pivot R/S seviyeleri (TradingView turuncu)
@@ -181,17 +181,17 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                             color="#ef5350", alpha=0.13, zorder=1.4)
         if len(ks) >= 2:                          # sadece bulut (kullanıcı isteği: Tenkan / Kijun / Chikou yok)
             ma_leg.append(("Ichimoku", "#26a69a"))
-    # Hacim profili (sinyaldeki VAH / POC / VAL ile aynı): POC düz, VAH / VAL kesikli; etiket sol kenarda çizginin üstünde
+    # Hacim profili (sinyaldeki VAH / POC / VAL ile aynı, kullanıcının TradingView görünümü): düz çizgiler,
+    # etiket sağ kenarda çizginin üstünde "VAH (64460.9)" biçiminde
     vp_lv = mas.get("_vp")
     if vp_lv:
+        xr_vp = end + int((end - start) * 0.22) + 4
         for nm, v in zip(("VAH", "POC", "VAL"), vp_lv):
             if v is None:
                 continue
-            ax.axhline(v, color=VP_COLS[nm], linewidth=1.2 if nm == "POC" else 1.0,
-                       linestyle="-" if nm == "POC" else (0, (6, 3)), alpha=0.9, zorder=3.6)
-            ax.text(start + 0.5, v, f"{nm} {_fmt(v, prec)}", color=VP_COLS[nm], fontsize=8, fontweight="bold",
-                    va="bottom", ha="left", zorder=8, clip_on=True,
-                    bbox=dict(facecolor=BG, edgecolor="none", pad=0.6, alpha=0.85))   # mumların üstünde okunur
+            ax.plot([start - 1, xr_vp], [v, v], color=VP_COLS[nm], linewidth=1.3, zorder=3.6)
+            ax.text(xr_vp - 0.5, v, f"{nm} ({_fmt(v, prec)})", color=VP_COLS[nm], fontsize=8.5, va="bottom",
+                    ha="right", zorder=8, clip_on=True)
     # Golden Cross (MA50 MA200'ü yukarı keser) / Death Cross (aşağı keser): işaret + yazı (kullanıcı isteği)
     cross_pts = []
     m5, m2 = mas.get("MA50"), mas.get("MA200")
