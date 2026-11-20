@@ -495,8 +495,12 @@ def _rsi_panel(ax, ar, cs, rsi_s, divs, start, end, x_right, rx=None):
         ar.plot(xs_, [rma[k] if k < len(rma) and rma[k] is not None else float("nan") for k in xs_],
                 color="#7e57c2", linewidth=1.2, zorder=3)
     ar.plot(xs_, rv, color="#ffeb3b", linewidth=1.1, zorder=4)
-    ar.text(start, 97, " RSI", color=TXT, fontsize=8, va="top", fontweight="bold")
-    ar.set_ylim(0, 100)
+    # TradingView gibi otomatik ölçek: 0-100 yerine görünen RSI aralığı (30 / 70 hep içinde) – çizgi Stoch RSI kadar büyük
+    vis = [v for v in rv if v == v]
+    lo_r = min(vis + [30]) - 4 if vis else 0
+    hi_r = max(vis + [70]) + 4 if vis else 100
+    ar.text(start, hi_r - (hi_r - lo_r) * 0.03, " RSI", color=TXT, fontsize=8, va="top", fontweight="bold")
+    ar.set_ylim(max(0, lo_r), min(100, hi_r))
     ar.set_yticks([30, 50, 70])
     for p1, p2, bull in divs:
         if p1 < start or p2 >= end or rsi_s[p1] is None or rsi_s[p2] is None:
