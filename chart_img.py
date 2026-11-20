@@ -170,8 +170,8 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     # eksenler
     if pv:
         extra += [pv[nm] for nm in ("P", "R1", "S1") if pv.get(nm) is not None]
-    if bg and g.get("pivot_current_only"):     # P, R1, S1 her resimde görünsün
-        extra += [bg[-1][nm] for nm in ("P", "R1", "S1")]
+    if bg and g.get("pivot_current_only"):     # P, R1-R3, S1-S3 her resimde görünsün (kullanıcı isteği)
+        extra += [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3") if bg[-1].get(nm) is not None]
     if bg:                                     # fiyatın hemen üstündeki ve altındaki pivot da görünsün
         lv_ = [bg[-1][nm] for nm in ("R3", "R2", "R1", "P", "S1", "S2", "S3")]
         hi_p, lo_p = max(cs[k]["h"] for k in xs), min(cs[k]["l"] for k in xs)
