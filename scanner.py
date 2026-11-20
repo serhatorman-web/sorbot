@@ -2206,7 +2206,7 @@ def ciz_rel(ca, cs):
 
 
 IB_PENDING = {}      # mum kapanmadan gönderilen kırılımlar: anahtar → {d, lvl, t} (kapanışta teyit kontrolü)
-IB_NOTE = "\n⏱ Mum henüz kapanmadı: anlık kırılım, mum kapanışında teyit edilecek"
+IB_NOTE = "\n⏱ Mum henüz kapanmadı: anlık kırılım, mum kapanışından sonra işleme girilebilir."
 
 
 def live_images(results, cfg, state, now, intrabar=False):
@@ -2340,8 +2340,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                 if is_break and intrabar:
                     mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILIYOR · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
-                           f"({ev['touches']} temas) {fmt_price(ln(kb), prec)} seviyesini {'yukarı' if d == 1 else 'aşağı'} "
-                           f"kırıyor (anlık fiyat {fmt_price(c[-1], prec)}) → {mv}")
+                           f"({ev['touches']} temas) → {mv}")
                 elif is_break:
                     mv = "yükseliş gelebilir" if d == 1 else "düşüş gelebilir"
                     cap = (f"<b>📐 TREND ÇİZGİSİ KIRILDI · {tf_n}</b>\n{icon} {name} · {kind} trend çizgisi "
@@ -2360,7 +2359,7 @@ def live_images(results, cfg, state, now, intrabar=False):
                            f"fiyat çizgiye geri dönüp test etti ve şimdi {'yukarı' if d == 1 else 'aşağı'} devam ediyor → {mv}")
                 body = cap.split("\n", 1)[1].removeprefix(f"{icon} {name} · ")
                 if intrabar:
-                    cap += IB_NOTE if is_break else "\n⏱ Mum henüz kapanmadı: anlık retest, mum kapanışında teyit edilecek"
+                    cap += IB_NOTE if is_break else "\n⏱ Mum henüz kapanmadı: anlık retest, mum kapanışından sonra işleme girilebilir."
                 if intrabar and is_break:
                     IB_PENDING[key] = {"d": d, "lvl": ln(kb), "t": cs[kb]["t"], "sym": meta["symbol"],
                                        "what": f"{kind} trend çizgisi", "tf": tf_n, "name": name,
@@ -2429,8 +2428,9 @@ def live_images(results, cfg, state, now, intrabar=False):
                     lvl = g.get("seviye", g.get("ust") if d == 1 else g.get("alt"))
                     mv = "yükseliş" if d == 1 else "düşüş"
                     ago = n - 1 - kb
-                    cap = (f"<b>🧩 FORMASYON KIRILDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → {fmt_price(lvl, prec)} "
-                           + (f"{yonu} kırıyor (anlık fiyat {fmt_price(c[-1], prec)}), {mv} beklenebilir" if intrabar else
+                    cap = (f"<b>🧩 FORMASYON KIRILDI · {tf_n}</b>\n{icon} {name} · {g['ad']} → "
+                           + ("" if intrabar else f"{fmt_price(lvl, prec)} ")
+                           + (f"{mv} gelebilir" if intrabar else
                               f"{yonu} hacimle ({vr_k:.1f}x) kırıldı{f' ({ago} mum önce)' if ago else ''}, {mv} beklenebilir, "
                               f"retest beklenebilir"
                               if fm_ft is None else
