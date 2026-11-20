@@ -129,6 +129,10 @@ def arr(x, dec=2):
     return f"{a} %{abs(x):.{dec}f}"
 
 
+SIGNAL_IMG_NOTE = ("Sinyal grafiği, grafikler kanalına resim olarak gönderildi. İşleme girmeden kontrol ediniz. "
+                   "Gönderim saati {}")
+
+
 def put_st_line(lines, gi, st_line):
     """SUPERTREND satırı Giriş bölümünün çizgisinin üstüne (başlık gibi: satır, altında çizgi, Giriş)."""
     if gi > 0 and lines[gi - 1] == SEP:
@@ -3168,8 +3172,7 @@ def build_message(res, direction, cfg, now_utc):
                 if (not sn and not res.get("ssl_sig") and lic.get("enabled", True)
                         and lic.get("signal_image", True)):      # Supertrend sinyal resmi notu (kullanıcı isteği)
                     k_ = lines.index(st_line) + 2                # SUPERTREND satırı ve altındaki çizgiden sonra
-                    lines[k_:k_] = ["Sinyal grafiği, grafikler kanalına resim olarak gönderildi. İşleme girmeden "
-                                    f"kontrol ediniz. Gönderim saati {datetime.now(TR_TZ).strftime('%H.%M')}", ""]
+                    lines[k_:k_] = [SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
                 lines += ["", IND_HEADER, SEP]
             else:
                 lines += ["", SEP, st_line]
@@ -3286,11 +3289,16 @@ def build_radar_message(res, rd, cfg, now_utc):
         st_txt = "🟢▲ <b>AL</b>" if st == 1 else ("🔴▼ <b>SAT</b>" if st == -1 else "⚪▶ <b>—</b>")
         st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}"
         gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
+        lic = cfg.get("live_images", {})
+        note = ([SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
+                if lic.get("enabled", True) and lic.get("signal_image", True) else [])   # resim notu (kullanıcı isteği)
         if gi is not None:                       # Supertrend satırı Giriş'in üstünde
             put_st_line(lines, gi, st_line)
+            k_ = lines.index(st_line) + 2
+            lines[k_:k_] = note
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
         else:                                    # erken uyarı: giriş yok; SUPERTREND satırı, sonra İNDİKATÖRLER başlığı
-            lines += ["", st_line, "", IND_HEADER, SEP] + indicator_list_lines(res, direction)
+            lines += ["", st_line] + ([SEP] + note[:1] if note else []) + ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
     # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
