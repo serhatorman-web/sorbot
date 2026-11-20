@@ -4,7 +4,7 @@ import scanner as S
 
 api = S.Binance()
 now_ms = int(time.time() * 1000)
-for sym, tf in (("BULLAUSDT", "4h"),):
+for sym, tf in (("BULLAUSDT", "4h"), ("SKYUSDT", "1h")):
     cfg = S.apply_tf_profile(json.load(open(S.CONFIG_PATH, encoding="utf-8")), tf)
     cfg["live_images"]["closed_images"] = True
     allc = S.parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": tf, "limit": 600}), now_ms)

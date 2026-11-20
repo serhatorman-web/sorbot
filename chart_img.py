@@ -46,9 +46,17 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
     if g.get("supertrend"):
         _ln, _dr = g["supertrend"]
         kf = next((k for k in range(n - 1, 0, -1) if _dr[k] and _dr[k - 1] and _dr[k - 1] == -_dr[k]), None)
-        if kf is not None and start - 60 <= kf < start:      # yakınsa resim o muma kadar genişler
-            start = max(0, kf - 6)
-        elif (kf is None or kf < start) and _dr and _dr[-1]:  # uzaksa resim genişlemez (mumlar küçülmesin): sol kenarda yazı
+        ext_ok = False
+        if kf is not None and start - 60 <= kf < start:      # yakınsa resim o muma kadar genişler…
+            s0 = max(0, kf - 6)
+            r_now = (max(x["h"] for x in cs[start:n]) - min(x["l"] for x in cs[start:n])) or 1e-12
+            r_ext = max(x["h"] for x in cs[s0:n]) - min(x["l"] for x in cs[s0:n])
+            ext_ok = r_ext <= r_now * 1.3                    # …ama fiyat aralığını %30'dan fazla büyütmüyorsa
+            if ext_ok:                                       # (BULLA 4s: eski tepe mumları küçültüyordu)
+                start = s0
+        if ext_ok:
+            pass
+        elif (kf is None or kf < start) and _dr and _dr[-1]:  # uzaksa / aralığı büyütüyorsa: sol kenarda yazı
             st_old = _dr[-1]
             st_old_t = (datetime.fromtimestamp(cs[kf]["t"] / 1000, TSI).strftime("%d.%m %H:%M") if kf is not None
                         else "daha önce")
