@@ -680,41 +680,34 @@ def move_ended(mv, f, i, s_):
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
-    • Giriş = hareketin başladığı mum: sinyal mumuna kadar art arda aynı renkteki mumların ilkinin açılışı.
+    • Giriş = hareketin başladığı yer: son 24 mumun en dibinden (pump) / tepesinden (dump) sonraki ilk yön mumunun açılışı.
     • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
       pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
       fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
-    • Stop = beyaz pivot P (kullanıcı isteği); P işlem yönünün yanlış tarafındaysa stop tarafındaki en yakın pivot;
-      hiç yoksa kırılımdan / dönüşten önceki tepe / dip.
+    • Stop = girişin hemen gerisindeki pivot (pump: altındaki, dump: üstündeki); yoksa hareketin başladığı dip / tepe.
     Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
     f, i = res["f"], res["i"]
     s_ = 1 if rd["dir"] == "long" else -1
     h, l, c, a = f["h"], f["l"], f["c"], f["atr"][i] or 0
     o = f["o"]
-    # giriş = dump / pump'ın başladığı yer (kullanıcı isteği, BTC 21.11): sinyal mumuna kadar kesintisiz aynı renkteki
-    # mumların ilkinin açılışı (dump: art arda kırmızı mumlar, pump: yeşil). Fiyat o seviyeden uzaklaştıysa giriş
-    # geri test (limit) seviyesidir.
-    j = i
-    while j - 1 >= 0 and (c[j - 1] - o[j - 1]) * s_ > 0 and i - j < 12:
-        j -= 1
-    entry = o[j] if (c[i] - o[i]) * s_ > 0 else c[i]
-    if rd["kind"] == "reversal":
-        nb = cfg.get("pump_radar", {}).get("reversal", {}).get("above_bars", 12)
-        sl_lab = "dönüş öncesi " + ("dibin altı" if s_ == 1 else "tepenin üstü")
-    else:
-        nb = cfg["pump_dump"].get("breakout_lookback", 20)
-        sl_lab = "sıkışma " + ("dibinin altı" if s_ == 1 else "tepesinin üstü")
+    # giriş = pump / dump'ın başladığı yer (kullanıcı isteği, SOL 21.11 15dk / BTC 21.11): son entry_lookback mumdaki
+    # en dip (pump) / en tepe (dump) mumundan itibaren işlem yönündeki ilk mumun açılışı. Fiyat oradan uzaklaştıysa
+    # giriş geri test (limit) seviyesidir.
+    nb = cfg.get("pump_radar", {}).get("entry_lookback", 24)
+    k0 = max(0, i - nb + 1)
+    ext_k = (min(range(k0, i + 1), key=lambda k: l[k]) if s_ == 1 else max(range(k0, i + 1), key=lambda k: h[k]))
+    j = next((k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0), i)
+    entry = o[j]
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
-    # stop = beyaz pivot P (kullanıcı isteği: en güçlü destek / direnç). P yanlış taraftaysa (ör. dump P'nin
-    # altında başladıysa P zaten aşılmış) stop tarafındaki en yakın pivot; o da yoksa sıkışma tepesi / dibi.
+    # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
+    # pivot yoksa hareketin başladığı dip / tepe 0.1 ATR ötesi
     back = sorted([(v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v
-                   and (entry - v) * s_ >= 0.3 * a], key=lambda x: -x[0] * s_)
-    if pv.get("P") and (entry - pv["P"]) * s_ >= 0.3 * a:
-        stop, sl_lab = pv["P"], "P (beyaz pivot)"
-    elif back:
-        stop, sl_lab = back[0][0], f"{back[0][1]} (en yakın pivot)"
+                   and (entry - v) * s_ > 0], key=lambda x: -x[0] * s_)
+    if back:
+        stop, sl_lab = back[0][0], back[0][1] + (" (beyaz pivot)" if back[0][1] == "P" else "")
     else:
-        stop = (min(l[i - nb:i]) - 0.1 * a) if s_ == 1 else (max(h[i - nb:i]) + 0.1 * a)
+        stop = (l[ext_k] - 0.1 * a) if s_ == 1 else (h[ext_k] + 0.1 * a)
+        sl_lab = "hareketin başladığı " + ("dibin altı" if s_ == 1 else "tepenin üstü")
     lv = sorted(((v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v),
                 key=lambda x: x[0] * s_)
     ref = max(entry * s_, c[i] * s_) * s_              # TP'ler hem girişin hem şu anki fiyatın ötesinde olmalı
