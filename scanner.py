@@ -652,6 +652,10 @@ def squeeze_break(f, i, s, sc):
     body = (c[i] - o[i]) * s / a
     vr = v[i] / f["vol_ma"][i - 1]
     edge = lo if s == -1 else hi
+    if sc.get("require_h4", True) and (f["h4_ema"][i] + f["h4_st"][i]) * s <= 0:
+        return None                               # 4 saatlik trend ters (testte en büyük fark: %72 → %87)
+    if sc.get("require_st", True) and f["st_dir"][i] != s:
+        return None
     if (rng <= sc.get("max_range_atr", 2.5) and (c[i] - edge) * s > 0 and body >= sc.get("body_atr", 0.8)
             and vr >= sc.get("volume_x", 1.5)):
         return [f"{n} mumluk sıkışma {'aşağı' if s == -1 else 'yukarı'} kırıldı (aralık {rng:.1f} ATR)",
@@ -3737,6 +3741,71 @@ def build_universe(api, cfg):
     return universe, all_meta, tickers, funding
 
 
+def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers, funding):
+    """Mum kapanmadan PUMP / DUMP SİNYALİ (kullanıcı isteği: sinyal hareketi başlatan mumda gelsin). Kapanmamış mum
+    12 mumluk dar yatayı güçlü gövde + hacimle kırıyorsa (squeeze_break; 4s trend ve Supertrend aynı yönde) sinyal
+    hemen gönderilir. Geçmiş testte (50 coin, 15dk, ~12 gün) TP1 stop'tan önce %87-89. Aynı hareket için mum
+    kapanışında ikinci sinyal gelmez (radar_moves)."""
+    rc = cfg.get("pump_radar", {})
+    sb = rc.get("squeeze_break", {})
+    if not rc.get("enabled", True) or not sb.get("enabled", False) or not sb.get("intrabar", True):
+        return 0
+    types = set(rc.get("types", ["COIN"]))
+    moves = state.setdefault("radar_moves", {})
+    now_utc = datetime.now(timezone.utc)
+    ctx = {"leaders": {}, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": None,
+           "btc_dom": None, "ndx": None}
+    sent = 0
+    for sym, meta in symbols.items():
+        if meta.get("leader_only") or meta["type"] not in types or sym not in candles:
+            continue
+        cs = candles[sym]
+        if len(cs) < cfg["min_candles"]:
+            continue
+        try:
+            f = IB_FEATS.get(sym) or compute_features(cs, cfg)
+            IB_FEATS[sym] = f
+        except Exception:  # noqa: BLE001
+            continue
+        i = len(f["c"]) - 1
+        for d, s_ in (("long", 1), ("short", -1)):
+            if f"{sym}|{d}" in moves:
+                continue
+            why = squeeze_break(f, i, s_, sb)
+            if not why:
+                continue
+            try:
+                r = analyze_symbol(meta, cs, ctx, cfg)
+                if not r:
+                    continue
+                fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
+                compute_volume_profile(r, cfg)
+                rd = {"dir": d, "kind": "start", "score": 80, "reasons": why}
+                msg = build_radar_message(r, rd, cfg, now_utc).replace("Mum Kapanışı", "Mum içi · mum kapanmadı")
+                msg = msg.replace("📌 Kırılım sebebi:", "⏱ Anlık sinyal (mum kapanmadı)\n📌 Kırılım sebebi:", 1)
+                if notifier.send(msg, sym, meta["type"]):
+                    sent += 1
+                    e_, sl_, tps_ = radar_levels(r, rd, cfg)[:3]
+                    moves[f"{sym}|{d}"] = {"t": f["t"][i] - 1, "entry": e_, "stop": sl_, "tps": list(tps_)}
+                    moves.pop(f"{sym}|{'short' if d == 'long' else 'long'}", None)
+                    state["signals"][f"{sym}|radar_{d}"] = time.time()
+                    if cfg.get("live_images", {}).get("signal_image", True):
+                        head_ = image_head(r, cfg, d, rd)
+                        kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])
+                        png = signal_chart_image(r, cfg, d, kind_title=kname, lv=(e_, sl_, tps_))
+                        if png:
+                            notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(meta)} · {kname} · ⏱ mum kapanmadı",
+                                                sym, meta["type"])
+                    print(f"  → Mum içi {'PUMP' if d == 'long' else 'DUMP'} sinyali: {sym}")
+            except Exception as e:  # noqa: BLE001
+                print(f"  Mum içi radar hatası ({sym}): {e}", file=sys.stderr)
+    print(f"Mum içi pump/dump sinyali: {sent}")
+    return sent
+
+
+IB_FEATS = {}
+
+
 def intrabar_images(cfg, symbols, candles, state, state_path, notifier):
     """Mum kapanmadan (birkaç dakikada bir): kapanmamış mumda trend çizgisi / formasyon kırılımı ve retest
     resimleri. Aynı kırılım mum kapanınca tekrar gönderilmez (aynı anahtar)."""
@@ -3751,7 +3820,7 @@ def intrabar_images(cfg, symbols, candles, state, state_path, notifier):
         if meta.get("leader_only") or sym not in candles or len(candles[sym]) < cfg["min_candles"]:
             continue
         try:
-            f = compute_features(candles[sym], cfg)
+            f = IB_FEATS.get(sym) or compute_features(candles[sym], cfg)
         except Exception as e:  # noqa: BLE001
             print(f"  {sym}: {e}", file=sys.stderr)
             continue
@@ -3939,7 +4008,11 @@ def main():
             notifier.send(f"⚠️ <b>SorBot</b>: Sembollerin çoğu için veri alınamadı ({len(failed)}/{len(symbols)}).")
             state["alerts"]["fetch_fail"] = time.time()
 
-    if intrabar:      # mum kapanmadan: sadece kırılım resimleri (kullanıcı: işlemi kaçırmayalım)
+    if intrabar:      # mum kapanmadan: anlık pump / dump sinyali + kırılım resimleri (kullanıcı: işlemi kaçırmayalım)
+        try:
+            intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers, funding)
+        except Exception as e:  # noqa: BLE001
+            print(f"Mum içi radar hatası: {e}", file=sys.stderr)
         return intrabar_images(cfg, symbols, candles, state, state_path, notifier)
 
     # Lider eğilimleri

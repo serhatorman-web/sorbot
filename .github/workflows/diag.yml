@@ -5,4 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet --user matplotlib || true
       - run: python3 tools/ex.py
+      - run: DRY_RUN=1 SORBOT_INTRABAR=1 SORBOT_TF=15m timeout 300 python3 scanner.py 2>&1 | grep -v "^  \[" | tail -30 | sed 's/^/XX| /'
