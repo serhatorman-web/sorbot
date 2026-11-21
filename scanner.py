@@ -781,7 +781,7 @@ def radar_levels(res, rd, cfg):
     • Giriş = sinyal mumunun (hareketi başlatan güçlü mum) açılışı; AL / SAT etiketi de bu mumda.
     • TP1 / TP2 / TP3 = girişe göre işlem yönündeki sıradaki üç pivot (dump: girişin altındaki P / S1 / S2 / S3; pump:
       üstündeki P / R1 / R2 / R3). Sadece P, R1-R3, S1-S3 kullanılır; girişe 0.3 ATR'den yakın pivot atlanır; pivot
-      biterse daha az TP yazılır (uzatma yok).
+      biterse eksik TP'ler son TP'nin ötesindeki hacim profili seviyeleri (POC / VAH / VAL) olur.
     • Stop = girişin gerisindeki ilk pivot (pump: altındaki, dump: üstündeki; girişe 0.3 ATR'den yakını atlanır);
       yoksa hareketin başladığı dip / tepe.
     Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
@@ -820,6 +820,18 @@ def radar_levels(res, rd, cfg):
     # TP'ler = girişe göre işlem yönündeki sıradaki üç pivot (P, R1-R3 / S1-S3 dışına çıkılmaz; pivot biterse daha az TP)
     ahead = [(v, nm) for v, nm in lv if (v - entry) * s_ >= 0.3 * a]
     tps, tp_labs = [v for v, _ in ahead[:3]], [nm for _, nm in ahead[:3]]
+    if len(tps) < 3:                                  # pivot bitti: eksik TP'ler hacim profili (POC / VAH / VAL) – kullanıcı isteği
+        if "vp" not in res:
+            try:
+                compute_volume_profile(res, cfg)
+            except Exception:  # noqa: BLE001
+                pass
+        last = tps[-1] if tps else entry
+        vpl = sorted(((v, nm) for nm, v in zip(("VAH", "POC", "VAL"), res.get("vp") or ()) if v
+                      and (v - last) * s_ >= 0.3 * a and (v - entry) * s_ > 0), key=lambda x: x[0] * s_)
+        for v, nm in vpl[:3 - len(tps)]:
+            tps.append(v)
+            tp_labs.append(nm)
     return entry, stop, tps, sl_lab, tp_labs
 
 
