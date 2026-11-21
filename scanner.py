@@ -447,6 +447,8 @@ def compute_features(candles, cfg):
     n = len(candles)
     f["h4_ema"], f["h4_st"] = [0] * n, [0] * n
     base_ms = tf_ms(cfg)
+    f["htf_label"] = {15 * 60_000: "1 saatlik", HOUR_MS: "4 saatlik", 4 * HOUR_MS: "günlük",
+                      5 * 60_000: "15 dakikalık", 24 * HOUR_MS: "haftalık"}.get(base_ms, "üst zaman dilimi")
     c4 = resample_4h(candles, base_ms)
     if len(c4) >= 60:
         cc4 = [x["c"] for x in c4]
@@ -672,7 +674,7 @@ def squeeze_break(f, i, s, sc):
     vr = v[i] / f["vol_ma"][i - 1]
     edge = lo if s == -1 else hi
     if sc.get("require_h4", True) and (f["h4_ema"][i] + f["h4_st"][i]) * s <= 0:
-        return None                               # 4 saatlik trend ters (testte en büyük fark: %72 → %87)
+        return None                               # üst zaman dilimi trendi ters (15dk → 1sa; testte %72 → %87)
     if sc.get("require_st", True) and (f["st_dir"][i] != s or f["st_dir"][i - 1] != s):
         return None          # Supertrend zaten bu yönde (sinyal mumunda yeni Buy / Sell çıkmaz)
     chg = (c[i] / o[i] - 1) * s * 100 if o[i] else 0
@@ -688,7 +690,8 @@ def squeeze_break(f, i, s, sc):
 
 def trend_turn(f, i, s, tc):
     """🔄 Trend Dönüşü tetiği (kullanıcı isteği: sinyal Supertrend dönmeden, hareketi başlatan güçlü mum oluşurken gelsin):
-    Supertrend hâlâ ters yönde (mum içinde de dönmemiş), 4 saatlik trend sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
+    Supertrend hâlâ ters yönde (mum içinde de dönmemiş), bir üst zaman dilimi trendi (15dk → 1 saatlik, 1sa → 4 saatlik,
+    4sa → günlük; EMA20/50 + Supertrend) sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
     kapanış son break_bars mumun tepesinin (long) / dibinin (short) ötesinde. Geçmiş test (100 coin, 15dk, ~12 gün,
     TP'si fiyatın ilerisinde olanlar): TP1 stop'tan önce %86, 228 coinde günde ~30. Döner: gerekçeler ya da None."""
     if not tc.get("enabled", True) or i < 30:
@@ -707,7 +710,7 @@ def trend_turn(f, i, s, tc):
         return None
     return [f"Güçlü {'yeşil' if s == 1 else 'kırmızı'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)",
             f"Son {nb} mumun {'tepesi' if s == 1 else 'dibi'} kırıldı", "Supertrend henüz dönmedi",
-            "4 saatlik trend " + ("yükselişte" if s == 1 else "düşüşte")]
+            f"{f.get('htf_label', 'üst zaman dilimi')} trend " + ("yükselişte" if s == 1 else "düşüşte")]
 
 
 def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intrabar=False):
