@@ -3087,23 +3087,24 @@ def market_lines(res, cfg, now_utc):
         # baştaki ikon Nasdaq (QQQ) yönünü gösterir; açık/kapalı yazıyla, 24s değişim etiketli
         # Nasdaq 100 endeksinin kendisi (Yahoo); alınamazsa Binance QQQ fiyatı
         # canlı fiyat (sinyal anındaki son işlem) + saati; yüzde: bugün, önceki kapanışa göre (kullanıcı isteği)
+        # Nasdaq 100 endeksinin kendisi (Yahoo, her taramada yeniden alınır); alınamazsa Binance QQQ fiyatı.
+        # Biçim (kullanıcı isteği): açık → "· Nasdaq 100 X · bugün %a yükseliş"; kapalı → "· Cuma kapanışı %a düşüş"
         q, live = res.get("ndx"), True
         if not q or not q.get("last"):
             q, live = (res.get("mkt") or {}).get("QQQ"), False
         if q and q.get("last"):
             chg = q.get("chg", 0.0)
-            icon, word = ("🟢▲", "Yükselişte") if chg > 0 else (("🔴▼", "Düşüşte") if chg < 0 else ("⚪▶", "Yatay"))
-            arrow = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
-            if live:
-                hhmm = ""
-                if q.get("ts"):
-                    hhmm = datetime.fromtimestamp(int(q["ts"]), timezone.utc).astimezone(TR_TZ).strftime("%H:%M")
-                when = (f" ({hhmm})" if ms == "open" else f" (kapanış {hhmm})") if hhmm else ""
-                out.append(f"{icon} ABD borsası · {status} · {word} · Canlı: Nasdaq 100 {fmt_price(q['last'], 2)}"
-                           f"{when} · bugün {arrow} %{abs(chg):.2f}")
+            icon = "🟢▲" if chg > 0 else ("🔴▼" if chg < 0 else "⚪▶")
+            word = "yükseliş" if chg > 0 else ("düşüş" if chg < 0 else "değişim")
+            name = f"Nasdaq 100 {fmt_price(q['last'], 2)}" if live else f"Nasdaq QQQ {fmt_price(q['last'], 2)}"
+            if ms == "open":
+                when = "bugün"
+            elif live and q.get("ts"):
+                day = datetime.fromtimestamp(int(q["ts"]), timezone.utc).astimezone(NY_TZ).weekday()
+                when = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")[day] + " kapanışı"
             else:
-                out.append(f"{icon} ABD borsası · {status} · {word} · 24s: Nasdaq QQQ {fmt_price(q['last'], 2)} "
-                           f"{arrow} %{abs(chg):.2f}")
+                when = "son kapanış" if live else "24s"
+            out.append(f"{icon} ABD borsası · {status} · {name} · {when} %{abs(chg):.2f} {word}")
         else:
             out.append(f"⚪ ABD borsası · {status}")
     lq = cfg.get("liquidity", {}).get("high_volume_usd", {"COIN": 50_000_000, "EQUITY": 5_000_000})
@@ -3848,6 +3849,12 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
     now_utc = datetime.now(timezone.utc)
     ctx = {"leaders": {}, "funding": funding, "tickers": tickers, "now_utc": now_utc, "eth_bias": None,
            "btc_dom": None, "ndx": None}
+    ndx_done = []
+
+    def need_ndx():                               # Nasdaq 100 fiyatı sadece sinyal çıkarsa, bir kez alınır (anlık fiyat)
+        if not ndx_done:
+            ctx["ndx"] = nasdaq_index()
+            ndx_done.append(1)
     sent = 0
     for sym, meta in symbols.items():
         if meta.get("leader_only") or meta["type"] not in types or sym not in candles:
@@ -3868,6 +3875,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
             if not why:
                 continue
             try:
+                need_ndx()
                 r = analyze_symbol(meta, cs, ctx, cfg)
                 if not r:
                     continue
@@ -3906,6 +3914,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
                 if not why:
                     continue
                 try:
+                    need_ndx()
                     r = analyze_symbol(meta, candles[sym], ctx, cfg)
                     if r:
                         sent += send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intrabar=True)

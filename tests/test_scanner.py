@@ -874,7 +874,7 @@ def test_market_rows():
     assert lb[1] == "🟢▲ ETH yönü · Trend: Yükselişte · 2,650.50 · 24s 🟢▲ %0.80", lb
     now = datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc)          # Pazartesi, seans açık
     ml = scanner.market_lines(res, {}, now)
-    assert ml[0] == "🟢▲ ABD borsası · Açık · Yükselişte · 24s: Nasdaq QQQ 612.40 🟢▲ %0.85", ml
+    assert ml[0] == "🟢▲ ABD borsası · Açık · Nasdaq QQQ 612.40 · bugün %0.85 yükseliş", ml
     assert ml[1] == "🔴 Likidite · Düşük (24s hacim 4.2M $ · yüksek eşiği 50M $)", ml
     res["meta"] = {"symbol": "ETHUSDT", "type": "COIN"}
     assert len(scanner.leader_block(res)) == 1
@@ -887,7 +887,7 @@ def test_market_rows_equity():
            "mkt": mkt, "qv24": 25_200_000}
     assert scanner.leader_block(res) == ["🔴▼ QQQ yönü · Trend: Düşüşte · 665.62 · 24s 🔴▼ %0.92"]
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · 24s: Nasdaq QQQ 665.62 🔴▼ %0.92",
+    assert ml == ["🔴▼ ABD borsası · Açık · Nasdaq QQQ 665.62 · bugün %0.92 düşüş",
                   "🟢 Likidite · Yüksek (24s hacim 25.2M $ · yüksek eşiği 5M $)"], ml
 
 
@@ -978,10 +978,14 @@ def test_market_rows_ndx():
     res = {"meta": {"symbol": "SOLUSDT", "type": "COIN"}, "ndx": {"last": 27277.73, "chg": -2.38},
            "mkt": {"QQQ": {"last": 665.62, "chg": -0.92}}, "qv24": None}
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 16, 16, 0, tzinfo=timezone.utc))
-    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Canlı: Nasdaq 100 27,277.73 · bugün 🔴▼ %2.38"], ml
+    assert ml == ["🔴▼ ABD borsası · Açık · Nasdaq 100 27,277.73 · bugün %2.38 düşüş"], ml
+    # hafta sonu: son seansın günü (cuma 20.11.2026 16:00 NY)
+    res["ndx"]["ts"] = int(datetime(2026, 11, 20, 21, 0, tzinfo=timezone.utc).timestamp())
+    ml = scanner.market_lines(res, {}, datetime(2026, 11, 21, 12, 0, tzinfo=timezone.utc))
+    assert ml == ["🔴▼ ABD borsası · Kapalı (hafta sonu) · Nasdaq 100 27,277.73 · Cuma kapanışı %2.38 düşüş"], ml
     res["ndx"]["ts"] = 1795195500            # 20.11.2026 17:25 UTC → 20:25 TSİ
     ml = scanner.market_lines(res, {}, datetime(2026, 11, 20, 17, 35, tzinfo=timezone.utc))
-    assert ml == ["🔴▼ ABD borsası · Açık · Düşüşte · Canlı: Nasdaq 100 27,277.73 (20:25) · bugün 🔴▼ %2.38"], ml
+    assert ml == ["🔴▼ ABD borsası · Açık · Nasdaq 100 27,277.73 · bugün %2.38 düşüş"], ml
 
 
 def test_arr():
