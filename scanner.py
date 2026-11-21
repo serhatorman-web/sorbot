@@ -722,7 +722,7 @@ def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intra
     mk = f"tt|{sym}|{d}"
     if mk in moves:
         return False
-    rd = {"dir": d, "kind": "start"}
+    rd = {"dir": d, "kind": "start", "src": "tt"}
     e_, sl_, tps_, _, _ = radar_levels(r, rd, cfg)
     s_ = 1 if d == "long" else -1
     if not tps_ or (tps_[0] - r["f"]["c"][r["i"]]) * s_ <= 0:
@@ -806,8 +806,13 @@ def radar_levels(res, rd, cfg):
            (c[k] - o[k]) * s_ >= 1.0 * f["atr"][k - 1 if k else k]]
     cand = [k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0]
     j = big[0] if big else (max(cand, key=lambda k: (c[k] - o[k]) * s_) if cand else i)
-    # kullanıcı isteği (21.11 NIGHT): AL / SAT etiketi ve giriş sinyalin geldiği mumda – sinyal AL / SAT yandığı anda
+    # 🔄 Trend Dönüşü: AL / SAT etiketi ve giriş sinyalin geldiği mumda (kullanıcı, 21.11 NIGHT).
+    # 🚀 PUMP / 💥 DUMP: giriş hareketin en üstteki (dump) / en alttaki (pump) mumundan başlar – sinyal mumuna kadar
+    # art arda aynı renkteki mumların ilkinin açılışı (kullanıcı, 21.11 FF 15dk); SAT / AL etiketi de o mumda.
     j = i
+    if rd.get("src") != "tt":
+        while j - 1 >= 0 and (c[j - 1] - o[j - 1]) * s_ > 0 and i - j < 12:
+            j -= 1
     entry = o[j]
     res["_entry_k"] = j                                # resimde girişe AL / SAT etiketi için
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
@@ -3299,7 +3304,7 @@ def build_message(res, direction, cfg, now_utc):
     entry, sl, tps, sl_label = levels(res, direction, cfg)
     st_piv = st_pivot_mode(res, direction, cfg)
     if st_piv:                                   # Supertrend: pump/dump ile aynı pivot stratejisi (kullanıcı isteği)
-        entry, sl, tps, sl_label, st_tp_labs = radar_levels(res, {"dir": direction, "kind": "start"}, cfg)
+        entry, sl, tps, sl_label, st_tp_labs = radar_levels(res, {"dir": direction, "kind": "start", "src": "tt"}, cfg)
     prec = meta.get("precision")
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
@@ -4327,7 +4332,7 @@ def main():
                 send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
                 if cfg.get("live_images", {}).get("signal_image", True):     # Supertrend sinyal resmi (kullanıcı isteği)
                     try:
-                        png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start"}, cfg)[:3]
+                        png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start", "src": "tt"}, cfg)[:3]
                                                                   if st_pivot_mode(r, d, cfg) else None))
                         if png:
                             notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · {kind_label(r['meta'])} · 🔄 Trend Dönüşü"
