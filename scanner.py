@@ -717,7 +717,8 @@ def radar_levels(res, rd, cfg):
         stop = (min(l[i - nb:i]) - 0.1 * a) if s_ == 1 else (max(h[i - nb:i]) + 0.1 * a)
     lv = sorted(((v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v),
                 key=lambda x: x[0] * s_)
-    ahead = [(v, nm) for v, nm in lv if (v - entry) * s_ > 0.2 * a]
+    ref = max(entry * s_, c[i] * s_) * s_              # TP'ler hem girişin hem şu anki fiyatın ötesinde olmalı
+    ahead = [(v, nm) for v, nm in lv if (v - ref) * s_ > 0.2 * a]
     tps, tp_labs = [v for v, _ in ahead[:3]], [nm for _, nm in ahead[:3]]
     while len(tps) < 3:                                # pivot bitti: son adım kadar uzat
         if len(tps) >= 2:
