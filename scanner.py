@@ -702,6 +702,7 @@ def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intra
     if mk in moves:
         return False
     rd = {"dir": d, "kind": "start"}
+    r["_st_hold"] = True                          # mesajda / resimde Supertrend sinyal anındaki haliyle (henüz dönmemiş)
     e_, sl_, tps_, _, _ = radar_levels(r, rd, cfg)
     s_ = 1 if d == "long" else -1
     if not tps_ or (tps_[0] - r["f"]["c"][r["i"]]) * s_ <= 0:
@@ -2813,6 +2814,9 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None)
         return None
     h = [x["h"] for x in cs]; l = [x["l"] for x in cs]
     pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg = chart_bg(f, i, lo, tf, cfg, h, l)
+    if res.get("_st_hold") and st_bg and len(st_bg[1]) >= 2 and st_bg[1][-1] != st_bg[1][-2]:
+        # 🔄 Trend Dönüşü sinyal anında Supertrend henüz dönmemişti: son mumda önceki yön / çizgi gösterilir
+        st_bg = (list(st_bg[0][:-1]) + [st_bg[0][-2]], list(st_bg[1][:-1]) + [st_bg[1][-2]])
     d = 1 if direction == "long" else -1
     entry, stop, tps = lv if lv else levels(res, direction, cfg)[:3]     # radar: kendi seviyeleri
     # trend çizgileri (kullanıcı isteği: sinyal resminde de çizilsin) – kırılım resimleriyle aynı kurallar
@@ -3162,7 +3166,8 @@ def rating_votes(res):
     c = f["c"][i]
     sgn = lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
     if "Supertrend" not in names and f.get("st_dir"):
-        votes.append(("Supertrend", f["st_dir"][i] or 0))
+        k_st = i - 1 if res.get("_st_hold") and i > 0 else i     # Trend Dönüşü: sinyal anındaki (dönmemiş) Supertrend
+        votes.append(("Supertrend", f["st_dir"][k_st] or 0))
     return votes
 
 
