@@ -18,9 +18,10 @@ for i in range(k0, k1):
     c24 = (f["c"][i] / f["c"][i - 96] - 1) * 100
     pdres = S.pump_dump_analysis(f, cfg, c24, i)
     for mk, mv in list(moves.items()):
-        s_ = 1 if mk == "long" else -1
-        if (f["c"][i] - mv["stop"]) * s_ <= 0 or (f["h"][i] if s_ == 1 else f["l"][i]) * s_ >= mv["tp3"] * s_:
+        if S.move_ended(mv, f, i, 1 if mk == "long" else -1):
             print("XX|", ts(i), "hareket bitti", mk); moves.pop(mk)
+        else:
+            print("XX|", ts(i), "hareket sürüyor", mk, "izleyen stop", round(mv["stop"], 2))
     for rd in S.pump_radar(f, i, pdres, c24, cfg, None, None):
         res = {"meta": {"symbol": sym, "type": "COIN", "precision": 2}, "f": f, "i": i}
         if rd["dir"] in moves:
@@ -32,7 +33,7 @@ for i in range(k0, k1):
             st_e, st_sl, st_tps, _ = S.levels(res, rd["dir"], cfg)
             out += f" | RADAR giriş {e:.2f} stop {sl:.2f} ({slab}) TP {[round(x, 2) for x in tps]} {tlab}"
             out += f" | (eski Supertrend: stop {st_sl:.2f} TP {[round(x, 2) for x in st_tps]})"
-            moves[rd["dir"]] = {"stop": sl, "tp3": tps[2]}
+            moves[rd["dir"]] = {"t": f["t"][i], "entry": e, "stop": sl, "tps": list(tps)}
             moves.pop("short" if rd["dir"] == "long" else "long", None)
             if first is None:
                 first = (res, rd, i)

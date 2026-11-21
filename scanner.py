@@ -632,6 +632,22 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
     return out
 
 
+def move_ended(mv, f, i, s_):
+    """Pump/Dump hareketi bitti mi? Sinyal mumundan sonraki mumlarda izleyen stop: TP1'e değince stop girişe, TP2'de
+    TP1'e, TP3'te TP2'ye çekilir; kapanış stop'un gerisinde kalırsa hareket biter. mv["stop"] güncellenir."""
+    ladder = [mv.get("entry")] + list(mv.get("tps") or [])
+    for k in range(i + 1):
+        if f["t"][k] <= mv["t"]:
+            continue
+        ext = f["h"][k] if s_ == 1 else f["l"][k]
+        for n, tp in enumerate(mv.get("tps") or []):
+            if ext * s_ >= tp * s_ and ladder[n] is not None and (ladder[n] - mv["stop"]) * s_ > 0:
+                mv["stop"] = ladder[n]
+        if (f["c"][k] - mv["stop"]) * s_ <= 0:
+            return True
+    return False
+
+
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri (kullanıcı isteği: Supertrend'in 1.5 ATR / 1R-2R-3R'ı değil).
     • Sinyal / Hareket (kırılım): giriş = kapanış; stop = kırılan seviyenin (20 mumluk direnç / destek) 0.25 ATR
@@ -4161,19 +4177,16 @@ def main():
             if r["meta"]["type"] not in radar_types:
                 continue
             # Hareket başına tek sinyal (kullanıcı isteği, BTC 21.11 dump'ında 3 ayrı DUMP SİNYALİ geldi): aynı yönde
-            # açık hareket varken yeni pump/dump sinyali / uyarısı gönderilmez. Hareket stop'a ya da TP3'e
-            # değince veya ters yönde radar sinyali gelince biter.
+            # açık hareket varken yeni pump/dump sinyali / uyarısı gönderilmez. Stop izler: TP1'de girişe, TP2'de
+            # TP1'e, TP3'te TP2'ye çekilir; fiyat bu stop'un gerisinde kapatınca ya da ters yönde radar sinyali
+            # gelince hareket biter.
             f_, i_ = r["f"], r["i"]
             for d_ in ("long", "short"):
                 mk = f"{r['meta']['symbol']}|{d_}"
                 mv = moves.get(mk)
                 if not mv:
                     continue
-                s_ = 1 if d_ == "long" else -1
-                since = [k for k in range(len(f_["t"])) if f_["t"][k] > mv["t"] and k <= i_]
-                hit = any((f_["c"][k] - mv["stop"]) * s_ <= 0 or (f_["h"][k] if s_ == 1 else f_["l"][k]) * s_
-                          >= mv["tp3"] * s_ for k in since)
-                if hit:
+                if move_ended(mv, f_, i_, 1 if d_ == "long" else -1):
                     moves.pop(mk, None)
             for rd in pump_radar(r["f"], r["i"], r["pd"], r["chg24"], cfg, r.get("oi_chg"), r.get("funding")):
                 if f"{r['meta']['symbol']}|{rd['dir']}" in moves:
@@ -4198,8 +4211,8 @@ def main():
                                         image_head(r, cfg, rd["dir"], rd))
                     if rd["kind"] in ("start", "momentum", "reversal"):     # hareket açıldı: tekrar sinyal yok
                         e_, sl_, tps_ = radar_levels(r, rd, cfg)[:3]
-                        moves[f"{r['meta']['symbol']}|{rd['dir']}"] = {"t": r["f"]["t"][r["i"]], "stop": sl_,
-                                                                       "tp3": tps_[2]}
+                        moves[f"{r['meta']['symbol']}|{rd['dir']}"] = {"t": r["f"]["t"][r["i"]], "entry": e_,
+                                                                       "stop": sl_, "tps": list(tps_)}
                         moves.pop(f"{r['meta']['symbol']}|{'short' if rd['dir'] == 'long' else 'long'}", None)
                     if cfg.get("live_images", {}).get("signal_image", True):   # pump/dump resmi (Supertrend gibi)
                         try:
