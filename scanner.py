@@ -651,46 +651,43 @@ def move_ended(mv, f, i, s_):
 
 
 def radar_levels(res, rd, cfg):
-    """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri (kullanıcı isteği: Supertrend'in 1.5 ATR / 1R-2R-3R'ı değil).
-    • Sinyal / Hareket (kırılım): giriş = kapanış; stop = kırılan seviyenin (20 mumluk direnç / destek) 0.25 ATR
-      ötesi; TP'ler = ölçülen hareket: kırılan aralığın yüksekliği (H) kırılım seviyesinden %61.8 / %100 / %161.8.
-    • Dönüş: giriş = kapanış; stop = dönüş öncesi son 12 mumun tepesi (pump sonrası) / dibi (dump sonrası) 0.25 ATR
-      ötesi; TP'ler = tüm pump / dump hareketinin Fibonacci %38.2 / %50 / %61.8 geri dönüşü.
-    Stop en az 0.5 ATR uzakta; hesaplanan TP girişin gerisinde kalırsa (hareket zaten uzamışsa) TP'ler stop
-    mesafesinin 1-2-3 katına çekilir. Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
+    """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
+    P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
+    • Giriş = sinyal mumunun kapanışı.
+    • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
+      pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
+      fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
+    • Stop = Sinyal / Hareket: kırılımdan önceki sıkışmanın (20 mum) tepesi (short) / dibi (long) 0.1 ATR ötesi;
+      Dönüş: dönüş öncesi son 12 mumun tepesi / dibi 0.1 ATR ötesi. En az 0.5 ATR.
+    Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
     f, i = res["f"], res["i"]
     s_ = 1 if rd["dir"] == "long" else -1
-    o, h, l, c, a = f["o"], f["h"], f["l"], f["c"], f["atr"][i] or 0
+    h, l, c, a = f["h"], f["l"], f["c"], f["atr"][i] or 0
     entry = c[i]
-    lb = cfg["pump_dump"].get("breakout_lookback", 20)
     if rd["kind"] == "reversal":
-        ab = cfg.get("pump_radar", {}).get("reversal", {}).get("above_bars", 12)
-        rlb = cfg.get("pump_radar", {}).get("reversal", {}).get("lookback", 48)
-        if s_ == 1:                                   # dump sonrası long: stop son dibin altı
-            stop = min(l[i - ab:i + 1]) - 0.25 * a
-            ext, ref = min(l[i - rlb:i]), max(h[i - rlb - 24:i - 24])
-        else:                                         # pump sonrası short: stop son tepenin üstü
-            stop = max(h[i - ab:i + 1]) + 0.25 * a
-            ext, ref = max(h[i - rlb:i]), min(l[i - rlb - 24:i - 24])
-        mv = ref - ext                                # dönüş yönünde işaretli hareket boyu
-        tps = [ext + mv * x for x in (0.382, 0.5, 0.618)]
+        nb = cfg.get("pump_radar", {}).get("reversal", {}).get("above_bars", 12)
         sl_lab = "dönüş öncesi " + ("dibin altı" if s_ == 1 else "tepenin üstü")
-        tp_labs = ["Fib %38.2", "Fib %50", "Fib %61.8"]
     else:
-        hi, lo = max(h[i - lb:i]), min(l[i - lb:i])
-        H = hi - lo
-        lvl = hi if s_ == 1 else lo                   # kırılan direnç / destek
-        stop = lvl - s_ * 0.25 * a
-        tps = [lvl + s_ * H * x for x in (0.618, 1.0, 1.618)]
-        sl_lab = "kırılan " + ("direncin altı" if s_ == 1 else "desteğin üstü")
-        tp_labs = ["ölçülen hareket %61.8", "ölçülen hareket %100", "ölçülen hareket %161.8"]
-    if (entry - stop) * s_ < 0.5 * a:                 # stop çok yakın / yanlış tarafta
+        nb = cfg["pump_dump"].get("breakout_lookback", 20)
+        sl_lab = "sıkışma " + ("dibinin altı" if s_ == 1 else "tepesinin üstü")
+    stop = (min(l[i - nb:i]) - 0.1 * a) if s_ == 1 else (max(h[i - nb:i]) + 0.1 * a)
+    if (entry - stop) * s_ < 0.5 * a:
         stop = entry - s_ * 0.5 * a
         sl_lab = "0.5 ATR (en yakın)"
-    risk = abs(entry - stop)
-    if (tps[0] - entry) * s_ <= 0 or any((tps[k + 1] - tps[k]) * s_ <= 0 for k in range(2)):
-        tps = [entry + s_ * risk * m for m in (1, 2, 3)]
-        tp_labs = ["1R (hareket uzamış)", "2R", "3R"]
+    pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
+    lv = sorted(((v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v),
+                key=lambda x: x[0] * s_)
+    ahead = [(v, nm) for v, nm in lv if (v - entry) * s_ > 0.2 * a]
+    tps, tp_labs = [v for v, _ in ahead[:3]], [nm for _, nm in ahead[:3]]
+    while len(tps) < 3:                                # pivot bitti: son adım kadar uzat
+        if len(tps) >= 2:
+            step = tps[-1] - tps[-2]
+        elif len(tps) == 1:
+            step = tps[0] - entry
+        else:
+            step = s_ * abs(entry - stop)
+        tps.append(tps[-1] + step if tps else entry + step)
+        tp_labs.append("uzatma")
     return entry, stop, tps, sl_lab, tp_labs
 
 
