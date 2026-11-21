@@ -3873,6 +3873,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
                 fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
                 compute_volume_profile(r, cfg)
                 rd = {"dir": d, "kind": "start", "score": 80, "reasons": why}
+                r["_st_hold"] = True              # Supertrend sinyal anındaki haliyle (mumda dönmüşse önceki yön)
                 msg = build_radar_message(r, rd, cfg, now_utc).replace("Mum Kapanışı", "Mum içi · mum kapanmadı")
                 msg = msg.replace("📌 Kırılım sebebi:", "⏱ Anlık sinyal (mum kapanmadı)\n📌 Kırılım sebebi:", 1)
                 if notifier.send(msg, sym, meta["type"]):
@@ -4435,6 +4436,7 @@ def main():
             if "vp" not in r:
                 compute_volume_profile(r, cfg)
             try:
+                r["_st_hold"] = True                  # Supertrend sinyal anındaki haliyle (Trend Dönüşü gibi)
                 if notifier.send(build_radar_message(r, rd, cfg, now_utc), r["meta"]["symbol"], r["meta"]["type"]):
                     sent += 1
                     send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"],
