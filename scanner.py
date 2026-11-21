@@ -688,6 +688,13 @@ def move_ended(mv, f, i, s_):
 PIV_NAMES = ("P", "R1", "R2", "R3", "S1", "S2", "S3")      # sadece bunlar (kullanıcı: dışına çıkılmayacak)
 
 
+def st_pivot_mode(res, direction, cfg):
+    """Supertrend sinyali pump/dump'ın pivot stratejisini kullanır mı (Nokta Atışı / Pivot / SSL sinyalleri hariç)."""
+    if not cfg.get("risk", {}).get("st_pivot_levels", True):
+        return False
+    return not any((res.get(k) or {}).get("dir") == direction for k in ("sniper_sig", "pivot_sig", "ssl_sig"))
+
+
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
@@ -3190,6 +3197,9 @@ def build_message(res, direction, cfg, now_utc):
     side = res[direction]
     other = res["short" if direction == "long" else "long"]
     entry, sl, tps, sl_label = levels(res, direction, cfg)
+    st_piv = st_pivot_mode(res, direction, cfg)
+    if st_piv:                                   # Supertrend: pump/dump ile aynı pivot stratejisi (kullanıcı isteği)
+        entry, sl, tps, sl_label, st_tp_labs = radar_levels(res, {"dir": direction, "kind": "start"}, cfg)
     prec = meta.get("precision")
     arrow = lambda x: "↑" if x > 0 else ("↓" if x < 0 else "→")
 
@@ -3227,11 +3237,17 @@ def build_message(res, direction, cfg, now_utc):
         f"{head} · <b>{meta['symbol']}</b> · {type_label(meta)} · {cfg['timeframe']}",
         SEP] + top + ([SEP] if top else []) + [
         f"<b>Giriş:</b> {fmt_price(entry, prec)}",
-        "",
-        f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}",
     ]
     psig = res.get("pivot_sig") if (res.get("pivot_sig") or {}).get("dir") == direction else None
-    for n, tp in enumerate(tps, 1):
+    if st_piv:                                   # Giriş → TP1 → TP2 → TP3 → Stop (pump/dump ile aynı)
+        if abs(entry - f["c"][i]) > 1e-12:
+            lines[-1] += f" · hareket başlangıcı (şu an {fmt_price(f['c'][i], prec)})"
+        for n, tp in enumerate(tps, 1):
+            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {st_tp_labs[n - 1]}"]
+        lines += ["", f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
+    else:
+        lines += ["", f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
+    for n, tp in enumerate(tps if not st_piv else [], 1):
         if psig:
             lab = psig["tps"][n - 1][0]
         else:
@@ -4183,7 +4199,8 @@ def main():
                 send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"], image_head(r, cfg, d))
                 if cfg.get("live_images", {}).get("signal_image", True):     # Supertrend sinyal resmi (kullanıcı isteği)
                     try:
-                        png = signal_chart_image(r, cfg, d)
+                        png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start"}, cfg)[:3]
+                                                                  if st_pivot_mode(r, d, cfg) else None))
                         if png:
                             notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · Supertrend sinyali",
                                                 r["meta"]["symbol"], r["meta"]["type"])
