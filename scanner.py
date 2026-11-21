@@ -3244,8 +3244,6 @@ def build_message(res, direction, cfg, now_utc):
     ]
     psig = res.get("pivot_sig") if (res.get("pivot_sig") or {}).get("dir") == direction else None
     if st_piv:                                   # Giriş → TP1 → TP2 → TP3 → Stop (pump/dump ile aynı)
-        if abs(entry - f["c"][i]) > 1e-12:
-            lines[-1] += f" · hareket başlangıcı (şu an {fmt_price(f['c'][i], prec)})"
         for n, tp in enumerate(tps, 1):
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {st_tp_labs[n - 1]}"]
         lines += ["", f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
