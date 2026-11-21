@@ -680,7 +680,8 @@ def move_ended(mv, f, i, s_):
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
-    • Giriş = hareketin başladığı yer: son 24 mumun en dibinden (pump) / tepesinden (dump) sonraki ilk yön mumunun açılışı.
+    • Giriş = hareketin başladığı yer: son 24 mumun en dibinden (pump) / tepesinden (dump) sonraki ilk güçlü
+      (gövde ≥ 0.8 ATR) yön mumunun açılışı.
     • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
       pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
       fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
@@ -691,12 +692,14 @@ def radar_levels(res, rd, cfg):
     h, l, c, a = f["h"], f["l"], f["c"], f["atr"][i] or 0
     o = f["o"]
     # giriş = pump / dump'ın başladığı yer (kullanıcı isteği, SOL 21.11 15dk / BTC 21.11): son entry_lookback mumdaki
-    # en dip (pump) / en tepe (dump) mumundan itibaren işlem yönündeki ilk mumun açılışı. Fiyat oradan uzaklaştıysa
+    # en dip (pump) / en tepe (dump) mumundan sonra hareketi başlatan ilk güçlü mumun açılışı. Fiyat oradan uzaklaştıysa
     # giriş geri test (limit) seviyesidir.
     nb = cfg.get("pump_radar", {}).get("entry_lookback", 24)
     k0 = max(0, i - nb + 1)
     ext_k = (min(range(k0, i + 1), key=lambda k: l[k]) if s_ == 1 else max(range(k0, i + 1), key=lambda k: h[k]))
-    j = next((k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0), i)
+    # hareketi başlatan güçlü mum (gövde ≥ 0.8 ATR); yoksa ilk yön mumu
+    j = next((k for k in range(ext_k, i + 1) if f["atr"][k] and (c[k] - o[k]) * s_ >= 0.8 * f["atr"][k]),
+             next((k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0), i))
     entry = o[j]
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
     # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
