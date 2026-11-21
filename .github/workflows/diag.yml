@@ -1,0 +1,8 @@
+name: diag
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: PREVIEW=1 DRY_RUN=1 PREVIEW_SYMBOL=BTCUSDT PREVIEW_DIR=short PREVIEW_RADAR=start SORBOT_TF=15m python3 scanner.py | sed -n '/TELEGRAM MESAJI/,/Giriş/p' | sed 's/^/XX| /'
