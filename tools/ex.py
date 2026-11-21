@@ -45,31 +45,37 @@ if first:
     b = base64.b64encode(png).decode()
     for j in range(0, len(b), 3000):
         print("IM|", "first", j // 3000, b[j:j + 3000])
-# --- sıklık testi: 40 coin, 15dk, son 900 mum ---
+# --- sıklık / başarı testi: 40 coin, 15dk, son 900 mum, farklı ayarlar ---
 syms = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "SUIUSDT", "BNBUSDT",
         "DOTUSDT", "LTCUSDT", "NEARUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "INJUSDT", "TIAUSDT", "SEIUSDT", "WIFUSDT",
         "PEPEUSDT", "ENAUSDT", "ONDOUSDT", "TAOUSDT", "FETUSDT", "RENDERUSDT", "AAVEUSDT", "UNIUSDT", "HBARUSDT", "TRXUSDT",
         "FILUSDT", "ATOMUSDT", "ETCUSDT", "BCHUSDT", "XLMUSDT", "ICPUSDT", "JUPUSDT", "WLDUSDT", "TONUSDT", "CRVUSDT"]
-tot = win = loss = 0
-days = None
+data = []
 for sy in syms:
     try:
         c2 = S.parse_klines(api.get("/fapi/v1/klines", {"symbol": sy, "interval": "15m", "limit": 900}), now_ms)
+        data.append((c2, S.compute_features(c2, cfg)))
     except Exception:
-        continue
-    f2 = S.compute_features(c2, cfg)
-    days = len(c2) / 96
-    sc = cfg.get("pump_radar", {}).get("squeeze_break", {})
-    for i in range(300, len(c2) - 17):
-        for s in (1, -1):
-            if S.squeeze_break(f2, i, s, sc):
-                tot += 1
-                a = f2["atr"][i]; e = f2["c"][i]; res_ = None
-                for k in range(i + 1, i + 17):
-                    if (f2["h"][k] if s == 1 else f2["l"][k]) * s >= (e + s * 2 * a) * s:
-                        res_ = "w"; break
-                    if (f2["l"][k] if s == 1 else f2["h"][k]) * s <= (e - s * 2 * a) * s:
-                        res_ = "l"; break
-                win += res_ == "w"; loss += res_ == "l"
-print("XX| SIKLIK:", tot, "tetik /", len(syms), "coin /", round(days, 1), "gün →", round(tot / len(syms) / days, 2),
-      "coin başına günde; 4 saatte +2 ATR:", win, "-2 ATR:", loss, "sonuçsuz:", tot - win - loss)
+        pass
+days = 900 / 96
+grid = [dict(bars=12, max_range_atr=2.5, body_atr=0.8, volume_x=1.5), dict(bars=12, max_range_atr=2.0, body_atr=1.0, volume_x=2.0),
+        dict(bars=12, max_range_atr=2.0, body_atr=1.0, volume_x=2.0, trend=1), dict(bars=16, max_range_atr=2.0, body_atr=1.2, volume_x=2.5),
+        dict(bars=12, max_range_atr=2.5, body_atr=0.8, volume_x=1.5, trend=1)]
+for sc in grid:
+    tot = win = loss = 0
+    for c2, f2 in data:
+        for i in range(300, len(c2) - 17):
+            for s in (1, -1):
+                if sc.get("trend") and (f2["st_dir"][i] != s or (f2["c"][i] - f2["ema200"][i]) * s < 0):
+                    continue
+                if S.squeeze_break(f2, i, s, sc):
+                    tot += 1
+                    a = f2["atr"][i]; e = f2["c"][i]; r_ = None
+                    for k in range(i + 1, i + 17):
+                        if (f2["h"][k] if s == 1 else f2["l"][k]) * s >= (e + s * 2 * a) * s:
+                            r_ = "w"; break
+                        if (f2["l"][k] if s == 1 else f2["h"][k]) * s <= (e - s * 2 * a) * s:
+                            r_ = "l"; break
+                    win += r_ == "w"; loss += r_ == "l"
+    print("XX| AYAR", sc, "→", tot, "tetik,", round(tot / len(data) / days, 2), "coin/gün; +2ATR", win, "-2ATR", loss,
+          "başarı %", round(100 * win / max(1, win + loss)))
