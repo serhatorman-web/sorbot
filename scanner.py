@@ -778,8 +778,7 @@ def st_pivot_mode(res, direction, cfg):
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
-    • Giriş = hareketin başladığı yer: son 12 mumun dibinden (pump) / tepesinden (dump) sonraki ilk güçlü yön mumu
-      (gövde ≥ 1 ATR); ondan bir önceki mum da aynı renkse onun açılışı (kullanıcının giriş stratejisi).
+    • Giriş = sinyal mumunun (hareketi başlatan güçlü mum) açılışı; AL / SAT etiketi de bu mumda.
     • TP1 / TP2 / TP3 = girişe göre işlem yönündeki sıradaki üç pivot (dump: girişin altındaki P / S1 / S2 / S3; pump:
       üstündeki P / R1 / R2 / R3). Sadece P, R1-R3, S1-S3 kullanılır; girişe 0.3 ATR'den yakın pivot atlanır; pivot
       biterse daha az TP yazılır (uzatma yok).
@@ -802,10 +801,8 @@ def radar_levels(res, rd, cfg):
            (c[k] - o[k]) * s_ >= 1.0 * f["atr"][k - 1 if k else k]]
     cand = [k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0]
     j = big[0] if big else (max(cand, key=lambda k: (c[k] - o[k]) * s_) if cand else i)
-    # kullanıcının işleme girme stratejisi: güçlü mumdan bir önceki mum da aynı renkse giriş onun açılışı
-    # (SOL 21.11 09:15 yeşil – VAL üstü, BTC 21.11 05:15 kırmızı)
-    if j - 1 >= ext_k and (c[j - 1] - o[j - 1]) * s_ > 0:
-        j -= 1
+    # kullanıcı isteği (21.11 NIGHT): AL / SAT etiketi ve giriş sinyalin geldiği mumda – sinyal AL / SAT yandığı anda
+    j = i
     entry = o[j]
     res["_entry_k"] = j                                # resimde girişe AL / SAT etiketi için
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
