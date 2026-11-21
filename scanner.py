@@ -632,6 +632,50 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
     return out
 
 
+def radar_levels(res, rd, cfg):
+    """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri (kullanıcı isteği: Supertrend'in 1.5 ATR / 1R-2R-3R'ı değil).
+    • Sinyal / Hareket (kırılım): giriş = kapanış; stop = kırılan seviyenin (20 mumluk direnç / destek) 0.25 ATR
+      ötesi; TP'ler = ölçülen hareket: kırılan aralığın yüksekliği (H) kırılım seviyesinden %61.8 / %100 / %161.8.
+    • Dönüş: giriş = kapanış; stop = dönüş öncesi son 12 mumun tepesi (pump sonrası) / dibi (dump sonrası) 0.25 ATR
+      ötesi; TP'ler = tüm pump / dump hareketinin Fibonacci %38.2 / %50 / %61.8 geri dönüşü.
+    Stop en az 0.5 ATR uzakta; hesaplanan TP girişin gerisinde kalırsa (hareket zaten uzamışsa) TP'ler stop
+    mesafesinin 1-2-3 katına çekilir. Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
+    f, i = res["f"], res["i"]
+    s_ = 1 if rd["dir"] == "long" else -1
+    o, h, l, c, a = f["o"], f["h"], f["l"], f["c"], f["atr"][i] or 0
+    entry = c[i]
+    lb = cfg["pump_dump"].get("breakout_lookback", 20)
+    if rd["kind"] == "reversal":
+        ab = cfg.get("pump_radar", {}).get("reversal", {}).get("above_bars", 12)
+        rlb = cfg.get("pump_radar", {}).get("reversal", {}).get("lookback", 48)
+        if s_ == 1:                                   # dump sonrası long: stop son dibin altı
+            stop = min(l[i - ab:i + 1]) - 0.25 * a
+            ext, ref = min(l[i - rlb:i]), max(h[i - rlb - 24:i - 24])
+        else:                                         # pump sonrası short: stop son tepenin üstü
+            stop = max(h[i - ab:i + 1]) + 0.25 * a
+            ext, ref = max(h[i - rlb:i]), min(l[i - rlb - 24:i - 24])
+        mv = ref - ext                                # dönüş yönünde işaretli hareket boyu
+        tps = [ext + mv * x for x in (0.382, 0.5, 0.618)]
+        sl_lab = "dönüş öncesi " + ("dibin altı" if s_ == 1 else "tepenin üstü")
+        tp_labs = ["Fib %38.2", "Fib %50", "Fib %61.8"]
+    else:
+        hi, lo = max(h[i - lb:i]), min(l[i - lb:i])
+        H = hi - lo
+        lvl = hi if s_ == 1 else lo                   # kırılan direnç / destek
+        stop = lvl - s_ * 0.25 * a
+        tps = [lvl + s_ * H * x for x in (0.618, 1.0, 1.618)]
+        sl_lab = "kırılan " + ("direncin altı" if s_ == 1 else "desteğin üstü")
+        tp_labs = ["ölçülen hareket %61.8", "ölçülen hareket %100", "ölçülen hareket %161.8"]
+    if (entry - stop) * s_ < 0.5 * a:                 # stop çok yakın / yanlış tarafta
+        stop = entry - s_ * 0.5 * a
+        sl_lab = "0.5 ATR (en yakın)"
+    risk = abs(entry - stop)
+    if (tps[0] - entry) * s_ <= 0 or any((tps[k + 1] - tps[k]) * s_ <= 0 for k in range(2)):
+        tps = [entry + s_ * risk * m for m in (1, 2, 3)]
+        tp_labs = ["1R (hareket uzamış)", "2R", "3R"]
+    return entry, stop, tps, sl_lab, tp_labs
+
+
 def reversal_radar(f, i, cfg, taken=()):
     """Dönüş radarı (iki yön, config reversal.directions):
     🔻 PUMP SONRASI DÖNÜŞ (short): son 2 günde %25+ yükselmiş coin zirveden en az %8 geri çekilmiş ve 12 mum EMA20
@@ -2623,7 +2667,7 @@ def send_pattern_images(notifier, res, cfg, symbol=None, typ=None, head=None):
         print(f"  Formasyon resmi gönderilemedi: {e}", file=sys.stderr)
 
 
-def signal_chart_image(res, cfg, direction, kind_title=None, plan=True):
+def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None):
     """Supertrend sinyalinin resmi (kullanıcı isteği): kırılım resimleriyle aynı görünüm (pivotlar, EMA/MA, Ichimoku
     bulutu, hacim profili, Supertrend, RSI / Stoch RSI / QQE MOD); giriş / TP1-2-3 / stop sinyal mesajındakiyle aynı."""
     meta, f, i = res["meta"], res["f"], res["i"]
@@ -2635,7 +2679,7 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True):
     h = [x["h"] for x in cs]; l = [x["l"] for x in cs]
     pv_bg, ma_bg, rsi_bg, div_bg, rsi_x, st_bg = chart_bg(f, i, lo, tf, cfg, h, l)
     d = 1 if direction == "long" else -1
-    entry, stop, tps, _ = levels(res, direction, cfg)
+    entry, stop, tps = lv if lv else levels(res, direction, cfg)[:3]     # radar: kendi seviyeleri
     # trend çizgileri (kullanıcı isteği: sinyal resminde de çizilsin) – kırılım resimleriyle aynı kurallar
     lc = cfg.get("live_images", {})
     c = [x["c"] for x in cs]
@@ -3266,12 +3310,11 @@ def build_radar_message(res, rd, cfg, now_utc):
             lines += ["", extra_line]
     lines += ["", SEP]
     if rd["kind"] in ("start", "momentum", "reversal"):
-        entry, sl, tps, sl_label = levels(res, direction, cfg)
+        entry, sl, tps, sl_label, tp_labs = radar_levels(res, rd, cfg)     # radarın kendi seviyeleri
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
                   f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
-            r = cfg["risk"]["tp_r_multiples"][n - 1]
-            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {r:g}R"]
+            lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {tp_labs[n - 1]}"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
         if rd["kind"] == "momentum":
@@ -4113,10 +4156,28 @@ def main():
     if rc.get("enabled", True):
         picked = {(r["meta"]["symbol"], d) for _, d, r in picks}
         radar_types = set(rc.get("types", ["COIN"]))
+        moves = state.setdefault("radar_moves", {})
         for r in results:
             if r["meta"]["type"] not in radar_types:
                 continue
+            # Hareket başına tek sinyal (kullanıcı isteği, BTC 21.11 dump'ında 3 ayrı DUMP SİNYALİ geldi): aynı yönde
+            # açık hareket varken yeni pump/dump sinyali / uyarısı gönderilmez. Hareket stop'a ya da TP3'e
+            # değince veya ters yönde radar sinyali gelince biter.
+            f_, i_ = r["f"], r["i"]
+            for d_ in ("long", "short"):
+                mk = f"{r['meta']['symbol']}|{d_}"
+                mv = moves.get(mk)
+                if not mv:
+                    continue
+                s_ = 1 if d_ == "long" else -1
+                since = [k for k in range(len(f_["t"])) if f_["t"][k] > mv["t"] and k <= i_]
+                hit = any((f_["c"][k] - mv["stop"]) * s_ <= 0 or (f_["h"][k] if s_ == 1 else f_["l"][k]) * s_
+                          >= mv["tp3"] * s_ for k in since)
+                if hit:
+                    moves.pop(mk, None)
             for rd in pump_radar(r["f"], r["i"], r["pd"], r["chg24"], cfg, r.get("oi_chg"), r.get("funding")):
+                if f"{r['meta']['symbol']}|{rd['dir']}" in moves:
+                    continue                  # bu hareketin ilk sinyali zaten gitti
                 key = f"{r['meta']['symbol']}|radar_{rd['dir']}"
                 last = state["signals"].get(key)
                 if last and now - last < rc.get("cooldown_hours", 12) * 3600:
@@ -4135,12 +4196,18 @@ def main():
                     sent += 1
                     send_pattern_images(notifier, r, cfg, r["meta"]["symbol"], r["meta"]["type"],
                                         image_head(r, cfg, rd["dir"], rd))
+                    if rd["kind"] in ("start", "momentum", "reversal"):     # hareket açıldı: tekrar sinyal yok
+                        e_, sl_, tps_ = radar_levels(r, rd, cfg)[:3]
+                        moves[f"{r['meta']['symbol']}|{rd['dir']}"] = {"t": r["f"]["t"][r["i"]], "stop": sl_,
+                                                                       "tp3": tps_[2]}
+                        moves.pop(f"{r['meta']['symbol']}|{'short' if rd['dir'] == 'long' else 'long'}", None)
                     if cfg.get("live_images", {}).get("signal_image", True):   # pump/dump resmi (Supertrend gibi)
                         try:
                             head_ = image_head(r, cfg, rd["dir"], rd)
                             kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])     # ör. "PUMP SİNYALİ"
-                            png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname,
-                                                     plan=rd["kind"] in ("start", "momentum", "reversal"))
+                            pl_ = rd["kind"] in ("start", "momentum", "reversal")
+                            png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname, plan=pl_,
+                                                     lv=radar_levels(r, rd, cfg)[:3] if pl_ else None)
                             if png:
                                 notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kname}",
                                                     r["meta"]["symbol"], r["meta"]["type"])
