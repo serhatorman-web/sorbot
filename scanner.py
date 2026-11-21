@@ -680,8 +680,7 @@ def move_ended(mv, f, i, s_):
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
-    • Giriş = hareketin başladığı yer: son 24 mumun en dibinden (pump) / tepesinden (dump) sonraki en büyük
-      gövdeli yön mumunun (hareketi başlatan mum) açılışı.
+    • Giriş = hareketin başladığı yer: son 24 mumdaki en yakın güçlü yön mumunun (gövde ≥ 1 ATR) açılışı.
     • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
       pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
       fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
@@ -692,14 +691,17 @@ def radar_levels(res, rd, cfg):
     h, l, c, a = f["h"], f["l"], f["c"], f["atr"][i] or 0
     o = f["o"]
     # giriş = pump / dump'ın başladığı yer (kullanıcı isteği, SOL 21.11 15dk / BTC 21.11): son entry_lookback mumdaki
-    # en dip (pump) / en tepe (dump) mumundan sonraki en büyük gövdeli yön mumunun (hareketi başlatan mum) açılışı. Fiyat oradan uzaklaştıysa
+    # en yakın güçlü yön mumunun (gövde ≥ 1 ATR, hareketi başlatan mum) açılışı. Fiyat oradan uzaklaştıysa
     # giriş geri test (limit) seviyesidir.
     nb = cfg.get("pump_radar", {}).get("entry_lookback", 24)
     k0 = max(0, i - nb + 1)
     ext_k = (min(range(k0, i + 1), key=lambda k: l[k]) if s_ == 1 else max(range(k0, i + 1), key=lambda k: h[k]))
-    # hareketi başlatan mum = dip / tepeden sonraki en büyük gövdeli yön mumu (SOL 09:30 yeşil, BTC 05:30 kırmızı)
+    # hareketi başlatan mum = son 24 mumdaki en yakın güçlü yön mumu (gövde ≥ 1 ATR; SOL 09:30 yeşil, BTC 05:30
+    # kırmızı); yoksa dip / tepeden sonraki en büyük gövdeli yön mumu
+    big = [k for k in range(k0, i + 1) if f["atr"][k - 1 if k else k] and
+           (c[k] - o[k]) * s_ >= 1.0 * f["atr"][k - 1 if k else k]]
     cand = [k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0]
-    j = max(cand, key=lambda k: (c[k] - o[k]) * s_) if cand else i
+    j = big[-1] if big else (max(cand, key=lambda k: (c[k] - o[k]) * s_) if cand else i)
     entry = o[j]
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
     # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
