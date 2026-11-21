@@ -28,7 +28,7 @@ for d in found:
     found[d].sort(reverse=True)
 print("XX| bulunan:", {d: len(v) for d, v in found.items()})
 out = []
-for t, sy in [x for x in found["short"] if x[1] == "MASKUSDT"][-1:] + [x for x in found["long"] if x[1] == "KITEUSDT"][:1]:
+for t, sy in [x for x in found["short"] if x[1] == "MASKUSDT"][:1] + [x for x in found["long"] if x[1] == "KITEUSDT"][:1]:
     cs = S.parse_klines(api.get("/fapi/v1/klines", {"symbol": sy, "interval": "15m", "limit": 1500}), now_ms)
     k = next(j for j in range(len(cs)) if cs[j]["t"] == t)
     ctx = {"leaders": {}, "funding": funding, "tickers": tickers, "now_utc": datetime.fromtimestamp((t + 900000) / 1000, timezone.utc),
