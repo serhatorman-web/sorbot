@@ -700,8 +700,12 @@ def trend_turn(f, i, s, tc):
         return None
     o, h, l, c = f["o"], f["h"], f["l"], f["c"]
     a = f["atr"][i - 1]
-    if not a or not f["vol_ma"][i - 1] or f["st_dir"][i - 1] != -s or f["st_dir"][i] != -s:
-        return None          # Supertrend hâlâ ters yönde (kullanıcı: bizim AL / SAT, Supertrend Buy / Sell'den önce gelsin)
+    if not a or not f["vol_ma"][i - 1]:
+        return None
+    counter = f["st_dir"][i - 1] == -s and f["st_dir"][i] == -s   # Supertrend hâlâ ters (dönüş / düzeltme)
+    inside = tc.get("with_trend", False) and f["st_dir"][i - 1] == s and f["st_dir"][i] == s   # trend içi devam
+    if not counter and not inside:
+        return None          # (kullanıcı: bizim AL / SAT Supertrend Buy / Sell'den önce gelsin; trend içi yükseliş / düşüş de gelsin)
     htf = (f["h4_ema"][i] + f["h4_st"][i]) * s
     if tc.get("require_h4", True) and (htf < 0 or (htf == 0 and not tc.get("htf_neutral_ok", False))):
         return None          # üst TF ters yönde ise yok; nötr ise htf_neutral_ok ile izinli (kullanıcı: yavaş düzeltmeler de gelsin)
@@ -712,7 +716,7 @@ def trend_turn(f, i, s, tc):
     if body < tc.get("body_atr", 1.0) or vr < tc.get("volume_x", 1.5) or (edge is not None and (c[i] - edge) * s <= 0):
         return None
     return [f"Güçlü {'yeşil' if s == 1 else 'kırmızı'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)",
-            *([f"Son {nb} mumun {'tepesi' if s == 1 else 'dibi'} kırıldı"] if nb else []), "Supertrend henüz dönmedi",
+            *([("Önceki mumun" if nb == 1 else f"Son {nb} mumun") + f" {'tepesi' if s == 1 else 'dibi'} kırıldı"] if nb else []), ("Supertrend henüz dönmedi" if counter else f"Trend içi {'yükseliş' if s == 1 else 'düşüş'} (Supertrend {'AL' if s == 1 else 'SAT'})"),
             f"{f.get('htf_label', 'üst zaman dilimi')} trend " + ("nötr" if htf == 0 else "yükselişte" if s == 1 else "düşüşte")]
 
 
