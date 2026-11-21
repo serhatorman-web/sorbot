@@ -673,8 +673,8 @@ def squeeze_break(f, i, s, sc):
     edge = lo if s == -1 else hi
     if sc.get("require_h4", True) and (f["h4_ema"][i] + f["h4_st"][i]) * s <= 0:
         return None                               # 4 saatlik trend ters (testte en büyük fark: %72 → %87)
-    if sc.get("require_st", True) and f["st_dir"][i] != s:
-        return None
+    if sc.get("require_st", True) and (f["st_dir"][i] != s or f["st_dir"][i - 1] != s):
+        return None          # Supertrend zaten bu yönde (sinyal mumunda yeni Buy / Sell çıkmaz)
     chg = (c[i] / o[i] - 1) * s * 100 if o[i] else 0
     if chg < sc.get("min_move_pct", 0):          # gerçek pump / dump: mum tek başına en az %2 (kullanıcı isteği)
         return None
@@ -688,15 +688,15 @@ def squeeze_break(f, i, s, sc):
 
 def trend_turn(f, i, s, tc):
     """🔄 Trend Dönüşü tetiği (kullanıcı isteği: sinyal Supertrend dönmeden, hareketi başlatan güçlü mum oluşurken gelsin):
-    Supertrend bu mumdan önce ters yönde, 4 saatlik trend sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
+    Supertrend hâlâ ters yönde (mum içinde de dönmemiş), 4 saatlik trend sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
     kapanış son break_bars mumun tepesinin (long) / dibinin (short) ötesinde. Geçmiş test (100 coin, 15dk, ~12 gün,
     TP'si fiyatın ilerisinde olanlar): TP1 stop'tan önce %86, 228 coinde günde ~30. Döner: gerekçeler ya da None."""
     if not tc.get("enabled", True) or i < 30:
         return None
     o, h, l, c = f["o"], f["h"], f["l"], f["c"]
     a = f["atr"][i - 1]
-    if not a or not f["vol_ma"][i - 1] or f["st_dir"][i - 1] != -s:     # mumdan önce Supertrend ters yöndeydi
-        return None
+    if not a or not f["vol_ma"][i - 1] or f["st_dir"][i - 1] != -s or f["st_dir"][i] != -s:
+        return None          # Supertrend hâlâ ters yönde (kullanıcı: bizim AL / SAT, Supertrend Buy / Sell'den önce gelsin)
     if tc.get("require_h4", True) and (f["h4_ema"][i] + f["h4_st"][i]) * s <= 0:
         return None
     vr = f["v"][i] / f["vol_ma"][i - 1]
