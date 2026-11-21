@@ -708,11 +708,11 @@ def trend_turn(f, i, s, tc):
     vr = f["v"][i] / f["vol_ma"][i - 1]
     body = (c[i] - o[i]) * s / a
     nb = tc.get("break_bars", 3)
-    edge = max(h[i - nb:i]) if s == 1 else min(l[i - nb:i])
-    if body < tc.get("body_atr", 1.0) or vr < tc.get("volume_x", 1.5) or (c[i] - edge) * s <= 0:
+    edge = (max(h[i - nb:i]) if s == 1 else min(l[i - nb:i])) if nb else None
+    if body < tc.get("body_atr", 1.0) or vr < tc.get("volume_x", 1.5) or (edge is not None and (c[i] - edge) * s <= 0):
         return None
     return [f"Güçlü {'yeşil' if s == 1 else 'kırmızı'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)",
-            f"Son {nb} mumun {'tepesi' if s == 1 else 'dibi'} kırıldı", "Supertrend henüz dönmedi",
+            *([f"Son {nb} mumun {'tepesi' if s == 1 else 'dibi'} kırıldı"] if nb else []), "Supertrend henüz dönmedi",
             f"{f.get('htf_label', 'üst zaman dilimi')} trend " + ("nötr" if htf == 0 else "yükselişte" if s == 1 else "düşüşte")]
 
 
