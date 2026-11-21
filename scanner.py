@@ -2893,8 +2893,11 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None)
         g["mas"] = ma_bg
     if rsi_bg:
         g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
-    if plan and lv and res.get("_entry_k") is not None and res["_entry_k"] >= lo:   # girişte AL / SAT (kullanıcı isteği)
-        g["entry_mark"] = (res["_entry_k"] - lo, entry, d)
+    if plan and lv and res.get("_entry_k") is not None and res["i"] >= lo:   # AL / SAT etiketi sinyal mumunda
+        # (kullanıcı, VET 21.11: AL yandığında sinyal anında gelsin – etiket sinyalin geldiği (hacimli) mumun altında /
+        # üstünde; giriş fiyatı serinin dibi / tepesi olarak kalır)
+        ff_, i_ = res["f"], res["i"]
+        g["entry_mark"] = (i_ - lo, ff_["l"][i_] if d == 1 else ff_["h"][i_], d)
     plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
     title = (f"{plain} · {kind_label(meta)} · {TF_NAMES.get(tf, tf)} · "
              + (kind_title or f"Trend Dönüşü · {'LONG' if d == 1 else 'SHORT'}"))
