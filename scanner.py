@@ -133,6 +133,9 @@ SIGNAL_IMG_NOTE = ("Sinyal grafiği, grafikler kanalına resim olarak gönderild
                    "Gönderim saati {}")
 
 
+TREND_TURN_HEADER = "🔄 <b>TREND DÖNÜŞÜ</b>"
+
+
 def put_st_line(lines, gi, st_line):
     """SUPERTREND satırı Giriş bölümünün çizgisinin üstüne (başlık gibi: satır, altında çizgi, Giriş)."""
     if gi > 0 and lines[gi - 1] == SEP:
@@ -2789,7 +2792,7 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None)
     if rsi_bg:
         g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
     plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
-    title = f"{plain} · {TF_NAMES.get(tf, tf)} · " + (kind_title or f"Supertrend {'LONG' if d == 1 else 'SHORT'} sinyali")
+    title = f"{plain} · {TF_NAMES.get(tf, tf)} · " + (kind_title or f"Trend Dönüşü · {'LONG' if d == 1 else 'SHORT'}")
     return chart_img.render_pattern(cs, g, title, meta.get("precision"))
 
 
@@ -3291,6 +3294,9 @@ def build_message(res, direction, cfg, now_utc):
             gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
             if gi is not None:
                 put_st_line(lines, gi, st_line)
+                if st_piv:                               # 🔄 TREND DÖNÜŞÜ bölümü, altında SUPERTREND (kullanıcı isteği)
+                    k_ = lines.index(st_line)
+                    lines[k_:k_] = [TREND_TURN_HEADER, SEP]
                 lic = cfg.get("live_images", {})
                 if (not sn and not res.get("ssl_sig") and lic.get("enabled", True)
                         and lic.get("signal_image", True)):      # Supertrend sinyal resmi notu (kullanıcı isteği)
@@ -4202,7 +4208,7 @@ def main():
                         png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start"}, cfg)[:3]
                                                                   if st_pivot_mode(r, d, cfg) else None))
                         if png:
-                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · Supertrend sinyali",
+                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü",
                                                 r["meta"]["symbol"], r["meta"]["type"])
                     except Exception as e:  # noqa: BLE001
                         print(f"  Sinyal resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
