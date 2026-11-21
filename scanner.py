@@ -685,7 +685,7 @@ def move_ended(mv, f, i, s_):
     return False
 
 
-PIV_NAMES = ("P", "R1", "R2", "R3", "R4", "R5", "S1", "S2", "S3", "S4", "S5")
+PIV_NAMES = ("P", "R1", "R2", "R3", "S1", "S2", "S3")      # sadece bunlar (kullanıcı: dışına çıkılmayacak)
 
 
 def radar_levels(res, rd, cfg):
@@ -693,10 +693,11 @@ def radar_levels(res, rd, cfg):
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
     • Giriş = hareketin başladığı yer: son 12 mumun dibinden (pump) / tepesinden (dump) sonraki ilk güçlü yön mumu
       (gövde ≥ 1 ATR); ondan bir önceki mum da aynı renkse onun açılışı (kullanıcının giriş stratejisi).
-    • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
-      pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
-      fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
-    • Stop = girişin hemen gerisindeki pivot (pump: altındaki, dump: üstündeki); yoksa hareketin başladığı dip / tepe.
+    • TP1 / TP2 / TP3 = girişe göre işlem yönündeki sıradaki üç pivot (dump: girişin altındaki P / S1 / S2 / S3; pump:
+      üstündeki P / R1 / R2 / R3). Sadece P, R1-R3, S1-S3 kullanılır; girişe 0.3 ATR'den yakın pivot atlanır; pivot
+      biterse daha az TP yazılır (uzatma yok).
+    • Stop = girişin gerisindeki ilk pivot (pump: altındaki, dump: üstündeki; girişe 0.3 ATR'den yakını atlanır);
+      yoksa hareketin başladığı dip / tepe.
     Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
     f, i = res["f"], res["i"]
     s_ = 1 if rd["dir"] == "long" else -1
@@ -723,7 +724,7 @@ def radar_levels(res, rd, cfg):
     # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
     # pivot yoksa hareketin başladığı dip / tepe 0.1 ATR ötesi
     back = sorted([(v, nm) for nm, v in pv.items() if nm in PIV_NAMES and v
-                   and (entry - v) * s_ > 0], key=lambda x: -x[0] * s_)
+                   and (entry - v) * s_ >= 0.3 * a], key=lambda x: -x[0] * s_)   # girişe yapışık pivot atlanır
     if back:
         stop, sl_lab = back[0][0], back[0][1] + (" (beyaz pivot)" if back[0][1] == "P" else "")
     else:
@@ -731,18 +732,9 @@ def radar_levels(res, rd, cfg):
         sl_lab = "hareketin başladığı " + ("dibin altı" if s_ == 1 else "tepenin üstü")
     lv = sorted(((v, nm) for nm, v in pv.items() if nm in PIV_NAMES and v),
                 key=lambda x: x[0] * s_)
-    ref = max(entry * s_, c[i] * s_) * s_              # TP'ler hem girişin hem şu anki fiyatın ötesinde olmalı
-    ahead = [(v, nm) for v, nm in lv if (v - ref) * s_ > 0.2 * a]
+    # TP'ler = girişe göre işlem yönündeki sıradaki üç pivot (P, R1-R3 / S1-S3 dışına çıkılmaz; pivot biterse daha az TP)
+    ahead = [(v, nm) for v, nm in lv if (v - entry) * s_ >= 0.3 * a]
     tps, tp_labs = [v for v, _ in ahead[:3]], [nm for _, nm in ahead[:3]]
-    while len(tps) < 3:                                # pivot bitti: son adım kadar uzat
-        if len(tps) >= 2:
-            step = tps[-1] - tps[-2]
-        elif len(tps) == 1:
-            step = tps[0] - entry
-        else:
-            step = s_ * abs(entry - stop)
-        tps.append(tps[-1] + step if tps else entry + step)
-        tp_labs.append("uzatma")
     return entry, stop, tps, sl_lab, tp_labs
 
 
@@ -1795,8 +1787,6 @@ def pivot_from_bars(f, i, tf):
     l = min(f["l"][k] for k in ks)
     c = f["c"][ks[-1]]
     pv = dict(pivot_levels(h, l, c), tf="1d" if per == 86_400_000 else "1w", start=start)
-    P, r = pv["P"], h - l                         # R3 / S3 ötesi: aynı Fibonacci pivot dizisinin devamı (1.618, 2.618)
-    pv.update(R4=P + 1.618 * r, S4=P - 1.618 * r, R5=P + 2.618 * r, S5=P - 2.618 * r)
     return pv
 
 
