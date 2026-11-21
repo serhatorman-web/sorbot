@@ -6,7 +6,7 @@ TR = timezone(timedelta(hours=3))
 api = S.Binance()
 now_ms = int(time.time() * 1000)
 cfg = S.apply_tf_profile(json.load(open(S.CONFIG_PATH, encoding="utf-8")), "15m")
-for sym, d, cut, kt in (("SOLUSDT", "long", "21.11 12:45", "PUMP SİNYALİ"), ("BTCUSDT", "short", "21.11 06:00", "DUMP SİNYALİ")):
+for sym, d, cut, kt in (("SOLUSDT", "long", "21.11 09:30", "PUMP SİNYALİ"), ("BTCUSDT", "short", "21.11 06:00", "DUMP SİNYALİ")):
     cs = S.parse_klines(api.get("/fapi/v1/klines", {"symbol": sym, "interval": "15m", "limit": 900}), now_ms)
     ts = lambda k: datetime.fromtimestamp(cs[k]["t"] / 1000, TR).strftime("%d.%m %H:%M")
     k = next(k for k in range(len(cs)) if ts(k) == cut)
