@@ -53,6 +53,9 @@
         "enabled": false,
         "cooldown_hours": 24
       },
+      "trend_turn": {
+        "enabled": false
+      },
       "pump_radar": {
         "enabled": false
       },
