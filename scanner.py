@@ -620,9 +620,12 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
             score -= 10   # fonlama aşırı kalabalıksa skor düşer (mesajda gösterilmez)
         score = max(0, min(100, score))
 
+        sb_ = squeeze_break(f, i, s, rc.get("squeeze_break", {}))
         if brk and pdres["vol_spike"] and pdres["squeeze"] and not late:
             if score >= rc.get("min_score", 70):
                 out.append({"dir": key, "kind": "start", "score": score, "reasons": why})
+        elif sb_ and not late:                    # dump / pump'ın ilk güçlü mumu (kullanıcı isteği, BTC 21.11 05:30)
+            out.append({"dir": key, "kind": "start", "score": max(score, 70), "reasons": sb_})
         elif (rc.get("early_alerts", True) and accum and pdres["squeeze"] and not brk and not late
               and oi_chg is not None and oi_chg >= 0.05):
             if score >= rc.get("min_score_early", 55):
@@ -630,6 +633,30 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
     out += momentum_radar(f, i, cfg, {d["dir"] for d in out})
     out += reversal_radar(f, i, cfg, {d["dir"] for d in out})
     return out
+
+
+def squeeze_break(f, i, s, sc):
+    """Dump / pump'ın başladığı ilk güçlü mum: son N mumluk dar yatay bölgenin (aralık ≤ max_range_atr × ATR) dibinin
+    (dump) / tepesinin (pump) gerisinde kapanan, gövdesi ≥ body_atr × ATR ve hacmi ≥ volume_x × ortalama olan mum.
+    BTC 21.11: 05:30 mumu (12 mumluk 58,809-59,215 yatayından 58,597'ye kırmızı mum, 1.7x hacim). 20 mumluk
+    destek / Bollinger şartı yok; bu yüzden eski sinyalden 2 mum önce gelir. Döner: gerekçe listesi ya da None."""
+    if not sc.get("enabled", True):
+        return None
+    n = sc.get("bars", 12)
+    o, h, l, c, v = f["o"], f["h"], f["l"], f["c"], f["v"]
+    a = f["atr"][i - 1] if i >= 1 else None
+    if i < n + 1 or not a or not f["vol_ma"][i - 1]:
+        return None
+    hi, lo = max(h[i - n:i]), min(l[i - n:i])
+    rng = (hi - lo) / a
+    body = (c[i] - o[i]) * s / a
+    vr = v[i] / f["vol_ma"][i - 1]
+    edge = lo if s == -1 else hi
+    if (rng <= sc.get("max_range_atr", 2.5) and (c[i] - edge) * s > 0 and body >= sc.get("body_atr", 0.8)
+            and vr >= sc.get("volume_x", 1.5)):
+        return [f"{n} mumluk sıkışma {'aşağı' if s == -1 else 'yukarı'} kırıldı (aralık {rng:.1f} ATR)",
+                f"Güçlü {'kırmızı' if s == -1 else 'yeşil'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)"]
+    return None
 
 
 def move_ended(mv, f, i, s_):
@@ -657,8 +684,8 @@ def radar_levels(res, rd, cfg):
     • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
       pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
       fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
-    • Stop = Sinyal / Hareket: kırılımdan önceki sıkışmanın (20 mum) tepesi (short) / dibi (long) 0.1 ATR ötesi;
-      Dönüş: dönüş öncesi son 12 mumun tepesi / dibi 0.1 ATR ötesi. En az 0.5 ATR.
+    • Stop = beyaz pivot P (kullanıcı isteği); P işlem yönünün yanlış tarafındaysa stop tarafındaki en yakın pivot;
+      hiç yoksa kırılımdan / dönüşten önceki tepe / dip.
     Döner: entry, stop, [tp1, tp2, tp3], stop yazısı, [tp yazıları]."""
     f, i = res["f"], res["i"]
     s_ = 1 if rd["dir"] == "long" else -1
@@ -670,11 +697,17 @@ def radar_levels(res, rd, cfg):
     else:
         nb = cfg["pump_dump"].get("breakout_lookback", 20)
         sl_lab = "sıkışma " + ("dibinin altı" if s_ == 1 else "tepesinin üstü")
-    stop = (min(l[i - nb:i]) - 0.1 * a) if s_ == 1 else (max(h[i - nb:i]) + 0.1 * a)
-    if (entry - stop) * s_ < 0.5 * a:
-        stop = entry - s_ * 0.5 * a
-        sl_lab = "0.5 ATR (en yakın)"
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
+    # stop = beyaz pivot P (kullanıcı isteği: en güçlü destek / direnç). P yanlış taraftaysa (ör. dump P'nin
+    # altında başladıysa P zaten aşılmış) stop tarafındaki en yakın pivot; o da yoksa sıkışma tepesi / dibi.
+    back = sorted([(v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v
+                   and (entry - v) * s_ >= 0.3 * a], key=lambda x: -x[0] * s_)
+    if pv.get("P") and (entry - pv["P"]) * s_ >= 0.3 * a:
+        stop, sl_lab = pv["P"], "P (beyaz pivot)"
+    elif back:
+        stop, sl_lab = back[0][0], f"{back[0][1]} (en yakın pivot)"
+    else:
+        stop = (min(l[i - nb:i]) - 0.1 * a) if s_ == 1 else (max(h[i - nb:i]) + 0.1 * a)
     lv = sorted(((v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v),
                 key=lambda x: x[0] * s_)
     ahead = [(v, nm) for v, nm in lv if (v - entry) * s_ > 0.2 * a]
