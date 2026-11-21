@@ -656,10 +656,14 @@ def squeeze_break(f, i, s, sc):
         return None                               # 4 saatlik trend ters (testte en büyük fark: %72 → %87)
     if sc.get("require_st", True) and f["st_dir"][i] != s:
         return None
+    chg = (c[i] / o[i] - 1) * s * 100 if o[i] else 0
+    if chg < sc.get("min_move_pct", 0):          # gerçek pump / dump: mum tek başına en az %2 (kullanıcı isteği)
+        return None
     if (rng <= sc.get("max_range_atr", 2.5) and (c[i] - edge) * s > 0 and body >= sc.get("body_atr", 0.8)
             and vr >= sc.get("volume_x", 1.5)):
         return [f"{n} mumluk sıkışma {'aşağı' if s == -1 else 'yukarı'} kırıldı (aralık {rng:.1f} ATR)",
-                f"Güçlü {'kırmızı' if s == -1 else 'yeşil'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)"]
+                f"Güçlü {'kırmızı' if s == -1 else 'yeşil'} mum ({'-' if s == -1 else '+'}%{chg:.1f}, gövde {body:.1f} ATR)",
+                f"Hacim artışı ({vr:.1f}x)"]
     return None
 
 
