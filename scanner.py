@@ -3930,9 +3930,13 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
     tc = cfg.get("trend_turn", {})
     if tc.get("enabled", False) and tc.get("intrabar", True):     # 🔄 Trend Dönüşü, mum kapanmadan
         for sym, meta in symbols.items():
-            if meta.get("leader_only") or sym not in candles or sym not in IB_FEATS:
+            if meta.get("leader_only") or sym not in candles or len(candles[sym]) < cfg["min_candles"]:
                 continue
-            f = IB_FEATS[sym]
+            try:                                   # tüm semboller (kullanıcı: tüm sembollerde çalışsın), pump türleriyle sınırlı değil
+                f = IB_FEATS.get(sym) or compute_features(candles[sym], cfg)
+                IB_FEATS[sym] = f
+            except Exception:  # noqa: BLE001
+                continue
             i = len(f["c"]) - 1
             for d, s_ in (("long", 1), ("short", -1)):
                 if f"tt|{sym}|{d}" in moves:
