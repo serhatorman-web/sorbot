@@ -636,15 +636,17 @@ def move_ended(mv, f, i, s_):
     """Pump/Dump hareketi bitti mi? Sinyal mumundan sonraki mumlarda izleyen stop: TP1'e değince stop girişe, TP2'de
     TP1'e, TP3'te TP2'ye çekilir; kapanış stop'un gerisinde kalırsa hareket biter. mv["stop"] güncellenir."""
     ladder = [mv.get("entry")] + list(mv.get("tps") or [])
+    stop = mv.setdefault("stop0", mv["stop"])            # her taramada ilk stop'tan baştan hesaplanır
     for k in range(i + 1):
         if f["t"][k] <= mv["t"]:
             continue
-        ext = f["h"][k] if s_ == 1 else f["l"][k]
-        for n, tp in enumerate(mv.get("tps") or []):
-            if ext * s_ >= tp * s_ and ladder[n] is not None and (ladder[n] - mv["stop"]) * s_ > 0:
-                mv["stop"] = ladder[n]
-        if (f["c"][k] - mv["stop"]) * s_ <= 0:
+        if (f["c"][k] - stop) * s_ <= 0:                 # önce o mumun başındaki stop'a göre kapanış
             return True
+        ext = f["h"][k] if s_ == 1 else f["l"][k]
+        for n, tp in enumerate(mv.get("tps") or []):    # sonra mumun ulaştığı TP'ye göre stop çekilir
+            if ext * s_ >= tp * s_ and ladder[n] is not None and (ladder[n] - stop) * s_ > 0:
+                stop = ladder[n]
+    mv["stop"] = stop
     return False
 
 
