@@ -129,8 +129,14 @@ def arr(x, dec=2):
     return f"{a} %{abs(x):.{dec}f}"
 
 
-SIGNAL_IMG_NOTE = ("Sinyal grafiği, grafikler kanalına resim olarak gönderildi. İşleme girmeden kontrol ediniz. "
-                   "Gönderim saati {}")
+SIGNAL_IMG_NOTE = "Sinyal grafiği, grafikler kanalına gönderildi. 🕒 {}"     # kullanıcının istediği biçim
+
+
+def img_note(res):
+    """Mesajdaki ve resim açıklamasındaki not aynı saati yazsın: ilk çağrıda saat kaydedilir (21.11.2026 14:45)."""
+    if not res.get("_note_ts"):
+        res["_note_ts"] = datetime.now(TR_TZ).strftime("%d.%m.%Y %H:%M")
+    return SIGNAL_IMG_NOTE.format(res["_note_ts"])
 
 
 TREND_TURN_HEADER = "🔄 <b>TREND DÖNÜŞÜ</b>"
@@ -724,7 +730,7 @@ def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intra
             png = signal_chart_image(r, cfg, d, lv=(e_, sl_, tps_))
             if png:
                 notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü"
-                                    + (" · ⏱ mum kapanmadı" if intrabar else ""), sym, r["meta"]["type"])
+                                    + (" · ⏱ mum kapanmadı" if intrabar else "") + "\n" + img_note(r), sym, r["meta"]["type"])
         except Exception as e:  # noqa: BLE001
             print(f"  Trend dönüşü resmi çizilemedi ({sym}): {e}", file=sys.stderr)
     print(f"  → Trend Dönüşü {d.upper()}: {sym}{' (mum içi)' if intrabar else ''}")
@@ -3369,7 +3375,7 @@ def build_message(res, direction, cfg, now_utc):
                 if (not sn and not res.get("ssl_sig") and lic.get("enabled", True)
                         and lic.get("signal_image", True)):      # Supertrend sinyal resmi notu (kullanıcı isteği)
                     k_ = anchor + 2                              # bölüm başlığı ve altındaki çizgiden sonra
-                    lines[k_:k_] = [SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
+                    lines[k_:k_] = [img_note(res), ""]
                 lines += ["", IND_HEADER, SEP]
             else:
                 lines += ["", SEP, st_line]
@@ -3488,7 +3494,7 @@ def build_radar_message(res, rd, cfg, now_utc):
         st_line = f"📌 <b>{trigger_name(cfg).upper()}</b>: {st_txt}"
         gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
         lic = cfg.get("live_images", {})
-        note = ([SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
+        note = ([img_note(res), ""]
                 if lic.get("enabled", True) and lic.get("signal_image", True) else [])   # resim notu (kullanıcı isteği)
         if gi is not None:                       # SUPERTREND satırı yok (kullanıcı: indikatörlerin içinde); not Giriş'in üstünde
             lines[gi:gi] = note
@@ -3881,8 +3887,8 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
                         kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])
                         png = signal_chart_image(r, cfg, d, kind_title=kname, lv=(e_, sl_, tps_))
                         if png:
-                            notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(meta)} · {kname} · ⏱ mum kapanmadı",
-                                                sym, meta["type"])
+                            notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(meta)} · {kname} · ⏱ mum kapanmadı"
+                                                f"\n{img_note(r)}", sym, meta["type"])
                     print(f"  → Mum içi {'PUMP' if d == 'long' else 'DUMP'} sinyali: {sym}")
             except Exception as e:  # noqa: BLE001
                 print(f"  Mum içi radar hatası ({sym}): {e}", file=sys.stderr)
@@ -4292,8 +4298,8 @@ def main():
                         png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start"}, cfg)[:3]
                                                                   if st_pivot_mode(r, d, cfg) else None))
                         if png:
-                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü",
-                                                r["meta"]["symbol"], r["meta"]["type"])
+                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü"
+                                                f"\n{img_note(r)}", r["meta"]["symbol"], r["meta"]["type"])
                     except Exception as e:  # noqa: BLE001
                         print(f"  Sinyal resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
                 state["signals"][f"{r['meta']['symbol']}|{d}"] = now
@@ -4447,8 +4453,8 @@ def main():
                             png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname, plan=pl_,
                                                      lv=radar_levels(r, rd, cfg)[:3] if pl_ else None)
                             if png:
-                                notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kname}",
-                                                    r["meta"]["symbol"], r["meta"]["type"])
+                                notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kname}"
+                                                    f"\n{img_note(r)}", r["meta"]["symbol"], r["meta"]["type"])
                         except Exception as e:  # noqa: BLE001
                             print(f"  Radar resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
                     state["signals"][key] = now
