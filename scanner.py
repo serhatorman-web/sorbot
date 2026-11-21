@@ -3176,9 +3176,10 @@ def technical_rating_line(votes, rating=None):
 def indicator_list_lines(res, direction):
     """İndikatörlerin 🟢 AL / 🔴 SAT / ⚪ Nötr listesi (sinyal yönüne göre sıralı)."""
     s = 1 if direction == "long" else -1
-    same = [n for n, v in res["votes"] if v == s]
-    opp = [n for n, v in res["votes"] if v == -s]
-    neu = [n for n, v in res["votes"] if v == 0]
+    votes = rating_votes(res)                    # Supertrend de listede (kullanıcı: ayrı bölüm yerine indikatörlerde)
+    same = [n for n, v in votes if v == s]
+    opp = [n for n, v in votes if v == -s]
+    neu = [n for n, v in votes if v == 0]
     word, oword = ("AL", "SAT") if s == 1 else ("SAT", "AL")
     icon = {"AL": "🟢▲", "SAT": "🔴▼"}
     out = [f"{icon[word]} {word} ({len(same)}): " + ", ".join(same)] if same else []
@@ -3293,14 +3294,19 @@ def build_message(res, direction, cfg, now_utc):
             # Supertrend satırı Giriş'in üstünde; indikatör listesi kendi çizgisiyle aşağıda
             gi = next((k for k, x in enumerate(lines) if x.startswith("<b>Giriş:</b>")), None)
             if gi is not None:
-                put_st_line(lines, gi, st_line)
-                if st_piv:                               # 🔄 TREND DÖNÜŞÜ bölümü, altında SUPERTREND (kullanıcı isteği)
-                    k_ = lines.index(st_line)
-                    lines[k_:k_] = [TREND_TURN_HEADER, SEP]
+                if st_piv:                               # 🔄 TREND DÖNÜŞÜ bölümü; SUPERTREND satırı yok (indikatörlerde)
+                    if gi > 0 and lines[gi - 1] == SEP:
+                        lines[gi - 1:gi - 1] = [TREND_TURN_HEADER]
+                    else:
+                        lines[gi:gi] = [TREND_TURN_HEADER, SEP]
+                    anchor = lines.index(TREND_TURN_HEADER)
+                else:
+                    put_st_line(lines, gi, st_line)
+                    anchor = lines.index(st_line)
                 lic = cfg.get("live_images", {})
                 if (not sn and not res.get("ssl_sig") and lic.get("enabled", True)
                         and lic.get("signal_image", True)):      # Supertrend sinyal resmi notu (kullanıcı isteği)
-                    k_ = lines.index(st_line) + 2                # SUPERTREND satırı ve altındaki çizgiden sonra
+                    k_ = anchor + 2                              # bölüm başlığı ve altındaki çizgiden sonra
                     lines[k_:k_] = [SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
                 lines += ["", IND_HEADER, SEP]
             else:
@@ -3422,13 +3428,11 @@ def build_radar_message(res, rd, cfg, now_utc):
         lic = cfg.get("live_images", {})
         note = ([SIGNAL_IMG_NOTE.format(datetime.now(TR_TZ).strftime('%H.%M')), ""]
                 if lic.get("enabled", True) and lic.get("signal_image", True) else [])   # resim notu (kullanıcı isteği)
-        if gi is not None:                       # Supertrend satırı Giriş'in üstünde
-            put_st_line(lines, gi, st_line)
-            k_ = lines.index(st_line) + 2
-            lines[k_:k_] = note
+        if gi is not None:                       # SUPERTREND satırı yok (kullanıcı: indikatörlerin içinde); not Giriş'in üstünde
+            lines[gi:gi] = note
             lines += ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
-        else:                                    # erken uyarı: giriş yok; SUPERTREND satırı, sonra İNDİKATÖRLER başlığı
-            lines += ["", st_line] + ([SEP] + note[:1] if note else []) + ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
+        else:
+            lines += ([""] + note[:1] if note else []) + ["", IND_HEADER, SEP] + indicator_list_lines(res, direction)
     # sıra (kullanıcı isteği): İNDİKATÖRLER → TREND TABLOSU → TREND ÇİZGİSİ → HACİM → RSI UYUMSUZLUK → FORMASYONLAR → PİYASA DURUMU
     trend = tf_table_html(res)
     if trend:
