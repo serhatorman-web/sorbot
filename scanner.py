@@ -690,7 +690,7 @@ def squeeze_break(f, i, s, sc):
     return None
 
 
-def trend_turn(f, i, s, tc):
+def trend_turn(f, i, s, tc, frac=1.0):
     """🔄 Trend Dönüşü tetiği (kullanıcı isteği: sinyal Supertrend dönmeden, hareketi başlatan güçlü mum oluşurken gelsin):
     Supertrend hâlâ ters yönde (mum içinde de dönmemiş), bir üst zaman dilimi trendi (15dk → 1 saatlik, 1sa → 4 saatlik,
     4sa → günlük; EMA20/50 + Supertrend) sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
@@ -709,7 +709,9 @@ def trend_turn(f, i, s, tc):
     htf = (f["h4_ema"][i] + f["h4_st"][i]) * s
     if tc.get("require_h4", True) and (htf < 0 or (htf == 0 and not tc.get("htf_neutral_ok", False))):
         return None          # üst TF ters yönde ise yok; nötr ise htf_neutral_ok ile izinli (kullanıcı: yavaş düzeltmeler de gelsin)
-    vr = f["v"][i] / f["vol_ma"][i - 1]
+    # mum içi: hacim, mumun geçen süresine göre oranlanır (kullanıcı: AL / SAT anında gelsin; 5. dakikada
+    # ortalamanın 5/15'i × volume_x yeterli). En az %20 süre sayılır (ilk dakikalardaki tek işlem sıçramasına karşı).
+    vr = f["v"][i] / (f["vol_ma"][i - 1] * max(min(frac, 1.0), 0.2))
     body = (c[i] - o[i]) * s / a
     nb = tc.get("break_bars", 3)
     edge = (max(h[i - nb:i]) if s == 1 else min(l[i - nb:i])) if nb else None
@@ -3945,7 +3947,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
             for d, s_ in (("long", 1), ("short", -1)):
                 if f"tt|{sym}|{d}" in moves:
                     continue
-                why = trend_turn(f, i, s_, tc)
+                why = trend_turn(f, i, s_, tc, frac=(now_ms - f["t"][i]) / tf_ms(cfg))
                 if not why:
                     continue
                 try:

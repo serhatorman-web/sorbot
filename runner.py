@@ -240,41 +240,40 @@ def release_check():
         log("anlık veri kontrolü zaman aşımına uğradı")
 
 
-IB_ORDER = ["15m", "1h", "15m", "4h", "15m", "1h", "15m", "1d"]   # mum içi kontrol sırası (her dakika bir zaman dilimi)
-IB_STATE = {"k": 0}
+IB_TFS = ["15m", "1h", "4h"]   # mum içi: her dakika 15dk, ardından 1s ve 4s (kullanıcı: AL / SAT anında gelsin)
 
 
 def intrabar_check(time_left):
-    """Mum kapanmadan kırılım resimleri (kullanıcı isteği: işlemi kaçırmayalım). Her dakika sıradaki zaman dilimi
-    taranır; bir sonraki mum kapanışı taramasına 150 sn'den az kaldıysa atlanır."""
+    """Mum kapanmadan sinyal / kırılım kontrolü (kullanıcı isteği: sinyal anında gelsin). Her dakika 15dk, 1s ve 4s
+    sırayla taranır (bir tarama ~12 sn); bir sonraki mum kapanışı taramasına 25 sn'den az kaldıysa durulur."""
     try:
         with open(os.path.join(BASE, "config.json"), encoding="utf-8") as fh:
             lc = json.load(fh).get("live_images", {})
     except (OSError, ValueError):
         lc = {}
-    if not lc.get("enabled", True) or not lc.get("intrabar", True) or time_left < 150:
+    if not lc.get("enabled", True) or not lc.get("intrabar", True):
         return
-    tfs = [t for t in IB_ORDER if t in lc.get("intrabar_tfs", ["15m", "1h", "4h", "1d"])]
-    if not tfs:
-        return
-    tf = tfs[IB_STATE["k"] % len(tfs)]
-    IB_STATE["k"] += 1
-    env = dict(os.environ, SORBOT_INTRABAR="1")
-    if tf == "1h":
-        env.pop("SORBOT_TF", None)
-    else:
-        env["SORBOT_TF"] = tf
-    t0 = time.time()
-    try:
-        r = subprocess.run([sys.executable, "scanner.py"], cwd=BASE, env=env, timeout=min(140, time_left - 10),
-                           capture_output=True, text=True)
-        m = re.search(r"Mum içi grafik resimleri: (\d+) olay, (\d+) gönderildi", r.stdout or "")
-        if m and int(m.group(2)):
-            log(f"{tf} mum içi: {m.group(2)} resim gönderildi ({time.time() - t0:.0f}s)")
-        if r.returncode != 0:
-            log(f"{tf} mum içi kontrol hatası: {(r.stderr or '').strip()[-200:]}")
-    except subprocess.TimeoutExpired:
-        log(f"{tf} mum içi kontrol zaman aşımı")
+    end = time.time() + time_left
+    for tf in [t for t in IB_TFS if t in lc.get("intrabar_tfs", ["15m", "1h", "4h"])]:
+        left = end - time.time()
+        if left < 25:
+            return
+        env = dict(os.environ, SORBOT_INTRABAR="1")
+        if tf == "1h":
+            env.pop("SORBOT_TF", None)
+        else:
+            env["SORBOT_TF"] = tf
+        t0 = time.time()
+        try:
+            r = subprocess.run([sys.executable, "scanner.py"], cwd=BASE, env=env, timeout=min(140, left - 10),
+                               capture_output=True, text=True)
+            m = re.search(r"Mum içi pump/dump sinyali: (\d+)", r.stdout or "")
+            if m and int(m.group(1)):
+                log(f"{tf} mum içi: {m.group(1)} sinyal gönderildi ({time.time() - t0:.0f}s)")
+            if r.returncode != 0:
+                log(f"{tf} mum içi kontrol hatası: {(r.stderr or '').strip()[-200:]}")
+        except subprocess.TimeoutExpired:
+            log(f"{tf} mum içi kontrol zaman aşımı")
 
 
 def bulletin_due():
@@ -309,8 +308,9 @@ def main():
             if nm >= nxt - 5:
                 break
             time.sleep(max(0, nm - time.time()))
-            release_check()
-            intrabar_check(nxt - time.time())
+            intrabar_check(nxt - time.time())     # önce anlık sinyal (kullanıcı: anında gelsin)
+            if nxt - time.time() > 60:
+                release_check()
         wait = nxt - time.time()
         if wait > 0:
             time.sleep(wait)
