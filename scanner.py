@@ -685,6 +685,9 @@ def move_ended(mv, f, i, s_):
     return False
 
 
+PIV_NAMES = ("P", "R1", "R2", "R3", "R4", "R5", "S1", "S2", "S3", "S4", "S5")
+
+
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
@@ -719,14 +722,14 @@ def radar_levels(res, rd, cfg):
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
     # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
     # pivot yoksa hareketin başladığı dip / tepe 0.1 ATR ötesi
-    back = sorted([(v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v
+    back = sorted([(v, nm) for nm, v in pv.items() if nm in PIV_NAMES and v
                    and (entry - v) * s_ > 0], key=lambda x: -x[0] * s_)
     if back:
         stop, sl_lab = back[0][0], back[0][1] + (" (beyaz pivot)" if back[0][1] == "P" else "")
     else:
         stop = (l[ext_k] - 0.1 * a) if s_ == 1 else (h[ext_k] + 0.1 * a)
         sl_lab = "hareketin başladığı " + ("dibin altı" if s_ == 1 else "tepenin üstü")
-    lv = sorted(((v, nm) for nm, v in pv.items() if nm in ("P", "R1", "R2", "R3", "S1", "S2", "S3") and v),
+    lv = sorted(((v, nm) for nm, v in pv.items() if nm in PIV_NAMES and v),
                 key=lambda x: x[0] * s_)
     ref = max(entry * s_, c[i] * s_) * s_              # TP'ler hem girişin hem şu anki fiyatın ötesinde olmalı
     ahead = [(v, nm) for v, nm in lv if (v - ref) * s_ > 0.2 * a]
@@ -1791,7 +1794,10 @@ def pivot_from_bars(f, i, tf):
     h = max(f["h"][k] for k in ks)
     l = min(f["l"][k] for k in ks)
     c = f["c"][ks[-1]]
-    return dict(pivot_levels(h, l, c), tf="1d" if per == 86_400_000 else "1w", start=start)
+    pv = dict(pivot_levels(h, l, c), tf="1d" if per == 86_400_000 else "1w", start=start)
+    P, r = pv["P"], h - l                         # R3 / S3 ötesi: aynı Fibonacci pivot dizisinin devamı (1.618, 2.618)
+    pv.update(R4=P + 1.618 * r, S4=P - 1.618 * r, R5=P + 2.618 * r, S5=P - 2.618 * r)
+    return pv
 
 
 def pivot_signal(f, i, s, pv):
