@@ -642,12 +642,9 @@ def pump_radar(f, i, pdres, chg24, cfg, oi_chg=None, funding=None):
         score = max(0, min(100, score))
 
         sb_ = squeeze_break(f, i, s, rc.get("squeeze_break", {}))
-        sbc = rc.get("squeeze_break", {})
-        real = ((f["c"][i] / f["o"][i] - 1) * s * 100 >= sbc.get("min_move_pct", 0) if f["o"][i] else False)
-        real = real and (not sbc.get("require_h4", True) or (f["h4_ema"][i] + f["h4_st"][i]) * s > 0)
-        real = real and (not sbc.get("require_st", True) or (f["st_dir"][i] == s and f["st_dir"][i - 1] == s))
-        # eski "kırılım" tetiği de aynı gerçek pump / dump şartlarına bağlı (kullanıcı 21.11 16:00'da çok sinyal aldı)
-        if brk and pdres["vol_spike"] and pdres["squeeze"] and not late and real:
+        # kırılım tetiği (20 mum direnç / destek + hacim patlaması + Bollinger sıkışması) – kullanıcı 21.11 16:00'da
+        # bu sinyallerden memnun kaldı, ek şart eklenmedi
+        if brk and pdres["vol_spike"] and pdres["squeeze"] and not late:
             if score >= rc.get("min_score", 70):
                 out.append({"dir": key, "kind": "start", "score": score, "reasons": why})
         elif sb_ and not late:                    # dump / pump'ın ilk güçlü mumu (kullanıcı isteği, BTC 21.11 05:30)
