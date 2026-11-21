@@ -263,6 +263,16 @@ def type_label(meta):
     return TYPE_LABEL.get(typ, typ)
 
 
+def kind_label(meta):
+    """Resimlerde adın yanındaki kısa tür (kullanıcı isteği): KRİPTO / EMTİA / DEĞERLİ METAL / NASDAQ · NYSE …"""
+    typ = meta.get("type")
+    if typ in ("EQUITY", "KR_EQUITY", "HK_EQUITY"):
+        return exchange_label(meta)
+    if typ == "COMMODITY":
+        return "DEĞERLİ METAL" if meta.get("symbol") in PRECIOUS_METALS else "EMTİA"
+    return TYPE_LABEL.get(typ, typ or "")
+
+
 TYPE_LABEL = {"COIN": "KRİPTO", "EQUITY": "NASDAQ", "COMMODITY": "Emtia",
               "HK_EQUITY": "HK Hisse", "KR_EQUITY": "KR Hisse", "FX": "Döviz"}
 
@@ -729,7 +739,7 @@ def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intra
         try:
             png = signal_chart_image(r, cfg, d, lv=(e_, sl_, tps_))
             if png:
-                notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü"
+                notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · {kind_label(r['meta'])} · 🔄 Trend Dönüşü"
                                     + (" · ⏱ mum kapanmadı" if intrabar else "") + "\n" + sig_img_note(r), sym, r["meta"]["type"])
         except Exception as e:  # noqa: BLE001
             print(f"  Trend dönüşü resmi çizilemedi ({sym}): {e}", file=sys.stderr)
@@ -2862,7 +2872,8 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None)
     if plan and lv and res.get("_entry_k") is not None and res["_entry_k"] >= lo:   # girişte AL / SAT (kullanıcı isteği)
         g["entry_mark"] = (res["_entry_k"] - lo, entry, d)
     plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
-    title = f"{plain} · {TF_NAMES.get(tf, tf)} · " + (kind_title or f"Trend Dönüşü · {'LONG' if d == 1 else 'SHORT'}")
+    title = (f"{plain} · {kind_label(meta)} · {TF_NAMES.get(tf, tf)} · "
+             + (kind_title or f"Trend Dönüşü · {'LONG' if d == 1 else 'SHORT'}"))
     return chart_img.render_pattern(cs, g, title, meta.get("precision"))
 
 
@@ -3895,7 +3906,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
                         kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])
                         png = signal_chart_image(r, cfg, d, kind_title=kname, lv=(e_, sl_, tps_))
                         if png:
-                            notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(meta)} · {kname} · ⏱ mum kapanmadı"
+                            notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(meta)} · {kind_label(meta)} · {kname} · ⏱ mum kapanmadı"
                                                 f"\n{sig_img_note(r)}", sym, meta["type"])
                     print(f"  → Mum içi {'PUMP' if d == 'long' else 'DUMP'} sinyali: {sym}")
             except Exception as e:  # noqa: BLE001
@@ -4307,7 +4318,7 @@ def main():
                         png = signal_chart_image(r, cfg, d, lv=(radar_levels(r, {"dir": d, "kind": "start"}, cfg)[:3]
                                                                   if st_pivot_mode(r, d, cfg) else None))
                         if png:
-                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü"
+                            notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · {kind_label(r['meta'])} · 🔄 Trend Dönüşü"
                                                 f"\n{sig_img_note(r)}", r["meta"]["symbol"], r["meta"]["type"])
                     except Exception as e:  # noqa: BLE001
                         print(f"  Sinyal resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
@@ -4462,7 +4473,7 @@ def main():
                             png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname, plan=pl_,
                                                      lv=radar_levels(r, rd, cfg)[:3] if pl_ else None)
                             if png:
-                                notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kname}"
+                                notifier.send_photo(png, f"<b>{head_}</b>\n{display_name(r['meta'])} · {kind_label(r['meta'])} · {kname}"
                                                     f"\n{sig_img_note(r)}", r["meta"]["symbol"], r["meta"]["type"])
                         except Exception as e:  # noqa: BLE001
                             print(f"  Radar resmi çizilemedi ({r['meta']['symbol']}): {e}", file=sys.stderr)
