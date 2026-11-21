@@ -806,13 +806,11 @@ def radar_levels(res, rd, cfg):
            (c[k] - o[k]) * s_ >= 1.0 * f["atr"][k - 1 if k else k]]
     cand = [k for k in range(ext_k, i + 1) if (c[k] - o[k]) * s_ > 0]
     j = big[0] if big else (max(cand, key=lambda k: (c[k] - o[k]) * s_) if cand else i)
-    # 🔄 Trend Dönüşü: AL / SAT etiketi ve giriş sinyalin geldiği mumda (kullanıcı, 21.11 NIGHT).
-    # 🚀 PUMP / 💥 DUMP: giriş hareketin en üstteki (dump) / en alttaki (pump) mumundan başlar – sinyal mumuna kadar
-    # art arda aynı renkteki mumların ilkinin açılışı (kullanıcı, 21.11 FF 15dk); SAT / AL etiketi de o mumda.
+    # 🔄 Trend Dönüşü, 🚀 PUMP, 💥 DUMP: giriş ve AL / SAT etiketi hareketin en üstteki (SAT) / en alttaki (AL)
+    # mumunda – sinyal mumuna kadar art arda aynı renkteki mumların ilkinin açılışı (kullanıcı, 21.11 FF 15dk)
     j = i
-    if rd.get("src") != "tt":
-        while j - 1 >= 0 and (c[j - 1] - o[j - 1]) * s_ > 0 and i - j < 12:
-            j -= 1
+    while j - 1 >= 0 and (c[j - 1] - o[j - 1]) * s_ > 0 and i - j < 12:
+        j -= 1
     entry = o[j]
     res["_entry_k"] = j                                # resimde girişe AL / SAT etiketi için
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
