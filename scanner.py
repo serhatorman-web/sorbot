@@ -3364,15 +3364,15 @@ def build_radar_message(res, rd, cfg, now_utc):
         if extra_line:
             lines += ["", extra_line]
     lines += ["", SEP]
-    if rd["kind"] in ("start", "momentum", "reversal"):
+    if True:                                     # tüm pump / dump türleri (erken uyarı dahil) – kullanıcı isteği
         entry, sl, tps, sl_label, tp_labs = radar_levels(res, rd, cfg)     # radarın kendi seviyeleri
         e_note = ""
         if abs(entry - f["c"][i]) > 1e-12:
             e_note = (f" · {'pump' if long_ else 'dump'} başlangıcı (şu an {fmt_price(f['c'][i], prec)})")
-        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}{e_note}", "",
-                  f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
-        for n, tp in enumerate(tps, 1):
+        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}{e_note}"]
+        for n, tp in enumerate(tps, 1):          # sıra (kullanıcı isteği): Giriş → TP1 → TP2 → TP3 → Stop
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {tp_labs[n - 1]}"]
+        lines += ["", f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
         if cfg["risk"].get("show_breakeven_note", True):
             lines += ["", "<i>TP1 sonrası stop girişe çekilebilir.</i>"]
         if rd["kind"] == "momentum":
@@ -3380,11 +3380,10 @@ def build_radar_message(res, rd, cfg, now_utc):
         if rd["kind"] == "reversal":
             lines += ["", "<i>⚠️ Dump sonrası ilk sert yeşil mum: fiyat çok oynak, stop seviyesine dikkat.</i>" if long_
                       else "<i>⚠️ Pump sonrası ilk sert kırmızı mum: fiyat çok oynak, stop seviyesine dikkat.</i>"]
-    else:
-        lvl = f["hh20"][i] if long_ else f["ll20"][i]
-        lines += [f"Fiyat: <code>{fmt_price(f['c'][i], prec)}</code>",
-                  f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({arr(pct(lvl, f['c'][i]))})",
-                  "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
+        if rd["kind"] == "early":
+            lvl = f["hh20"][i] if long_ else f["ll20"][i]
+            lines += ["", f"Kırılım seviyesi: <code>{fmt_price(lvl, prec)}</code> ({arr(pct(lvl, f['c'][i]))})",
+                      "<i>Henüz kırılım yok – izlemeye alın, seviye hacimle kırılırsa hareket başlayabilir.</i>"]
     if res.get("votes"):
         st = f["tflex"][i] if uses_trendflex(cfg) else f["st_dir"][i]
         st_txt = "🟢▲ <b>AL</b>" if st == 1 else ("🔴▼ <b>SAT</b>" if st == -1 else "⚪▶ <b>—</b>")
@@ -4260,7 +4259,7 @@ def main():
                         try:
                             head_ = image_head(r, cfg, rd["dir"], rd)
                             kname = re.sub(r"^\W+\s*", "", head_.split(" · ")[0])     # ör. "PUMP SİNYALİ"
-                            pl_ = rd["kind"] in ("start", "momentum", "reversal")
+                            pl_ = True                      # erken uyarı dahil hepsinde giriş / TP / stop
                             png = signal_chart_image(r, cfg, rd["dir"], kind_title=kname, plan=pl_,
                                                      lv=radar_levels(r, rd, cfg)[:3] if pl_ else None)
                             if png:
