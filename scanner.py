@@ -680,7 +680,7 @@ def move_ended(mv, f, i, s_):
 def radar_levels(res, rd, cfg):
     """Pump/Dump sinyallerinin KENDİ giriş / stop / TP'leri – pivot (destek / direnç) yapısı (kullanıcı isteği; resimdeki
     P, R1-R3, S1-S3 ile aynı: 15dk günlük, 1sa / 4sa haftalık pivot).
-    • Giriş = sinyal mumunun kapanışı.
+    • Giriş = hareketin başladığı mum: sinyal mumuna kadar art arda aynı renkteki mumların ilkinin açılışı.
     • TP1 / TP2 / TP3 = işlem yönündeki sıradaki üç pivot (dump / pump sonrası short: girişin altındaki S1, S2, S3…;
       pump / dump sonrası long: üstündeki R1, R2, R3…). Girişe 0.2 ATR'den yakın pivot atlanır. Pivot biterse (ör.
       fiyat S3'ün altında) kalan TP'ler son iki pivot arası mesafeyle uzatılır.
@@ -690,7 +690,14 @@ def radar_levels(res, rd, cfg):
     f, i = res["f"], res["i"]
     s_ = 1 if rd["dir"] == "long" else -1
     h, l, c, a = f["h"], f["l"], f["c"], f["atr"][i] or 0
-    entry = c[i]
+    o = f["o"]
+    # giriş = dump / pump'ın başladığı yer (kullanıcı isteği, BTC 21.11): sinyal mumuna kadar kesintisiz aynı renkteki
+    # mumların ilkinin açılışı (dump: art arda kırmızı mumlar, pump: yeşil). Fiyat o seviyeden uzaklaştıysa giriş
+    # geri test (limit) seviyesidir.
+    j = i
+    while j - 1 >= 0 and (c[j - 1] - o[j - 1]) * s_ > 0 and i - j < 12:
+        j -= 1
+    entry = o[j] if (c[i] - o[i]) * s_ > 0 else c[i]
     if rd["kind"] == "reversal":
         nb = cfg.get("pump_radar", {}).get("reversal", {}).get("above_bars", 12)
         sl_lab = "dönüş öncesi " + ("dibin altı" if s_ == 1 else "tepenin üstü")
@@ -3359,7 +3366,10 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines += ["", SEP]
     if rd["kind"] in ("start", "momentum", "reversal"):
         entry, sl, tps, sl_label, tp_labs = radar_levels(res, rd, cfg)     # radarın kendi seviyeleri
-        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}", "",
+        e_note = ""
+        if abs(entry - f["c"][i]) > 1e-12:
+            e_note = (f" · {'pump' if long_ else 'dump'} başlangıcı (şu an {fmt_price(f['c'][i], prec)})")
+        lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}{e_note}", "",
                   f"<b>Stop:</b> {fmt_price(sl, prec)} ({pnl(sl, entry, direction):+.2f}%) · {sl_label}"]
         for n, tp in enumerate(tps, 1):
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {tp_labs[n - 1]}"]
