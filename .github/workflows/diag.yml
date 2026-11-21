@@ -1,9 +1,0 @@
-name: diag
-on: workflow_dispatch
-jobs:
-  d:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: python3 tools/ex.py
-      - run: SORBOT_INTRABAR=1 SORBOT_TF=15m timeout 300 python3 scanner.py 2>&1 | grep -n "Mum içi\|Taranacak\|Mum verisi\|hata" | sed 's/^/XX| /'; echo "XX| süre $SECONDS sn"
