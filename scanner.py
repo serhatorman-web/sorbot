@@ -3479,9 +3479,7 @@ def build_radar_message(res, rd, cfg, now_utc):
     lines += ["", SEP]
     if True:                                     # tüm pump / dump türleri (erken uyarı dahil) – kullanıcı isteği
         entry, sl, tps, sl_label, tp_labs = radar_levels(res, rd, cfg)     # radarın kendi seviyeleri
-        e_note = ""
-        if abs(entry - f["c"][i]) > 1e-12:
-            e_note = (f" · {'pump' if long_ else 'dump'} başlangıcı (şu an {fmt_price(f['c'][i], prec)})")
+        e_note = ""                              # "pump / dump başlangıcı (şu an …)" kaldırıldı (kullanıcı isteği)
         lines += [f"<b>Giriş:</b> {fmt_price(entry, prec)}{e_note}"]
         for n, tp in enumerate(tps, 1):          # sıra (kullanıcı isteği): Giriş → TP1 → TP2 → TP3 → Stop
             lines += ["", f"<b>TP{n}:</b> {fmt_price(tp, prec)} ({pnl(tp, entry, direction):+.2f}%) · {tp_labs[n - 1]}"]
