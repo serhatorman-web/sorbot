@@ -257,6 +257,13 @@ def render_pattern(cs, g, title, prec=None, tf_ms=None):
                             xytext=(k0 + 2, OFF(line[k0], -0.07 if st_old == 1 else 0.07)), color="white",
                             fontsize=7, ha="left", va="center", zorder=8,
                             bbox=dict(boxstyle="round,pad=0.25", facecolor=UP if st_old == 1 else DOWN, edgecolor="none"))
+    em = g.get("entry_mark")                     # girişte AL / SAT etiketi (kullanıcı isteği; Supertrend Buy/Sell ayrı)
+    if em and start <= em[0] <= end:
+        k_e, y_e, d_e = em
+        ax.annotate("AL" if d_e == 1 else "SAT", xy=(k_e, y_e), xytext=(k_e, OFF(y_e, -0.09 if d_e == 1 else 0.09)),
+                    color="white", fontsize=8, fontweight="bold", ha="center", va="center", zorder=9,
+                    arrowprops=dict(arrowstyle="-|>", color="white", lw=1.0),
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor=UP if d_e == 1 else DOWN, edgecolor="white", lw=0.8))
     zz = [(k, p) for k, p in ciz.get("zigzag", []) if k >= start]
     if len(zz) >= 2:                              # ikili/üçlü tepe-dip, OBO/TOBO: tepeler ve diplerden geçen kırık çizgi
         ax.plot([k for k, _ in zz], [p for _, p in zz], color=LINE, linewidth=1.3, alpha=0.9, zorder=4)

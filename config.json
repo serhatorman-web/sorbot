@@ -225,7 +225,7 @@
   "strategy": "supertrend",
   "_strateji_aciklama": "'supertrend': 1s mum kapanışında Supertrend AL/SAT dönüşü + diğer indikatörlerin AL/SAT teyidi (güven = aynı yöndeki indikatör yüzdesi). 'score': 16 indikatörlü ağırlıklı puan.",
   "signal_supertrend": {
-    "enabled": true,
+    "enabled": false,
     "_enabled_aciklama": "false: Supertrend dönüş sinyalleri gönderilmez, sadece SSL Hybrid sinyalleri gelir (Supertrend mesajda destek bilgisi olarak görünür).",
     "_aciklama": "Supertrend stratejisinde 'signal' ayarlarının üzerine yazılır. Kullanıcı isteği: Supertrend her AL/SAT verdiğinde sinyal gelir; indikatörler sadece bilgi (min_score 0, min_score_gap -100 = indikatör oylaması ters olsa da gelir, lider filtresi kapalı). Eski filtreli hal için min_score 90, min_score_gap 25 ve block_against_leader true yapın.",
     "min_score": 0,
@@ -323,6 +323,7 @@
     "release_alert_window_min": 60,
     "_calendar_aciklama": "Takvim ülkeleri: ABD, Türkiye, Euro Bölgesi, Almanya, İngiltere, Japonya, Çin. Önem: ABD orta ve yüksek (0), Türkiye hepsi (-1; TradingView TCMB anketini ve cari dengeyi düşük önemli gösteriyor), diğerleri sadece yüksek (1). release_alerts: açıklanan veri dakikası içinde Telegram'a gelir."
   },
+  "trend_turn": {"_aciklama": "🔄 Trend Dönüşü: Supertrend dönmeden, hareketi başlatan güçlü mumda (anlık + mum kapanışı). Supertrend ters, 4s trend aynı yön, gövde ≥ 1 ATR, hacim ≥ 1.5x, son 3 mumun tepe/dibi kırıldı. Test: TP1 > stop %86, günde ~30. Supertrend dönüş sinyali (signal_supertrend) bunun yerine kapatıldı.", "enabled": true, "intrabar": true, "body_atr": 1.0, "volume_x": 1.5, "break_bars": 3, "require_h4": true},
   "pump_radar": {
     "squeeze_break": {"_aciklama": "Hareketi başlatan güçlü mum (anlık + mum kapanışı): 12 mumluk dar yatay kırılımı, gövde ≥ 1 ATR, hacim ≥ 1.5x, 4s trend ve Supertrend aynı yönde. Gerçek pump/dump için mum en az %2 (min_move_pct). Test (100 coin, 15dk, ~12 gün): sinyallerin %53'ü 4 saatte %3+ gitti, %2'si önce stop; 228 coinde günde ~10 sinyal.", "enabled": true, "intrabar": true, "bars": 12, "max_range_atr": 3.0, "body_atr": 1.0, "volume_x": 1.5, "min_move_pct": 2.0, "require_h4": true, "require_st": true},
     "_aciklama": "Supertrend'den bağımsız pump/dump taraması. 'start': sıkışmadan hacimli kırılım (giriş/TP/stop ile). 'early': sıkışmada birikim + OI artışı (izleme uyarısı).",

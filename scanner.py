@@ -670,6 +670,67 @@ def squeeze_break(f, i, s, sc):
     return None
 
 
+def trend_turn(f, i, s, tc):
+    """🔄 Trend Dönüşü tetiği (kullanıcı isteği: sinyal Supertrend dönmeden, hareketi başlatan güçlü mum oluşurken gelsin):
+    Supertrend bu mumdan önce ters yönde, 4 saatlik trend sinyal yönünde, mum gövdesi ≥ body_atr ATR, hacim ≥ volume_x kat ve
+    kapanış son break_bars mumun tepesinin (long) / dibinin (short) ötesinde. Geçmiş test (100 coin, 15dk, ~12 gün,
+    TP'si fiyatın ilerisinde olanlar): TP1 stop'tan önce %86, 228 coinde günde ~30. Döner: gerekçeler ya da None."""
+    if not tc.get("enabled", True) or i < 30:
+        return None
+    o, h, l, c = f["o"], f["h"], f["l"], f["c"]
+    a = f["atr"][i - 1]
+    if not a or not f["vol_ma"][i - 1] or f["st_dir"][i - 1] != -s:     # mumdan önce Supertrend ters yöndeydi
+        return None
+    if tc.get("require_h4", True) and (f["h4_ema"][i] + f["h4_st"][i]) * s <= 0:
+        return None
+    vr = f["v"][i] / f["vol_ma"][i - 1]
+    body = (c[i] - o[i]) * s / a
+    nb = tc.get("break_bars", 3)
+    edge = max(h[i - nb:i]) if s == 1 else min(l[i - nb:i])
+    if body < tc.get("body_atr", 1.0) or vr < tc.get("volume_x", 1.5) or (c[i] - edge) * s <= 0:
+        return None
+    return [f"Güçlü {'yeşil' if s == 1 else 'kırmızı'} mum (gövde {body:.1f} ATR)", f"Hacim artışı ({vr:.1f}x)",
+            f"Son {nb} mumun {'tepesi' if s == 1 else 'dibi'} kırıldı", "Supertrend henüz dönmedi",
+            "4 saatlik trend " + ("yükselişte" if s == 1 else "düşüşte")]
+
+
+def send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intrabar=False):
+    """🔄 Trend Dönüşü sinyalini (mesaj + resim) gönderir; aynı hareket için tekrar göndermez (tt| anahtarı)."""
+    moves = state.setdefault("radar_moves", {})
+    sym = r["meta"]["symbol"]
+    mk = f"tt|{sym}|{d}"
+    if mk in moves:
+        return False
+    rd = {"dir": d, "kind": "start"}
+    e_, sl_, tps_, _, _ = radar_levels(r, rd, cfg)
+    s_ = 1 if d == "long" else -1
+    if not tps_ or (tps_[0] - r["f"]["c"][r["i"]]) * s_ <= 0:
+        return False                              # TP1 geçilmiş: sinyal yok (testteki şart)
+    if "tf" not in r:
+        fetch_tf_trends(api, r, now_ms, cfg["timeframe"], cfg.get("order_blocks", {}).get("enabled", True))
+    if "vp" not in r:
+        compute_volume_profile(r, cfg)
+    msg = build_message(r, d, cfg, now_utc)
+    msg = msg.replace("🔄 <b>TREND DÖNÜŞÜ</b>", "🔄 <b>TREND DÖNÜŞÜ</b>\n📌 " + " · ".join(why), 1)
+    if intrabar:
+        msg = msg.replace("Mum Kapanışı", "Mum içi · mum kapanmadı")
+    if not notifier.send(msg, sym, r["meta"]["type"]):
+        return False
+    moves[mk] = {"t": r["f"]["t"][r["i"]] - (1 if intrabar else 0), "entry": e_, "stop": sl_, "tps": list(tps_)}
+    moves.pop(f"tt|{sym}|{'short' if d == 'long' else 'long'}", None)
+    state["signals"][f"{sym}|tt_{d}"] = time.time()
+    if cfg.get("live_images", {}).get("signal_image", True):
+        try:
+            png = signal_chart_image(r, cfg, d, lv=(e_, sl_, tps_))
+            if png:
+                notifier.send_photo(png, f"<b>{image_head(r, cfg, d)}</b>\n{display_name(r['meta'])} · 🔄 Trend Dönüşü"
+                                    + (" · ⏱ mum kapanmadı" if intrabar else ""), sym, r["meta"]["type"])
+        except Exception as e:  # noqa: BLE001
+            print(f"  Trend dönüşü resmi çizilemedi ({sym}): {e}", file=sys.stderr)
+    print(f"  → Trend Dönüşü {d.upper()}: {sym}{' (mum içi)' if intrabar else ''}")
+    return True
+
+
 def move_ended(mv, f, i, s_):
     """Pump/Dump hareketi bitti mi? Sinyal mumundan sonraki mumlarda izleyen stop: TP1'e değince stop girişe, TP2'de
     TP1'e, TP3'te TP2'ye çekilir; kapanış stop'un gerisinde kalırsa hareket biter. mv["stop"] güncellenir."""
@@ -730,6 +791,7 @@ def radar_levels(res, rd, cfg):
     if j - 1 >= ext_k and (c[j - 1] - o[j - 1]) * s_ > 0:
         j -= 1
     entry = o[j]
+    res["_entry_k"] = j                                # resimde girişe AL / SAT etiketi için
     pv = pivot_from_bars(f, i, cfg["timeframe"]) or {}
     # stop = girişin hemen gerisindeki pivot (kullanıcı isteği: SOL pump'ında altındaki S2, BTC dump'ında üstündeki P);
     # pivot yoksa hareketin başladığı dip / tepe 0.1 ATR ötesi
@@ -2791,6 +2853,8 @@ def signal_chart_image(res, cfg, direction, kind_title=None, plan=True, lv=None)
         g["mas"] = ma_bg
     if rsi_bg:
         g["rsi"], g["divs"], g["rsi_x"] = rsi_bg, div_bg, rsi_x
+    if plan and lv and res.get("_entry_k") is not None and res["_entry_k"] >= lo:   # girişte AL / SAT (kullanıcı isteği)
+        g["entry_mark"] = (res["_entry_k"] - lo, entry, d)
     plain = re.sub(r"[^\w\s·().,/-]", "", re.sub(r"<[^>]+>", "", display_name(meta))).strip()
     title = f"{plain} · {TF_NAMES.get(tf, tf)} · " + (kind_title or f"Trend Dönüşü · {'LONG' if d == 1 else 'SHORT'}")
     return chart_img.render_pattern(cs, g, title, meta.get("precision"))
@@ -3772,8 +3836,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
     kapanışında ikinci sinyal gelmez (radar_moves)."""
     rc = cfg.get("pump_radar", {})
     sb = rc.get("squeeze_break", {})
-    if not rc.get("enabled", True) or not sb.get("enabled", False) or not sb.get("intrabar", True):
-        return 0
+    do_sb = rc.get("enabled", True) and sb.get("enabled", False) and sb.get("intrabar", True)
     types = set(rc.get("types", ["COIN"]))
     moves = state.setdefault("radar_moves", {})
     now_utc = datetime.now(timezone.utc)
@@ -3793,7 +3856,7 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
             continue
         i = len(f["c"]) - 1
         for d, s_ in (("long", 1), ("short", -1)):
-            if f"{sym}|{d}" in moves:
+            if not do_sb or f"{sym}|{d}" in moves:
                 continue
             why = squeeze_break(f, i, s_, sb)
             if not why:
@@ -3823,6 +3886,25 @@ def intrabar_radar(cfg, symbols, candles, state, notifier, api, now_ms, tickers,
                     print(f"  → Mum içi {'PUMP' if d == 'long' else 'DUMP'} sinyali: {sym}")
             except Exception as e:  # noqa: BLE001
                 print(f"  Mum içi radar hatası ({sym}): {e}", file=sys.stderr)
+    tc = cfg.get("trend_turn", {})
+    if tc.get("enabled", False) and tc.get("intrabar", True):     # 🔄 Trend Dönüşü, mum kapanmadan
+        for sym, meta in symbols.items():
+            if meta.get("leader_only") or sym not in candles or sym not in IB_FEATS:
+                continue
+            f = IB_FEATS[sym]
+            i = len(f["c"]) - 1
+            for d, s_ in (("long", 1), ("short", -1)):
+                if f"tt|{sym}|{d}" in moves:
+                    continue
+                why = trend_turn(f, i, s_, tc)
+                if not why:
+                    continue
+                try:
+                    r = analyze_symbol(meta, candles[sym], ctx, cfg)
+                    if r:
+                        sent += send_trend_turn(r, d, why, cfg, state, notifier, api, now_ms, now_utc, intrabar=True)
+                except Exception as e:  # noqa: BLE001
+                    print(f"  Mum içi trend dönüşü hatası ({sym}): {e}", file=sys.stderr)
     print(f"Mum içi pump/dump sinyali: {sent}")
     return sent
 
@@ -4373,6 +4455,26 @@ def main():
             except Exception as e:  # noqa: BLE001
                 print(f"  Telegram hatası: {e}", file=sys.stderr)
     print(f"Pump/Dump radarı: {len(radar)} aday")
+
+    # ---- 🔄 Trend Dönüşü (Supertrend dönmeden, hareketi başlatan güçlü mumda) ----
+    tc = cfg.get("trend_turn", {})
+    if tc.get("enabled", False):
+        moves = state.setdefault("radar_moves", {})
+        tt_n = 0
+        for r in results:
+            f_, i_ = r["f"], r["i"]
+            for d_ in ("long", "short"):
+                mv = moves.get(f"tt|{r['meta']['symbol']}|{d_}")
+                if mv and move_ended(mv, f_, i_, 1 if d_ == "long" else -1):
+                    moves.pop(f"tt|{r['meta']['symbol']}|{d_}", None)
+            for d_, s_ in (("long", 1), ("short", -1)):
+                why = trend_turn(f_, i_, s_, tc)
+                if why:
+                    try:
+                        tt_n += send_trend_turn(r, d_, why, cfg, state, notifier, api, now_ms, now_utc)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  Trend dönüşü hatası ({r['meta']['symbol']}): {e}", file=sys.stderr)
+        print(f"Trend Dönüşü: {tt_n} sinyal")
 
     # ---- Anlık grafik resimleri: trend çizgisi kırılımı ve formasyon tamamlanması (sinyal beklenmez) ----
     try:
