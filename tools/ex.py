@@ -23,7 +23,7 @@ for sy in coins:
                 found[d].append((cs[k]["t"], sy, k))
 for d in found:
     found[d].sort(reverse=True)
-picks = found["long"][:2] + found["short"][:2]
+picks = found["long"][:4] + found["short"][:4]
 print("XX| bulunan: long", len(found["long"]), "short", len(found["short"]))
 out = []
 for t, sy, k in picks:
@@ -66,6 +66,8 @@ for t, sy, k in picks:
     print("XX|", name, "sonuç:", res_)
     out.append(f"==================== {name} · SONUÇ: {res_} ====================\n" + re.sub(r"<[^>]+>", "", msg))
     png = S.signal_chart_image(r, cfg, d, kind_title=("PUMP SİNYALİ" if s == 1 else "DUMP SİNYALİ"), lv=(e, sl, tps))
+    if not png:
+        print("XX|", name, "resim yok"); continue
     b = base64.b64encode(png).decode()
     for j in range(0, len(b), 3000):
         print("IM|", name, j // 3000, b[j:j + 3000])
